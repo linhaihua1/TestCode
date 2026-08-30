@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
-import { debugCase } from '../engine/runner.js'
+import { debugCase, runCase } from '../engine/runner.js'
 
 /**
  * 接口定义与接口用例相关的 REST 路由：
@@ -129,6 +129,19 @@ export async function apiRoutes(app: FastifyInstance) {
     try {
       const result = await debugCase(id, body?.environmentId)
       return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.code(404).send({ error: message })
+    }
+  })
+
+  // 独立运行单个用例（支持多步骤），生成报告
+  app.post('/api/cases/:id/run', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const body = req.body as { environmentId?: string }
+    try {
+      const { report } = await runCase(id, body?.environmentId)
+      return report
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       return reply.code(404).send({ error: message })

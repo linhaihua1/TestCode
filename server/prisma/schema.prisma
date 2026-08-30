@@ -56,6 +56,8 @@ model ApiCase {
   name       String
   assertions Json           @default("[]")
   extracts   Json           @default("[]")
+  // 用例内部的多步骤定义（每步引用接口 + 断言 + 提取）；为空则退化为单接口用例
+  stepDefs   Json           @default("[]")
   steps      ScenarioStep[]
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt

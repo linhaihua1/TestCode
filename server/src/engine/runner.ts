@@ -311,3 +311,120 @@ export async function debugCase(caseId: string, environmentId?: string): Promise
     passed,
   }
 }
+
+/** 用例内部步骤定义（多步骤） */
+interface CaseStepDef {
+  apiId: string
+  name?: string
+  assertions?: Assertion[]
+  extracts?: ExtractRule[]
+}
+
+/**
+ * 独立运行一个接口用例：支持多步骤（stepDefs）或单接口（向后兼容）。
+ * 多步骤时按顺序执行，变量在步骤间传递；最终生成报告（scenarioId 为空表示用例独立运行）。
+ */
+export async function runCase(caseId: string, environmentId?: string) {
+  const apiCase = await prisma.apiCase.findUnique({ where: { id: caseId }, include: { api: true } })
+  if (!apiCase) throw new Error('用例不存在')
+
+  // 加载环境（可选）
+  const context: VariableContext = {}
+  let baseUrl = ''
+  let envHeaders: KeyValue[] = []
+  if (environmentId) {
+    const env = await prisma.environment.findUnique({ where: { id: environmentId } })
+    if (env) {
+      baseUrl = env.baseUrl ?? ''
+      for (const kv of (env.variables as unknown as KeyValue[]) ?? []) context[kv.key] = kv.value
+      envHeaders = (env.headers as unknown as KeyValue[]) ?? []
+    }
+  }
+
+  const stepDefs = (apiCase.stepDefs as unknown as CaseStepDef[]) ?? []
+  const started = Date.now()
+  const stepResults: StepResult[] = []
+
+  if (stepDefs.length > 0) {
+    // 多步骤：每步引用一个接口，按顺序执行并传递变量
+    for (const def of stepDefs) {
+      const api = await prisma.apiDefinition.findUnique({ where: { id: def.apiId } })
+      const result = await executeStep(
+        { id: def.apiId, name: def.name ?? api?.name ?? '步骤', assertions: def.assertions ?? [], extracts: def.extracts ?? [] },
+        null,
+        api
+          ? {
+              method: api.method,
+              path: api.path,
+              headers: (api.headers as unknown as KeyValue[]) ?? [],
+              query: (api.query as unknown as KeyValue[]) ?? [],
+              body: api.body,
+            }
+          : null,
+        context,
+        envHeaders,
+        baseUrl,
+      )
+      stepResults.push(result)
+    }
+  } else {
+    // 单接口用例（向后兼容）：用主接口 + 用例级断言/提取
+    const api = apiCase.api
+    const result = await executeStep(
+      {
+        id: apiCase.id,
+        name: apiCase.name,
+        assertions: (apiCase.assertions as unknown as Assertion[]) ?? [],
+        extracts: (apiCase.extracts as unknown as ExtractRule[]) ?? [],
+      },
+      {
+        name: apiCase.name,
+        assertions: (apiCase.assertions as unknown as Assertion[]) ?? [],
+        extracts: (apiCase.extracts as unknown as ExtractRule[]) ?? [],
+      },
+      api
+        ? {
+            method: api.method,
+            path: api.path,
+            headers: (api.headers as unknown as KeyValue[]) ?? [],
+            query: (api.query as unknown as KeyValue[]) ?? [],
+            body: api.body,
+          }
+        : null,
+      context,
+      envHeaders,
+      baseUrl,
+    )
+    stepResults.push(result)
+  }
+
+  const duration = Date.now() - started
+  const status = stepResults.every((r) => r.status === 'PASS')
+    ? 'PASS'
+    : stepResults.some((r) => r.status === 'ERROR')
+      ? 'ERROR'
+      : 'FAIL'
+
+  // 落库报告（scenarioId 为空表示用例独立运行）
+  const report = await prisma.report.create({
+    data: {
+      projectId: apiCase.api.projectId,
+      scenarioId: null,
+      name: apiCase.name,
+      status,
+      duration,
+      details: {
+        create: stepResults.map((r) => ({
+          stepName: r.name,
+          status: r.status,
+          error: r.error,
+          assertions: r.assertions as unknown as Prisma.InputJsonValue,
+          extracts: r.extracted as unknown as Prisma.InputJsonValue,
+        })),
+      },
+    },
+    include: { details: true },
+  })
+
+  return { report, context }
+}
