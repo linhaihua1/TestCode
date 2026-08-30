@@ -8,8 +8,8 @@ import type { FastifyInstance } from 'fastify'
 export async function demoRoutes(app: FastifyInstance) {
   // 模拟登录：返回 token 和 userId
   app.post('/demo/login', async (req) => {
-    const body = (req.body ?? {}) as { username?: string }
-    const username = body.username || '张三'
+    const body = (req.body ?? {}) as { username?: string } // 请求体可能为空，兜底为 {}
+    const username = body.username || '张三' // 未传用户名时使用默认值
     return { token: 'demo-token-123456', userId: '1001', username }
   })
 
@@ -17,7 +17,7 @@ export async function demoRoutes(app: FastifyInstance) {
   app.get('/demo/users/:id', async (req, reply) => {
     const auth = req.headers.authorization
     if (auth !== 'Bearer demo-token-123456') {
-      return reply.code(401).send({ error: '未授权：token 错误' })
+      return reply.code(401).send({ error: '未授权：token 错误' }) // token 不匹配返回 401
     }
     const { id } = req.params as { id: string }
     return {
@@ -30,6 +30,6 @@ export async function demoRoutes(app: FastifyInstance) {
 
   // 模拟一个会返回错误码的接口（演示断言失败效果）
   app.get('/demo/error', async (_req, reply) => {
-    return reply.code(500).send({ code: 500, message: '服务器内部错误' })
+    return reply.code(500).send({ code: 500, message: '服务器内部错误' }) // 固定返回 500 错误
   })
 }
