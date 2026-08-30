@@ -130,6 +130,8 @@ export const api = {
       })
       .then((r) => r.data),
   getMe: () => http.get<{ id: string; username: string; role: string }>('/auth/me').then((r) => r.data),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    http.post('/auth/change-password', { oldPassword, newPassword }).then((r) => r.data),
 
   // ---------- 用户管理（User） ----------
   listUsers: () => http.get<User[]>('/users').then((r) => r.data),

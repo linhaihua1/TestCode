@@ -133,3 +133,43 @@ describe('用户管理', () => {
     expect(res.statusCode).toBe(409)
   })
 })
+
+describe('修改自己的密码', () => {
+  it('旧密码错误返回 400', async () => {
+    const loginRes = await login('admin', 'admin@123')
+    const token = loginRes.json().token
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { oldPassword: 'wrong', newPassword: 'newpass' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('修改成功后可用新密码登录（并改回原密码）', async () => {
+    const loginRes = await login('admin', 'admin@123')
+    const token = loginRes.json().token
+
+    // 改成 admin@456
+    const changeRes = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { oldPassword: 'admin@123', newPassword: 'admin@456' },
+    })
+    expect(changeRes.statusCode).toBe(200)
+
+    // 新密码登录成功
+    const reLogin = await login('admin', 'admin@456')
+    expect(reLogin.statusCode).toBe(200)
+
+    // 改回原密码，避免影响其他测试
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${reLogin.json().token}` },
+      payload: { oldPassword: 'admin@456', newPassword: 'admin@123' },
+    })
+  })
+})

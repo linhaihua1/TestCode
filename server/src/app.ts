@@ -33,12 +33,8 @@ export function buildApp(): FastifyInstance {
   // 健康检查接口，供探活/负载均衡使用
   app.get('/api/health', async () => ({ status: 'ok', service: 'api-web-server' }))
 
-  // 登录接口（公开，在鉴权中间件之前注册）
-  app.register(authRoutes)
-  // 演示/示例接口（公开，被场景执行当作“被测接口”调用）
-  app.register(demoRoutes)
-
   // 鉴权中间件：除公开路径外，其余请求需携带有效的 Bearer token
+  // 需在所有受保护路由之前注册；公开路径通过 isPublicPath 放行
   app.addHook('preHandler', async (req, reply) => {
     if (isPublicPath(req.url)) return
 
@@ -55,6 +51,11 @@ export function buildApp(): FastifyInstance {
       return reply.code(401).send({ error: '登录已过期，请重新登录' })
     }
   })
+
+  // 认证路由（login 为公开路径，me/change-password 受鉴权保护）
+  app.register(authRoutes)
+  // 演示/示例接口（公开，被场景执行当作“被测接口”调用）
+  app.register(demoRoutes)
 
   // 注册各业务模块路由（均受鉴权保护）
   app.register(projectRoutes) // 项目
