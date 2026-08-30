@@ -4,6 +4,7 @@ import { projectRoutes } from './routes/projects.js'
 import { apiRoutes } from './routes/apis.js'
 import { scenarioRoutes } from './routes/scenarios.js'
 import { reportRoutes } from './routes/reports.js'
+import { demoRoutes } from './routes/demo.js'
 
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false })
@@ -16,6 +17,7 @@ export function buildApp(): FastifyInstance {
   app.register(apiRoutes)
   app.register(scenarioRoutes)
   app.register(reportRoutes)
+  app.register(demoRoutes)
 
   return app
 }
