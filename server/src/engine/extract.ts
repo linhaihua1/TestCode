@@ -12,7 +12,7 @@ export function extractValue(res: ResponseData, rule: ExtractRule): string | und
 
   switch (rule.type) {
     case 'jsonPath': {
-      raw = JSONPath({ path: rule.expression, json: res.body, wrap: false })
+      raw = JSONPath({ path: rule.expression, json: res.body as object, wrap: false })
       break
     }
     case 'header': {

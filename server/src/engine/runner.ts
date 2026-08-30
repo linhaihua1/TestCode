@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import type {
   Assertion,
@@ -142,11 +143,11 @@ export async function runScenario(input: RunScenarioInput) {
   if (!env) throw new Error(`环境不存在: ${input.environmentId}`)
 
   const context: VariableContext = {}
-  for (const kv of env.variables as KeyValue[]) {
+  for (const kv of env.variables as unknown as KeyValue[]) {
     context[kv.key] = kv.value
   }
 
-  const envHeaders = (env.headers as KeyValue[]) ?? []
+  const envHeaders = (env.headers as unknown as KeyValue[]) ?? []
   const baseUrl = env.baseUrl ?? ''
 
   const started = Date.now()
@@ -159,18 +160,18 @@ export async function runScenario(input: RunScenarioInput) {
       {
         id: step.id,
         name: step.name,
-        assertions: (step.assertions as Assertion[]) ?? [],
-        extracts: (step.extracts as ExtractRule[]) ?? [],
+        assertions: (step.assertions as unknown as Assertion[]) ?? [],
+        extracts: (step.extracts as unknown as ExtractRule[]) ?? [],
       },
       apiCase
-        ? { name: apiCase.name, assertions: (apiCase.assertions as Assertion[]) ?? [], extracts: (apiCase.extracts as ExtractRule[]) ?? [] }
+        ? { name: apiCase.name, assertions: (apiCase.assertions as unknown as Assertion[]) ?? [], extracts: (apiCase.extracts as unknown as ExtractRule[]) ?? [] }
         : null,
       api
         ? {
             method: api.method,
             path: api.path,
-            headers: (api.headers as KeyValue[]) ?? [],
-            query: (api.query as KeyValue[]) ?? [],
+            headers: (api.headers as unknown as KeyValue[]) ?? [],
+            query: (api.query as unknown as KeyValue[]) ?? [],
             body: api.body,
           }
         : null,
@@ -200,8 +201,8 @@ export async function runScenario(input: RunScenarioInput) {
           stepName: r.name,
           status: r.status,
           error: r.error,
-          assertions: r.assertions,
-          extracts: r.extracted,
+          assertions: r.assertions as unknown as Prisma.InputJsonValue,
+          extracts: r.extracted as unknown as Prisma.InputJsonValue,
         })),
       },
     },

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import { runScenario } from './runner.js'
-import type { Assertion } from './types.js'
 
 let server: http.Server
 let baseUrl: string
@@ -37,7 +37,10 @@ afterAll(async () => {
   await prisma.$disconnect()
 })
 
-async function createScenario(loginAssertions: Assertion[], usersAssertions: Assertion[]) {
+async function createScenario(
+  loginAssertions: Prisma.InputJsonValue,
+  usersAssertions: Prisma.InputJsonValue,
+) {
   // 清理旧数据
   await prisma.reportDetail.deleteMany()
   await prisma.report.deleteMany()
@@ -127,7 +130,11 @@ describe('runScenario', () => {
     const { report } = await runScenario({ scenarioId, environmentId: envId })
 
     expect(report.status).toBe('FAIL')
-    expect(report.details[1].status).toBe('FAIL')
-    expect(report.details[1].assertions[0].passed).toBe(false)
+    const detail = report.details[1] as unknown as {
+      status: string
+      assertions: Array<{ passed: boolean }>
+    }
+    expect(detail.status).toBe('FAIL')
+    expect(detail.assertions[0].passed).toBe(false)
   })
 })

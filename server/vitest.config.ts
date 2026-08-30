@@ -6,5 +6,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: 'file:./test.db',
     },
+    // 测试共享同一个 test.db，串行执行避免数据冲突
+    fileParallelism: false,
   },
 })

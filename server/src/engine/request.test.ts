@@ -41,7 +41,7 @@ describe('executeRequest', () => {
   it('GET 请求并解析 JSON 响应', async () => {
     const res = await executeRequest({ method: 'GET', url: `${baseUrl}/echo` })
     expect(res.status).toBe(200)
-    expect(res.body.method).toBe('GET')
+    expect((res.body as { method: string }).method).toBe('GET')
     expect(res.headers['x-custom']).toBe('yes')
   })
 
@@ -52,8 +52,9 @@ describe('executeRequest', () => {
       headers: { 'X-Token': 'abc' },
       body: { hello: 'world' },
     })
-    expect(res.body.token).toBe('abc')
-    expect(JSON.parse(res.body.body)).toEqual({ hello: 'world' })
+    const body = res.body as { token: string; body: string }
+    expect(body.token).toBe('abc')
+    expect(JSON.parse(body.body)).toEqual({ hello: 'world' })
   })
 
   it('query 参数拼接到 URL', async () => {
@@ -62,8 +63,9 @@ describe('executeRequest', () => {
       url: `${baseUrl}/echo`,
       query: { a: '1', b: '2' },
     })
-    expect(res.body.url).toContain('a=1')
-    expect(res.body.url).toContain('b=2')
+    const body = res.body as { url: string }
+    expect(body.url).toContain('a=1')
+    expect(body.url).toContain('b=2')
   })
 
   it('404 状态码不抛错，返回 status', async () => {

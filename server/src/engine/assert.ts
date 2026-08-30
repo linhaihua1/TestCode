@@ -14,7 +14,7 @@ function actualValue(res: ResponseData, type: Assertion['type'], expression: str
     case 'header':
       return res.headers[expression.toLowerCase()] ?? ''
     case 'jsonPath': {
-      const raw = JSONPath({ path: expression, json: res.body, wrap: false })
+      const raw = JSONPath({ path: expression, json: res.body as object, wrap: false })
       if (raw === undefined || raw === null) return ''
       if (Array.isArray(raw)) return raw.length === 0 ? '' : stringify(raw[0])
       return stringify(raw)
