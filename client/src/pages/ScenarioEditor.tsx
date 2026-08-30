@@ -23,7 +23,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import type { Environment, Report, ScenarioStep } from '../api/types'
+import type { Report, ScenarioStep } from '../api/types'
+import EnvironmentSelect from '../components/EnvironmentSelect'
 
 // 用例下拉选项结构（value 为用例 ID，label 为「接口名 / 用例名」）
 interface CaseOption {
@@ -102,7 +103,6 @@ export default function ScenarioEditor() {
   const [scenarioName, setScenarioName] = useState('')
   const [steps, setSteps] = useState<ScenarioStep[]>([])
   const [caseOptions, setCaseOptions] = useState<CaseOption[]>([])
-  const [envs, setEnvs] = useState<Environment[]>([])
   const [selectedEnv, setSelectedEnv] = useState<string | undefined>()
   const [report, setReport] = useState<Report | null>(null)
   const [running, setRunning] = useState(false)
@@ -116,14 +116,9 @@ export default function ScenarioEditor() {
   const load = async () => {
     setLoading(true)
     try {
-      const [scenario, envList] = await Promise.all([
-        api.getScenario(scenarioId!),
-        api.listEnvironments(projectId!),
-      ])
+      const scenario = await api.getScenario(scenarioId!)
       setScenarioName(scenario.name)
       setSteps(scenario.steps ?? [])
-      setEnvs(envList)
-      if (envList.length > 0) setSelectedEnv(envList[0].id)
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
@@ -260,11 +255,10 @@ export default function ScenarioEditor() {
         <div style={{ marginBottom: 16 }}>
           <Space>
             <span>执行环境：</span>
-            <Select
+            <EnvironmentSelect
+              projectId={projectId!}
               style={{ width: 240 }}
-              placeholder="选择环境"
               value={selectedEnv}
-              options={envs.map((e) => ({ value: e.id, label: e.name }))}
               onChange={setSelectedEnv}
             />
             <Button type="primary" loading={running} onClick={run}>

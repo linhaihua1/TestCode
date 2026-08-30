@@ -26,10 +26,11 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import { HTTP_METHODS, type ApiCase, type ApiDefinition, type Environment, type Report } from '../api/types'
+import { HTTP_METHODS, type ApiCase, type ApiDefinition, type Report } from '../api/types'
 import KeyValueEditor from '../components/KeyValueEditor'
 import AssertionEditor from '../components/AssertionEditor'
 import ExtractEditor from '../components/ExtractEditor'
+import EnvironmentSelect from '../components/EnvironmentSelect'
 
 // HTTP 方法与标签颜色的映射
 const METHOD_COLOR: Record<string, string> = {
@@ -66,7 +67,6 @@ export default function ApiList() {
   // 调试相关状态
   const [debugOpen, setDebugOpen] = useState(false) // 调试弹窗是否打开
   const [debugCaseData, setDebugCaseData] = useState<ApiCase | null>(null) // 正在调试的用例
-  const [debugEnvList, setDebugEnvList] = useState<Environment[]>([]) // 可用的环境列表
   const [debugEnvId, setDebugEnvId] = useState<string | undefined>() // 选中的调试环境
   const [debugResult, setDebugResult] = useState<{
     response: { status: number; body: unknown; duration: number }
@@ -189,18 +189,12 @@ export default function ApiList() {
     }
   }
 
-  // 打开调试弹窗：加载环境列表，默认选中第一个环境
-  const openDebug = async (record: ApiCase) => {
+  // 打开调试弹窗（环境由 EnvironmentSelect 自动加载并默认选中第一个）
+  const openDebug = (record: ApiCase) => {
     setDebugCaseData(record)
     setDebugResult(null)
+    setDebugEnvId(undefined)
     setDebugOpen(true)
-    try {
-      const envs = await api.listEnvironments(projectId!)
-      setDebugEnvList(envs)
-      setDebugEnvId(envs[0]?.id)
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    }
   }
 
   // 执行调试：发送请求并展示响应、提取结果、断言结果
@@ -217,18 +211,12 @@ export default function ApiList() {
     }
   }
 
-  // 打开运行弹窗：加载环境列表
-  const openRun = async (record: ApiCase) => {
+  // 打开运行弹窗（环境由 EnvironmentSelect 自动加载并默认选中第一个）
+  const openRun = (record: ApiCase) => {
     setRunCaseData(record)
     setRunResult(null)
+    setRunEnvId(undefined)
     setRunOpen(true)
-    try {
-      const envs = await api.listEnvironments(projectId!)
-      setDebugEnvList(envs) // 复用环境列表
-      setRunEnvId(envs[0]?.id)
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    }
   }
 
   // 独立运行用例（多步骤），生成报告
@@ -517,11 +505,11 @@ export default function ApiList() {
       >
         <Space style={{ marginBottom: 16 }}>
           <span>环境：</span>
-          <Select
+          <EnvironmentSelect
+            projectId={projectId!}
             style={{ width: 240 }}
             placeholder="选择环境（提供 baseUrl）"
             value={debugEnvId}
-            options={debugEnvList.map((e) => ({ value: e.id, label: e.name }))}
             onChange={setDebugEnvId}
           />
           <Button type="primary" loading={debugLoading} onClick={runDebug}>
@@ -599,11 +587,11 @@ export default function ApiList() {
       >
         <Space style={{ marginBottom: 16 }}>
           <span>环境：</span>
-          <Select
+          <EnvironmentSelect
+            projectId={projectId!}
             style={{ width: 240 }}
             placeholder="选择环境（提供 baseUrl）"
             value={runEnvId}
-            options={debugEnvList.map((e) => ({ value: e.id, label: e.name }))}
             onChange={setRunEnvId}
           />
           <Button type="primary" loading={runLoading} onClick={runCase}>

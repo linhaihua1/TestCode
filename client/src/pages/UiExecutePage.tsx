@@ -1,9 +1,9 @@
 /**
- * UI 用例执行页：收集 UI 用例 → 拖拽排序 → 按顺序执行。
- * 不经过「场景列表」，直接在同一页面完成用例收集与执行。
+ * UI 用例执行页：收集 UI 用例 → 拖拽排序 → 保存为执行计划 → 执行。
+ * 支持保存/加载执行计划，记录收集的用例与顺序。
  */
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Select, Space, Spin, Tag, message } from 'antd'
+import { Alert, Button, Card, Input, Select, Space, Spin, Tag, message } from 'antd'
 import {
   DndContext,
   PointerSensor,
@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import type { UiReport, UiTestCase, UiStepResult } from '../api/types'
+import type { UiReport, UiScenario, UiTestCase, UiStepResult } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
@@ -84,6 +84,9 @@ export default function UiExecutePage() {
   const { projectId } = useParams<{ projectId: string }>()
   const [allCases, setAllCases] = useState<UiTestCase[]>([]) // 项目所有 UI 用例
   const [selected, setSelected] = useState<UiTestCase[]>([]) // 已收集的执行列表
+  const [plans, setPlans] = useState<UiScenario[]>([]) // 已有执行计划
+  const [planId, setPlanId] = useState<string | undefined>() // 当前选中的计划
+  const [planName, setPlanName] = useState('') // 计划名称输入
   const [report, setReport] = useState<UiReport | null>(null)
   const [running, setRunning] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -93,7 +96,12 @@ export default function UiExecutePage() {
   const load = async () => {
     setLoading(true)
     try {
-      setAllCases(await api.listUiTests(projectId!))
+      const [cases, scenarioList] = await Promise.all([
+        api.listUiTests(projectId!),
+        api.listUiScenarios(projectId!),
+      ])
+      setAllCases(cases)
+      setPlans(scenarioList)
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
@@ -118,7 +126,6 @@ export default function UiExecutePage() {
     setSelected((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // 拖拽结束：重排执行顺序
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (over && active.id !== over.id) {
@@ -131,7 +138,53 @@ export default function UiExecutePage() {
     }
   }
 
-  // 执行：按当前顺序收集用例 ID，交给后端在同一个浏览器会话中执行
+  // 加载已有计划：回填计划名称与用例列表
+  const loadPlan = async (id: string) => {
+    setPlanId(id)
+    try {
+      const scn = await api.getUiScenario(id)
+      setPlanName(scn.name)
+      const cases = (scn.steps ?? [])
+        .filter((s) => s.uiTestCase)
+        .map((s) => s.uiTestCase!)
+      setSelected(cases)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  // 保存计划：有 planId 则更新，否则创建新计划
+  const savePlan = async () => {
+    if (!planName.trim()) {
+      message.warning('请输入计划名称')
+      return
+    }
+    const stepPayload = selected.map((c, i) => ({ order: i, uiTestCaseId: c.id }))
+    try {
+      if (planId) {
+        await api.updateUiScenario(planId, { name: planName })
+        await api.updateUiScenarioSteps(planId, stepPayload)
+      } else {
+        const scn = await api.createUiScenario(projectId!, { name: planName })
+        await api.updateUiScenarioSteps(scn.id, stepPayload)
+        setPlanId(scn.id)
+      }
+      message.success('计划已保存')
+      const scenarioList = await api.listUiScenarios(projectId!)
+      setPlans(scenarioList)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  // 新建计划：清空当前计划与用例列表
+  const newPlan = () => {
+    setPlanId(undefined)
+    setPlanName('')
+    setSelected([])
+    setReport(null)
+  }
+
   const run = async () => {
     if (selected.length === 0) {
       message.warning('请先添加 UI 用例')
@@ -150,21 +203,39 @@ export default function UiExecutePage() {
     }
   }
 
-  // 尚未被收集的用例（可添加）
   const availableCases = allCases.filter((c) => !selected.some((s) => s.id === c.id))
-
   const caseResults = (report?.details ?? []) as unknown as CaseResult[]
 
   return (
-    <Card
-      title="UI 用例执行"
-      extra={
-        <Button type="primary" loading={running} onClick={run}>
-          执行
-        </Button>
-      }
-    >
+    <Card title="UI 用例执行">
       <Spin spinning={loading}>
+        {/* 计划管理与执行工具栏 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <span>执行计划：</span>
+            <Select
+              style={{ width: 220 }}
+              placeholder="选择已有计划"
+              value={planId}
+              options={plans.map((p) => ({ value: p.id, label: p.name }))}
+              onChange={loadPlan}
+              allowClear
+              onClear={newPlan}
+            />
+            <Input
+              style={{ width: 200 }}
+              placeholder="计划名称"
+              value={planName}
+              onChange={(e) => setPlanName(e.target.value)}
+            />
+            <Button onClick={savePlan}>保存计划</Button>
+            <Button onClick={newPlan}>新建</Button>
+            <Button type="primary" loading={running} onClick={run}>
+              执行
+            </Button>
+          </Space>
+        </div>
+
         {/* 收集用例 */}
         <div style={{ marginBottom: 16 }}>
           <Space>
