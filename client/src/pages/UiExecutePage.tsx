@@ -25,6 +25,9 @@ import type { UiReport, UiScenario, UiTestCase, UiStepResult } from '../api/type
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
+/** localStorage 缓存 key：记录每个项目最近操作的执行计划 */
+const PLAN_CACHE_KEY = (projectId: string) => `ui-execute-plan-${projectId}`
+
 /** 报告中单个用例的执行结果 */
 interface CaseResult {
   testCaseId: string
@@ -102,6 +105,18 @@ export default function UiExecutePage() {
       ])
       setAllCases(cases)
       setPlans(scenarioList)
+      // 恢复最近保存的执行计划（页面切换后回到本页仍保留上次计划）
+      const cachedId = localStorage.getItem(PLAN_CACHE_KEY(projectId!))
+      if (cachedId) {
+        try {
+          const scn = await api.getUiScenario(cachedId)
+          setPlanId(scn.id)
+          setPlanName(scn.name)
+          setSelected((scn.steps ?? []).filter((s) => s.uiTestCase).map((s) => s.uiTestCase!))
+        } catch {
+          localStorage.removeItem(PLAN_CACHE_KEY(projectId!))
+        }
+      }
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
@@ -161,14 +176,18 @@ export default function UiExecutePage() {
     }
     const stepPayload = selected.map((c, i) => ({ order: i, uiTestCaseId: c.id }))
     try {
+      let savedId = planId
       if (planId) {
         await api.updateUiScenario(planId, { name: planName })
         await api.updateUiScenarioSteps(planId, stepPayload)
       } else {
         const scn = await api.createUiScenario(projectId!, { name: planName })
         await api.updateUiScenarioSteps(scn.id, stepPayload)
+        savedId = scn.id
         setPlanId(scn.id)
       }
+      // 缓存最近保存的计划，切回本页时自动恢复
+      localStorage.setItem(PLAN_CACHE_KEY(projectId!), savedId!)
       message.success('计划已保存')
       const scenarioList = await api.listUiScenarios(projectId!)
       setPlans(scenarioList)
@@ -177,12 +196,13 @@ export default function UiExecutePage() {
     }
   }
 
-  // 新建计划：清空当前计划与用例列表
+  // 新建计划：清空当前计划与用例列表，并清除缓存
   const newPlan = () => {
     setPlanId(undefined)
     setPlanName('')
     setSelected([])
     setReport(null)
+    localStorage.removeItem(PLAN_CACHE_KEY(projectId!))
   }
 
   const run = async () => {
