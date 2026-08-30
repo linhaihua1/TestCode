@@ -59,20 +59,42 @@ export default function AppLayout() {
   }
 
   // 侧边栏菜单项；未进入具体项目时，项目相关的菜单置灰
+  // 侧边栏菜单项：接口自动化与 UI 自动化分成两个独立分组，互不干扰
   const items: MenuProps['items'] = [
     { key: '/projects', label: '项目列表' },
-    { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
-    { key: `/projects/${projectId}/scenarios`, label: '场景自动化', disabled: !projectId },
-    { key: `/projects/${projectId}/ui-tests`, label: 'UI 自动化', disabled: !projectId },
-    { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
-    { key: `/projects/${projectId}/reports`, label: '测试报告', disabled: !projectId },
+    {
+      type: 'group',
+      label: '接口自动化',
+      children: [
+        { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
+        { key: `/projects/${projectId}/scenarios`, label: '场景自动化', disabled: !projectId },
+        { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
+        { key: `/projects/${projectId}/reports`, label: '接口测试报告', disabled: !projectId },
+      ],
+    },
+    {
+      type: 'group',
+      label: 'UI 自动化',
+      children: [
+        { key: `/projects/${projectId}/ui-tests`, label: 'UI 测试用例', disabled: !projectId },
+        { key: `/projects/${projectId}/ui-reports`, label: 'UI 测试报告', disabled: !projectId },
+      ],
+    },
     { key: '/users', label: '用户管理' },
   ]
 
-  // 根据当前路径前缀匹配需要高亮的菜单项
-  const selectedKey = items
-    .map((i) => i?.key as string)
-    .find((key) => location.pathname.startsWith(key))
+  // 从所有菜单项（含分组内的子项）中收集 key，用于根据当前路径高亮
+  const allKeys: string[] = []
+  for (const item of items) {
+    if (item && 'children' in item && Array.isArray(item.children)) {
+      for (const child of item.children) {
+        if (child?.key) allKeys.push(String(child.key))
+      }
+    } else if (item?.key) {
+      allKeys.push(String(item.key))
+    }
+  }
+  const selectedKey = allKeys.find((key) => location.pathname.startsWith(key))
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

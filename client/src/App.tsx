@@ -18,6 +18,7 @@ import ReportList from './pages/ReportList'
 import UserManagement from './pages/UserManagement'
 import UiTestList from './pages/UiTestList'
 import UiTestEditor from './pages/UiTestEditor'
+import UiReportList from './pages/UiReportList'
 
 /** 应用根组件：定义路由表 */
 export default function App() {
@@ -52,6 +53,8 @@ export default function App() {
         <Route path="/projects/:projectId/ui-tests" element={<UiTestList />} />
         {/* UI 测试编排与执行页 */}
         <Route path="/projects/:projectId/ui-tests/:testId" element={<UiTestEditor />} />
+        {/* UI 测试报告页 */}
+        <Route path="/projects/:projectId/ui-reports" element={<UiReportList />} />
         {/* 用户管理页 */}
         <Route path="/users" element={<UserManagement />} />
         {/* 未匹配路径统一重定向到项目列表 */}
