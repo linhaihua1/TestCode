@@ -76,7 +76,8 @@ export default function AppLayout() {
       type: 'group',
       label: 'UI 自动化',
       children: [
-        { key: `/projects/${projectId}/ui-tests`, label: 'UI 测试用例', disabled: !projectId },
+        { key: `/projects/${projectId}/ui-tests`, label: 'UI 用例', disabled: !projectId },
+        { key: `/projects/${projectId}/ui-scenarios`, label: 'UI 执行', disabled: !projectId },
         { key: `/projects/${projectId}/ui-reports`, label: 'UI 测试报告', disabled: !projectId },
       ],
     },

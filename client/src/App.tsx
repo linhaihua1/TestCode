@@ -19,6 +19,8 @@ import UserManagement from './pages/UserManagement'
 import UiTestList from './pages/UiTestList'
 import UiTestEditor from './pages/UiTestEditor'
 import UiReportList from './pages/UiReportList'
+import UiScenarioList from './pages/UiScenarioList'
+import UiScenarioEditor from './pages/UiScenarioEditor'
 
 /** 应用根组件：定义路由表 */
 export default function App() {
@@ -55,6 +57,10 @@ export default function App() {
         <Route path="/projects/:projectId/ui-tests/:testId" element={<UiTestEditor />} />
         {/* UI 测试报告页 */}
         <Route path="/projects/:projectId/ui-reports" element={<UiReportList />} />
+        {/* UI 执行列表页 */}
+        <Route path="/projects/:projectId/ui-scenarios" element={<UiScenarioList />} />
+        {/* UI 执行编排页 */}
+        <Route path="/projects/:projectId/ui-scenarios/:scenarioId" element={<UiScenarioEditor />} />
         {/* 用户管理页 */}
         <Route path="/users" element={<UserManagement />} />
         {/* 未匹配路径统一重定向到项目列表 */}

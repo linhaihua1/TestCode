@@ -16,6 +16,8 @@ import type {
   Scenario,
   ScenarioStep,
   UiReport,
+  UiScenario,
+  UiScenarioStep,
   UiTestCase,
   User,
 } from './types'
@@ -170,4 +172,20 @@ export const api = {
   listUiReports: (projectId: string) =>
     http.get<UiReport[]>(`/projects/${projectId}/ui-reports`).then((r) => r.data),
   getUiReport: (id: string) => http.get<UiReport>(`/ui-reports/${id}`).then((r) => r.data),
+
+  // ---------- UI 执行场景（UiScenario） ----------
+  listUiScenarios: (projectId: string) =>
+    http.get<UiScenario[]>(`/projects/${projectId}/ui-scenarios`).then((r) => r.data),
+  createUiScenario: (projectId: string, data: { name: string; description?: string }) =>
+    http.post<UiScenario>(`/projects/${projectId}/ui-scenarios`, data).then((r) => r.data),
+  getUiScenario: (id: string) =>
+    http
+      .get<UiScenario & { steps: UiScenarioStep[] }>(`/ui-scenarios/${id}`)
+      .then((r) => r.data),
+  updateUiScenario: (id: string, data: { name?: string; description?: string }) =>
+    http.put<UiScenario>(`/ui-scenarios/${id}`, data).then((r) => r.data),
+  deleteUiScenario: (id: string) => http.delete(`/ui-scenarios/${id}`).then((r) => r.data),
+  updateUiScenarioSteps: (id: string, steps: Array<{ order: number; uiTestCaseId?: string | null }>) =>
+    http.put(`/ui-scenarios/${id}/steps`, steps).then((r) => r.data),
+  runUiScenario: (id: string) => http.post<UiReport>(`/ui-scenarios/${id}/run`).then((r) => r.data),
 }

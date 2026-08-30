@@ -203,6 +203,25 @@ export interface UiReport {
   details: UiStepResult[]
 }
 
+/** UI 执行场景中的单个步骤（引用一个 UI 用例） */
+export interface UiScenarioStep {
+  id: string
+  scenarioId: string
+  order: number
+  uiTestCaseId?: string | null
+  uiTestCase?: UiTestCase | null
+}
+
+/** UI 自动化执行场景（组合多个 UI 用例） */
+export interface UiScenario {
+  id: string
+  projectId: string
+  name: string
+  description?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 /** UI 步骤动作的可读中文名（用于下拉选择） */
 export const UI_ACTIONS: { value: UiAction; label: string }[] = [
   { value: 'open', label: '打开页面' },
