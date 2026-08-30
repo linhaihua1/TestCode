@@ -19,6 +19,7 @@ model Project {
   reports      Report[]
   uiTests      UiTestCase[]
   uiReports    UiReport[]
+  uiScenarios  UiScenario[]
 }
 
 model Environment {
@@ -132,6 +133,7 @@ model UiTestCase {
   steps       Json     @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  scenarioSteps UiScenarioStep[]
 }
 
 // UI 自动化测试报告（一次执行的完整结果）
@@ -145,4 +147,28 @@ model UiReport {
   duration   Int
   startedAt  DateTime @default(now())
   details    Json     @default("[]")
+}
+
+// UI 自动化执行场景（组合多个 UI 用例，按业务流程顺序执行）
+model UiScenario {
+  id          String           @id @default(cuid())
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  steps       UiScenarioStep[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+// UI 执行场景中的步骤（引用一个 UI 用例，按 order 排序）
+model UiScenarioStep {
+  id           String      @id @default(cuid())
+  scenarioId   String
+  scenario     UiScenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  order        Int
+  uiTestCaseId String?
+  uiTestCase   UiTestCase? @relation(fields: [uiTestCaseId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 }

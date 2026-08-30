@@ -2,6 +2,7 @@
  * UI 自动化执行引擎（基于 selenium-webdriver，驱动 Chrome 浏览器）。
  * 将一组步骤（打开/点击/输入/断言/等待）在真实浏览器中逐步执行，
  * 记录每一步的结果，失败/出错时自动截图。
+ * 支持单用例执行与场景执行（复用同一浏览器会话串联多个用例）。
  */
 import { Builder, By, until, type WebDriver } from 'selenium-webdriver'
 import chrome from 'selenium-webdriver/chrome'
@@ -118,6 +119,33 @@ async function executeStep(driver: WebDriver, step: UiStep, baseUrl: string): Pr
   }
 }
 
+/** 创建 Chrome WebDriver 会话 */
+function buildDriver(chromedriverPath?: string): WebDriver {
+  const builder = new Builder().forBrowser('chrome')
+  const chromedriver = chromedriverPath ?? resolveChromedriver()
+  if (chromedriver) {
+    // 显式指定 chromedriver 路径（否则用 Selenium Manager 自动管理）
+    builder.setChromeService(new chrome.ServiceBuilder(chromedriver))
+  }
+  return builder.build()
+}
+
+/** 在给定 driver 上依次执行一组步骤，失败/出错后默认停止 */
+async function executeStepsOnDriver(
+  driver: WebDriver,
+  steps: UiStep[],
+  baseUrl: string,
+  continueOnError = false,
+): Promise<UiStepResult[]> {
+  const results: UiStepResult[] = []
+  for (const step of steps) {
+    const result = await executeStep(driver, step, baseUrl)
+    results.push(result)
+    if (result.status !== 'PASS' && !continueOnError) break
+  }
+  return results
+}
+
 export interface RunUiOptions {
   baseUrl?: string
   /** chromedriver 可执行文件路径（可选，默认用 Selenium Manager 自动管理） */
@@ -127,28 +155,52 @@ export interface RunUiOptions {
 }
 
 /**
- * 执行一组 UI 测试步骤，返回每步结果。
- * 默认在失败/出错后停止；可通过 continueOnError 继续。
+ * 执行单个 UI 测试用例的一组步骤，返回每步结果。
  */
 export async function runUiSteps(steps: UiStep[], options: RunUiOptions = {}): Promise<UiStepResult[]> {
-  const results: UiStepResult[] = []
-  const baseUrl = options.baseUrl ?? ''
-
-  const builder = new Builder().forBrowser('chrome')
-  const chromedriver = options.chromedriverPath ?? resolveChromedriver()
-  if (chromedriver) {
-    // 显式指定 chromedriver 路径（否则用 Selenium Manager 自动管理）
-    builder.setChromeService(new chrome.ServiceBuilder(chromedriver))
-  }
-
-  const driver = await builder.build()
+  const driver = buildDriver(options.chromedriverPath)
   try {
-    for (const step of steps) {
-      const result = await executeStep(driver, step, baseUrl)
-      results.push(result)
-      if (result.status !== 'PASS' && !options.continueOnError) {
-        break
-      }
+    return await executeStepsOnDriver(driver, steps, options.baseUrl ?? '', options.continueOnError)
+  } finally {
+    await driver.quit()
+  }
+}
+
+/** UI 场景中的一个用例（含其步骤） */
+export interface UiScenarioCase {
+  id: string
+  name: string
+  baseUrl?: string | null
+  steps: UiStep[]
+}
+
+/** UI 场景中单个用例的执行结果 */
+export interface UiScenarioCaseResult {
+  testCaseId: string
+  name: string
+  status: 'PASS' | 'FAIL' | 'ERROR'
+  steps: UiStepResult[]
+}
+
+/**
+ * 执行 UI 场景：在【同一个浏览器会话】中按顺序执行多个用例的步骤，
+ * 登录态/页面状态在用例间保持；返回每个用例的执行结果。
+ */
+export async function runUiScenario(
+  cases: UiScenarioCase[],
+  options: { chromedriverPath?: string } = {},
+): Promise<UiScenarioCaseResult[]> {
+  const driver = buildDriver(options.chromedriverPath)
+  const results: UiScenarioCaseResult[] = []
+  try {
+    for (const tc of cases) {
+      const stepResults = await executeStepsOnDriver(driver, tc.steps, tc.baseUrl ?? '')
+      const status = stepResults.every((r) => r.status === 'PASS')
+        ? 'PASS'
+        : stepResults.some((r) => r.status === 'ERROR')
+          ? 'ERROR'
+          : 'FAIL'
+      results.push({ testCaseId: tc.id, name: tc.name, status, steps: stepResults })
     }
   } finally {
     await driver.quit()

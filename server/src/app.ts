@@ -13,6 +13,7 @@ import { demoRoutes } from './routes/demo.js'
 import { authRoutes } from './routes/auth.js'
 import { userRoutes } from './routes/users.js'
 import { uiTestRoutes } from './routes/ui-tests.js'
+import { uiScenarioRoutes } from './routes/ui-scenarios.js'
 
 /** 无需登录即可访问的路径（登录、健康检查、演示接口） */
 function isPublicPath(url: string): boolean {
@@ -65,6 +66,7 @@ export function buildApp(): FastifyInstance {
   app.register(reportRoutes) // 执行报告
   app.register(userRoutes) // 用户管理
   app.register(uiTestRoutes) // UI 自动化测试
+  app.register(uiScenarioRoutes) // UI 自动化执行场景
 
   return app
 }
