@@ -139,3 +139,77 @@ export interface User {
   createdAt: string // 创建时间
   updatedAt: string // 更新时间
 }
+
+/** UI 自动化步骤动作类型（参考 Selenium） */
+export type UiAction =
+  | 'open' // 打开页面
+  | 'click' // 点击元素
+  | 'type' // 输入文本
+  | 'assertText' // 断言元素文本
+  | 'assertExists' // 断言元素存在
+  | 'assertTitle' // 断言页面标题
+  | 'wait' // 等待元素出现
+
+/** UI 元素定位方式 */
+export type LocatorType = 'css' | 'xpath' | 'id' | 'name' | 'linkText'
+
+/** UI 测试步骤定义 */
+export interface UiStep {
+  action: UiAction
+  locatorType?: LocatorType // 定位方式，默认 css
+  target?: string // 选择器（或 open 时的 URL）
+  value?: string // 输入值 / 期望值 / 等待超时（秒）
+}
+
+/** UI 测试步骤执行结果 */
+export interface UiStepResult {
+  action: UiAction
+  target?: string
+  status: 'PASS' | 'FAIL' | 'ERROR'
+  message: string
+  screenshot?: string // 失败/出错时的 base64 截图
+}
+
+/** UI 自动化测试用例 */
+export interface UiTestCase {
+  id: string
+  projectId: string
+  name: string
+  description?: string | null
+  baseUrl?: string | null
+  steps: UiStep[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** UI 自动化测试报告 */
+export interface UiReport {
+  id: string
+  projectId: string
+  testCaseId?: string | null
+  name: string
+  status: 'PASS' | 'FAIL' | 'ERROR'
+  duration: number
+  startedAt: string
+  details: UiStepResult[]
+}
+
+/** UI 步骤动作的可读中文名（用于下拉选择） */
+export const UI_ACTIONS: { value: UiAction; label: string }[] = [
+  { value: 'open', label: '打开页面' },
+  { value: 'click', label: '点击元素' },
+  { value: 'type', label: '输入文本' },
+  { value: 'assertText', label: '断言元素文本' },
+  { value: 'assertExists', label: '断言元素存在' },
+  { value: 'assertTitle', label: '断言页面标题' },
+  { value: 'wait', label: '等待元素出现' },
+]
+
+/** UI 元素定位方式的可读中文名 */
+export const UI_LOCATORS: { value: LocatorType; label: string }[] = [
+  { value: 'css', label: 'CSS 选择器' },
+  { value: 'xpath', label: 'XPath' },
+  { value: 'id', label: 'ID' },
+  { value: 'name', label: 'Name' },
+  { value: 'linkText', label: '链接文本' },
+]

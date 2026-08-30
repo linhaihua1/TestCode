@@ -15,6 +15,8 @@ import type {
   Report,
   Scenario,
   ScenarioStep,
+  UiReport,
+  UiTestCase,
   User,
 } from './types'
 
@@ -142,4 +144,18 @@ export const api = {
   deleteUser: (id: string) => http.delete(`/users/${id}`).then((r) => r.data),
   resetUserPassword: (id: string, newPassword: string) =>
     http.put(`/users/${id}/password`, { newPassword }).then((r) => r.data),
+
+  // ---------- UI 自动化测试（UiTestCase） ----------
+  listUiTests: (projectId: string) =>
+    http.get<UiTestCase[]>(`/projects/${projectId}/ui-tests`).then((r) => r.data),
+  createUiTest: (projectId: string, data: Partial<UiTestCase>) =>
+    http.post<UiTestCase>(`/projects/${projectId}/ui-tests`, data).then((r) => r.data),
+  getUiTest: (id: string) => http.get<UiTestCase>(`/ui-tests/${id}`).then((r) => r.data),
+  updateUiTest: (id: string, data: Partial<UiTestCase>) =>
+    http.put<UiTestCase>(`/ui-tests/${id}`, data).then((r) => r.data),
+  deleteUiTest: (id: string) => http.delete(`/ui-tests/${id}`).then((r) => r.data),
+  runUiTest: (id: string) => http.post<UiReport>(`/ui-tests/${id}/run`).then((r) => r.data),
+  listUiReports: (projectId: string) =>
+    http.get<UiReport[]>(`/projects/${projectId}/ui-reports`).then((r) => r.data),
+  getUiReport: (id: string) => http.get<UiReport>(`/ui-reports/${id}`).then((r) => r.data),
 }

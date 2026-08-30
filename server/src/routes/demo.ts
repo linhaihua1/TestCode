@@ -32,4 +32,18 @@ export async function demoRoutes(app: FastifyInstance) {
   app.get('/demo/error', async (_req, reply) => {
     return reply.code(500).send({ code: 500, message: '服务器内部错误' }) // 固定返回 500 错误
   })
+
+  // 演示页面（供 UI 自动化测试使用）
+  app.get('/demo/page', async (_req, reply) => {
+    reply.type('text/html; charset=utf-8').send(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Demo Page</title></head>
+<body>
+  <h1 id="title">Hello UI Test</h1>
+  <button id="btn" onclick="document.getElementById('result').innerText='已点击'">Click Me</button>
+  <div id="result"></div>
+  <input id="name" placeholder="输入名字" />
+</body>
+</html>`)
+  })
 }

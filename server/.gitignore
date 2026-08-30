@@ -5,3 +5,4 @@ dev.db-journal
 test.db
 test.db-journal
 .env
+bin/

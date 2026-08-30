@@ -103,11 +103,29 @@ async function main() {
     data: { scenarioId: scenario.id, order: 1, apiCaseId: userCase.id, assertions: [], extracts: [] },
   })
 
+  // 6. UI 自动化测试用例（演示真实浏览器执行）
+  const uiTest = await prisma.uiTestCase.create({
+    data: {
+      projectId: project.id,
+      name: '演示 UI 测试',
+      description: '打开演示页面，点击按钮并断言结果（真实 Chrome 执行）',
+      baseUrl: 'http://127.0.0.1:4000',
+      steps: [
+        { action: 'open', target: '/demo/page' },
+        { action: 'assertTitle', value: 'Demo Page' },
+        { action: 'assertExists', locatorType: 'id', target: 'title' },
+        { action: 'click', locatorType: 'id', target: 'btn' },
+        { action: 'assertText', locatorType: 'id', target: 'result', value: '已点击' },
+      ],
+    },
+  })
+
   console.log('✅ 演示数据创建成功：')
   console.log('  项目：', project.name)
   console.log('  环境：', env.name, '→', env.baseUrl)
   console.log('  场景：', scenario.name, '（2 步：登录 → 查询用户）')
-  console.log('  执行方式：进入「场景自动化」→ 点「编排」→ 选环境 → 点「执行场景」')
+  console.log('  UI 测试：', uiTest.name, '（5 步：打开 → 断言标题 → 断言元素 → 点击 → 断言文本）')
+  console.log('  执行方式：进入「场景自动化」或「UI 自动化」→ 编排 → 执行')
 }
 
 main()

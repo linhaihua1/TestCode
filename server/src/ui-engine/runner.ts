@@ -5,7 +5,22 @@
  */
 import { Builder, By, until, type WebDriver } from 'selenium-webdriver'
 import chrome from 'selenium-webdriver/chrome'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import type { UiStep, UiStepResult } from './types.js'
+
+/** 自动查找 chromedriver：优先环境变量，其次项目 bin/ 目录 */
+function resolveChromedriver(): string | undefined {
+  const candidates = [
+    process.env.CHROMEDRIVER_PATH,
+    path.join(process.cwd(), 'bin', 'chromedriver.exe'),
+    path.join(process.cwd(), 'server', 'bin', 'chromedriver.exe'),
+  ].filter(Boolean) as string[]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  return undefined
+}
 
 /** 根据定位方式构造 selenium 的 By 定位器 */
 function buildLocator(step: UiStep): By {
@@ -120,9 +135,10 @@ export async function runUiSteps(steps: UiStep[], options: RunUiOptions = {}): P
   const baseUrl = options.baseUrl ?? ''
 
   const builder = new Builder().forBrowser('chrome')
-  if (options.chromedriverPath) {
+  const chromedriver = options.chromedriverPath ?? resolveChromedriver()
+  if (chromedriver) {
     // 显式指定 chromedriver 路径（否则用 Selenium Manager 自动管理）
-    builder.setChromeService(new chrome.ServiceBuilder(options.chromedriverPath))
+    builder.setChromeService(new chrome.ServiceBuilder(chromedriver))
   }
 
   const driver = await builder.build()

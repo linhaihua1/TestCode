@@ -63,6 +63,7 @@ export default function AppLayout() {
     { key: '/projects', label: '项目列表' },
     { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
     { key: `/projects/${projectId}/scenarios`, label: '场景自动化', disabled: !projectId },
+    { key: `/projects/${projectId}/ui-tests`, label: 'UI 自动化', disabled: !projectId },
     { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
     { key: `/projects/${projectId}/reports`, label: '测试报告', disabled: !projectId },
     { key: '/users', label: '用户管理' },
