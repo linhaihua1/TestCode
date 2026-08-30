@@ -7,7 +7,7 @@ CREATE TABLE "new_ApiCase" (
     "name" TEXT NOT NULL,
     "assertions" JSONB NOT NULL DEFAULT [],
     "extracts" JSONB NOT NULL DEFAULT [],
-    "stepDefs" JSONB NOT NULL DEFAULT [],
+    "stepDefs" JSONB NOT NULL DEFAULT '[]',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "ApiCase_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "ApiDefinition" ("id") ON DELETE CASCADE ON UPDATE CASCADE

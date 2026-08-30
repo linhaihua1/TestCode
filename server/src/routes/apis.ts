@@ -22,6 +22,7 @@ interface CaseBody {
   name: string // 用例名称
   assertions?: Prisma.InputJsonValue // 断言配置（可选，JSON）
   extracts?: Prisma.InputJsonValue // 变量提取配置（可选，JSON）
+  stepDefs?: Prisma.InputJsonValue // 多步骤定义（可选，JSON）
 }
 
 export async function apiRoutes(app: FastifyInstance) {
@@ -100,6 +101,7 @@ export async function apiRoutes(app: FastifyInstance) {
         name: body.name,
         assertions: body.assertions ?? [], // 断言缺省为空数组
         extracts: body.extracts ?? [], // 变量提取缺省为空数组
+        stepDefs: body.stepDefs ?? [], // 多步骤定义缺省为空数组
       },
     })
   })
