@@ -11,7 +11,9 @@ interface UiTestCaseBody {
   name?: string
   description?: string
   baseUrl?: string
+  setupSteps?: unknown
   steps?: unknown
+  teardownSteps?: unknown
 }
 
 export async function uiTestRoutes(app: FastifyInstance) {
@@ -33,7 +35,9 @@ export async function uiTestRoutes(app: FastifyInstance) {
         name: body.name,
         description: body.description,
         baseUrl: body.baseUrl,
+        setupSteps: (body.setupSteps ?? []) as Prisma.InputJsonValue,
         steps: (body.steps ?? []) as Prisma.InputJsonValue,
+        teardownSteps: (body.teardownSteps ?? []) as Prisma.InputJsonValue,
       },
     })
   })
@@ -58,7 +62,9 @@ export async function uiTestRoutes(app: FastifyInstance) {
         name: body.name,
         description: body.description,
         baseUrl: body.baseUrl,
+        setupSteps: (body.setupSteps ?? []) as Prisma.InputJsonValue,
         steps: (body.steps ?? []) as Prisma.InputJsonValue,
+        teardownSteps: (body.teardownSteps ?? []) as Prisma.InputJsonValue,
       },
     })
   })
@@ -79,11 +85,15 @@ export async function uiTestRoutes(app: FastifyInstance) {
     const testCase = await prisma.uiTestCase.findUnique({ where: { id } })
     if (!testCase) return reply.code(404).send({ error: 'UI 测试不存在' })
 
+    // 按 Pytest 三段式顺序执行：前置(setup) → 测试步骤 → 后置(teardown)
+    const setupSteps = (testCase.setupSteps as unknown as UiStep[]) ?? []
     const steps = (testCase.steps as unknown as UiStep[]) ?? []
+    const teardownSteps = (testCase.teardownSteps as unknown as UiStep[]) ?? []
+    const allSteps = [...setupSteps, ...steps, ...teardownSteps]
     const start = Date.now()
     let results: UiStepResult[]
     try {
-      results = await runUiSteps(steps, { baseUrl: testCase.baseUrl ?? undefined })
+      results = await runUiSteps(allSteps, { baseUrl: testCase.baseUrl ?? undefined })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       return reply.code(500).send({ error: `执行失败：${message}` })

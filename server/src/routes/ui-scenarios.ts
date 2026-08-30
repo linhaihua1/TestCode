@@ -94,14 +94,18 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     })
     if (!scenario) return reply.code(404).send({ error: '场景不存在' })
 
-    // 组装用例列表（跳过未绑定用例的步骤）
+    // 组装用例列表（跳过未绑定用例的步骤），每个用例按 setup→test→teardown 顺序执行
     const cases = scenario.steps
       .filter((s) => s.uiTestCase)
       .map((s) => ({
         id: s.uiTestCase!.id,
         name: s.uiTestCase!.name,
         baseUrl: s.uiTestCase!.baseUrl,
-        steps: (s.uiTestCase!.steps as unknown as UiStep[]) ?? [],
+        steps: [
+          ...((s.uiTestCase!.setupSteps as unknown as UiStep[]) ?? []),
+          ...((s.uiTestCase!.steps as unknown as UiStep[]) ?? []),
+          ...((s.uiTestCase!.teardownSteps as unknown as UiStep[]) ?? []),
+        ],
       }))
 
     const start = Date.now()
@@ -139,7 +143,7 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     const body = req.body as { testCaseIds?: string[] }
     const ids = body?.testCaseIds ?? []
 
-    // 按传入顺序加载用例（跳过不存在的）
+    // 按传入顺序加载用例（跳过不存在的），每个用例按 setup→test→teardown 顺序执行
     const cases: { id: string; name: string; baseUrl?: string | null; steps: UiStep[] }[] = []
     for (const id of ids) {
       const tc = await prisma.uiTestCase.findUnique({ where: { id } })
@@ -148,7 +152,11 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
           id: tc.id,
           name: tc.name,
           baseUrl: tc.baseUrl,
-          steps: (tc.steps as unknown as UiStep[]) ?? [],
+          steps: [
+            ...((tc.setupSteps as unknown as UiStep[]) ?? []),
+            ...((tc.steps as unknown as UiStep[]) ?? []),
+            ...((tc.teardownSteps as unknown as UiStep[]) ?? []),
+          ],
         })
       }
     }
