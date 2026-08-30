@@ -1,3 +1,12 @@
+/**
+ * 接口管理页
+ *
+ * 职责：管理指定项目下的接口定义及其用例，是本平台的核心页面之一。
+ * 包含：
+ * 1. 接口列表（增删改查）；
+ * 2. 接口请求构建器（Drawer，配置方法/路径/请求头/Query/请求体）；
+ * 3. 用例管理（Modal 列表 + 编辑弹窗，含断言与提取规则）。
+ */
 import { useEffect, useState } from 'react'
 import {
   Button,
@@ -21,6 +30,7 @@ import KeyValueEditor from '../components/KeyValueEditor'
 import AssertionEditor from '../components/AssertionEditor'
 import ExtractEditor from '../components/ExtractEditor'
 
+// HTTP 方法与标签颜色的映射
 const METHOD_COLOR: Record<string, string> = {
   GET: 'green',
   POST: 'blue',
@@ -32,23 +42,24 @@ const METHOD_COLOR: Record<string, string> = {
 }
 
 export default function ApiList() {
-  const { projectId } = useParams<{ projectId: string }>()
-  const [apis, setApis] = useState<ApiDefinition[]>([])
-  const [loading, setLoading] = useState(false)
+  const { projectId } = useParams<{ projectId: string }>() // 当前项目 ID
+  const [apis, setApis] = useState<ApiDefinition[]>([]) // 接口列表数据
+  const [loading, setLoading] = useState(false) // 表格加载状态
 
-  // 接口编辑 Drawer
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingApi, setEditingApi] = useState<ApiDefinition | null>(null)
-  const [apiForm] = Form.useForm()
+  // 接口编辑 Drawer 相关状态
+  const [drawerOpen, setDrawerOpen] = useState(false) // 请求构建器 Drawer 是否打开
+  const [editingApi, setEditingApi] = useState<ApiDefinition | null>(null) // 正在编辑的接口（null 表示新建）
+  const [apiForm] = Form.useForm() // 接口表单实例
 
-  // 用例管理
-  const [caseModalOpen, setCaseModalOpen] = useState(false)
-  const [currentApi, setCurrentApi] = useState<ApiDefinition | null>(null)
-  const [cases, setCases] = useState<ApiCase[]>([])
-  const [caseEditOpen, setCaseEditOpen] = useState(false)
-  const [editingCase, setEditingCase] = useState<ApiCase | null>(null)
-  const [caseForm] = Form.useForm()
+  // 用例管理相关状态
+  const [caseModalOpen, setCaseModalOpen] = useState(false) // 用例列表弹窗是否打开
+  const [currentApi, setCurrentApi] = useState<ApiDefinition | null>(null) // 当前查看用例的接口
+  const [cases, setCases] = useState<ApiCase[]>([]) // 当前接口的用例列表
+  const [caseEditOpen, setCaseEditOpen] = useState(false) // 用例编辑弹窗是否打开
+  const [editingCase, setEditingCase] = useState<ApiCase | null>(null) // 正在编辑的用例（null 表示新建）
+  const [caseForm] = Form.useForm() // 用例表单实例
 
+  // 加载当前项目下的接口列表
   const load = async () => {
     setLoading(true)
     try {
@@ -60,13 +71,16 @@ export default function ApiList() {
     }
   }
 
+  // 项目切换时重新拉取接口列表
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
+  // 保存接口（新建或更新请求构建器内容）
   const saveApi = async () => {
     const values = await apiForm.validateFields()
+    // 组装提交负载，数组字段兜底为空数组，body 兜底为 null
     const payload = {
       name: values.name,
       method: values.method,
@@ -77,6 +91,7 @@ export default function ApiList() {
       description: values.description,
     }
     try {
+      // 有编辑对象则更新，否则新建
       if (editingApi) await api.updateApi(editingApi.id, payload)
       else await api.createApi(projectId!, payload)
       message.success('保存成功')
@@ -87,6 +102,7 @@ export default function ApiList() {
     }
   }
 
+  // 删除接口
   const deleteApi = async (id: string) => {
     try {
       await api.deleteApi(id)
@@ -97,6 +113,7 @@ export default function ApiList() {
     }
   }
 
+  // 打开指定接口的用例管理弹窗并加载其用例列表
   const openCases = async (apiDef: ApiDefinition) => {
     setCurrentApi(apiDef)
     setCaseModalOpen(true)
@@ -107,14 +124,17 @@ export default function ApiList() {
     }
   }
 
+  // 保存用例（新建或更新断言/提取规则）
   const saveCase = async () => {
     const values = await caseForm.validateFields()
+    // 组装提交负载，断言与提取列表兜底为空数组
     const payload = {
       name: values.name,
       assertions: values.assertions ?? [],
       extracts: values.extracts ?? [],
     }
     try {
+      // 有编辑对象则更新，否则在当前接口下新建
       if (editingCase) await api.updateCase(editingCase.id, payload)
       else await api.createCase(currentApi!.id, payload)
       message.success('保存成功')
@@ -125,6 +145,7 @@ export default function ApiList() {
     }
   }
 
+  // 删除用例
   const deleteCase = async (id: string) => {
     try {
       await api.deleteCase(id)
@@ -135,11 +156,13 @@ export default function ApiList() {
     }
   }
 
+  // 接口列表列定义
   const apiColumns: ColumnsType<ApiDefinition> = [
     { title: '名称', dataIndex: 'name' },
     {
       title: '方法',
       dataIndex: 'method',
+      // 用带颜色的标签展示 HTTP 方法
       render: (m: string) => <Tag color={METHOD_COLOR[m]}>{m}</Tag>,
     },
     { title: '路径', dataIndex: 'path' },
@@ -147,6 +170,7 @@ export default function ApiList() {
       title: '操作',
       render: (_, record) => (
         <Space>
+          {/* 编辑：回填请求构建器表单并打开 Drawer */}
           <Button
             size="small"
             type="link"
@@ -166,9 +190,11 @@ export default function ApiList() {
           >
             编辑
           </Button>
+          {/* 打开该接口的用例管理弹窗 */}
           <Button size="small" type="link" onClick={() => openCases(record)}>
             用例
           </Button>
+          {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该接口？" onConfirm={() => deleteApi(record.id)}>
             <Button size="small" type="link" danger>
               删除
@@ -179,22 +205,26 @@ export default function ApiList() {
     },
   ]
 
+  // 用例列表列定义
   const caseColumns: ColumnsType<ApiCase> = [
     { title: '名称', dataIndex: 'name' },
     {
       title: '断言数',
       dataIndex: 'assertions',
+      // 统计断言条数
       render: (v: ApiCase['assertions']) => (v ?? []).length,
     },
     {
       title: '提取数',
       dataIndex: 'extracts',
+      // 统计提取规则条数
       render: (v: ApiCase['extracts']) => (v ?? []).length,
     },
     {
       title: '操作',
       render: (_, record) => (
         <Space>
+          {/* 编辑：回填用例表单并打开编辑弹窗 */}
           <Button
             size="small"
             type="link"
@@ -210,6 +240,7 @@ export default function ApiList() {
           >
             编辑
           </Button>
+          {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该用例？" onConfirm={() => deleteCase(record.id)}>
             <Button size="small" type="link" danger>
               删除
@@ -224,6 +255,7 @@ export default function ApiList() {
     <Card
       title="接口管理"
       extra={
+        // 新建接口：清空编辑态并默认方法为 GET，然后打开 Drawer
         <Button
           type="primary"
           onClick={() => {
@@ -252,21 +284,28 @@ export default function ApiList() {
         }
       >
         <Form form={apiForm} layout="vertical">
+          {/* 方法与名称并排显示 */}
           <Space align="baseline" style={{ display: 'flex' }}>
+            {/* 请求方法下拉选择 */}
             <Form.Item name="method" label="方法" rules={[{ required: true }]}>
               <Select style={{ width: 130 }} options={HTTP_METHODS.map((m) => ({ value: m, label: m }))} />
             </Form.Item>
+            {/* 接口名称 */}
             <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
               <Input placeholder="接口名称" style={{ width: 260 }} />
             </Form.Item>
           </Space>
+          {/* 请求路径，支持 ${变量} 占位 */}
           <Form.Item name="path" label="路径" rules={[{ required: true, message: '请输入路径' }]}>
             <Input placeholder="如 /api/users/${id}" />
           </Form.Item>
+          {/* 请求头键值对编辑器 */}
           <KeyValueEditor name="headers" label="请求头" keyPlaceholder="Header 名" />
           <div style={{ height: 16 }} />
+          {/* Query 参数键值对编辑器 */}
           <KeyValueEditor name="query" label="Query 参数" />
           <div style={{ height: 16 }} />
+          {/* 请求体，支持变量插值 */}
           <Form.Item name="body" label="请求体（JSON 或文本，支持 ${变量}）">
             <Input.TextArea rows={6} placeholder='如 {"name": "${name}"}' style={{ fontFamily: 'monospace' }} />
           </Form.Item>
@@ -285,6 +324,7 @@ export default function ApiList() {
         width={760}
       >
         <div style={{ marginBottom: 16 }}>
+          {/* 新建用例：清空编辑态并打开用例编辑弹窗 */}
           <Button
             type="primary"
             onClick={() => {
@@ -309,11 +349,14 @@ export default function ApiList() {
         destroyOnClose
       >
         <Form form={caseForm} layout="vertical">
+          {/* 用例名称 */}
           <Form.Item name="name" label="用例名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="如：登录成功" />
           </Form.Item>
+          {/* 断言列表编辑器 */}
           <AssertionEditor />
           <div style={{ height: 16 }} />
+          {/* 提取规则列表编辑器 */}
           <ExtractEditor />
         </Form>
       </Modal>

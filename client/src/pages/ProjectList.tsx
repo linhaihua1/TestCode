@@ -1,3 +1,9 @@
+/**
+ * 项目列表页
+ *
+ * 职责：展示所有项目，支持新建、编辑、删除项目，
+ * 并通过「进入」按钮跳转到指定项目的接口管理页。
+ */
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -6,13 +12,14 @@ import { api, getErrorMessage } from '../api/client'
 import type { Project } from '../api/types'
 
 export default function ProjectList() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Project | null>(null)
-  const [form] = Form.useForm()
-  const navigate = useNavigate()
+  const [projects, setProjects] = useState<Project[]>([]) // 项目列表数据
+  const [loading, setLoading] = useState(false) // 表格加载状态
+  const [open, setOpen] = useState(false) // 新建/编辑弹窗是否打开
+  const [editing, setEditing] = useState<Project | null>(null) // 正在编辑的项目（null 表示新建）
+  const [form] = Form.useForm() // 弹窗表单实例
+  const navigate = useNavigate() // 路由跳转
 
+  // 加载项目列表
   const load = async () => {
     setLoading(true)
     try {
@@ -24,13 +31,16 @@ export default function ProjectList() {
     }
   }
 
+  // 组件挂载时拉取项目列表
   useEffect(() => {
     load()
   }, [])
 
+  // 处理新建/编辑弹窗提交
   const handleSubmit = async () => {
     const values = await form.validateFields()
     try {
+      // 有编辑对象则更新，否则新建
       if (editing) await api.updateProject(editing.id, values)
       else await api.createProject(values)
       message.success('保存成功')
@@ -42,6 +52,7 @@ export default function ProjectList() {
     }
   }
 
+  // 删除项目
   const handleDelete = async (id: string) => {
     try {
       await api.deleteProject(id)
@@ -52,21 +63,25 @@ export default function ProjectList() {
     }
   }
 
+  // 表格列定义
   const columns: ColumnsType<Project> = [
     { title: '名称', dataIndex: 'name' },
     { title: '描述', dataIndex: 'description' },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
+      // 将 ISO 时间字符串格式化为本地可读时间
       render: (v: string) => new Date(v).toLocaleString(),
     },
     {
       title: '操作',
       render: (_, record) => (
         <Space>
+          {/* 进入项目下的接口管理页 */}
           <Button size="small" type="link" onClick={() => navigate(`/projects/${record.id}/apis`)}>
             进入
           </Button>
+          {/* 编辑：回填表单并打开弹窗 */}
           <Button
             size="small"
             type="link"
@@ -78,6 +93,7 @@ export default function ProjectList() {
           >
             编辑
           </Button>
+          {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该项目？" onConfirm={() => handleDelete(record.id)}>
             <Button size="small" type="link" danger>
               删除

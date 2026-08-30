@@ -1,3 +1,10 @@
+/**
+ * API 封装层
+ *
+ * 职责：集中封装所有对后端的 HTTP 调用。
+ * 基于 axios 实例统一配置 baseURL，并以 api 对象暴露各业务域的方法，
+ * 页面组件通过 import { api } 调用，避免在组件中散落请求细节。
+ */
 import axios from 'axios'
 import type {
   ApiCase,
@@ -9,19 +16,23 @@ import type {
   ScenarioStep,
 } from './types'
 
+// 创建共享的 axios 实例，所有请求统一以 /api 为前缀
 const http = axios.create({ baseURL: '/api' })
 
-// 统一错误提示
+// 统一错误提示：从各类错误对象中提取用户可读的错误信息
 export function getErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
+    // 优先读取后端返回的 error 字段，否则使用 axios 自带错误信息
     const data = err.response?.data as { error?: string } | undefined
     return data?.error ?? err.message
   }
+  // 非 axios 错误：Error 取 message，其余转字符串
   return err instanceof Error ? err.message : String(err)
 }
 
+// 后端调用集合，按业务域分组
 export const api = {
-  // ---------- Project ----------
+  // ---------- 项目（Project） ----------
   listProjects: () => http.get<Project[]>('/projects').then((r) => r.data),
   createProject: (data: { name: string; description?: string }) =>
     http.post<Project>('/projects', data).then((r) => r.data),
@@ -29,7 +40,7 @@ export const api = {
     http.put<Project>(`/projects/${id}`, data).then((r) => r.data),
   deleteProject: (id: string) => http.delete(`/projects/${id}`).then((r) => r.data),
 
-  // ---------- Environment ----------
+  // ---------- 环境（Environment） ----------
   listEnvironments: (projectId: string) =>
     http.get<Environment[]>(`/projects/${projectId}/environments`).then((r) => r.data),
   createEnvironment: (projectId: string, data: Partial<Environment>) =>
@@ -38,7 +49,7 @@ export const api = {
     http.put<Environment>(`/environments/${id}`, data).then((r) => r.data),
   deleteEnvironment: (id: string) => http.delete(`/environments/${id}`).then((r) => r.data),
 
-  // ---------- ApiDefinition ----------
+  // ---------- 接口定义（ApiDefinition） ----------
   listApis: (projectId: string) =>
     http.get<ApiDefinition[]>(`/projects/${projectId}/apis`).then((r) => r.data),
   createApi: (projectId: string, data: Partial<ApiDefinition>) =>
@@ -48,7 +59,7 @@ export const api = {
     http.put<ApiDefinition>(`/apis/${id}`, data).then((r) => r.data),
   deleteApi: (id: string) => http.delete(`/apis/${id}`).then((r) => r.data),
 
-  // ---------- ApiCase ----------
+  // ---------- 接口用例（ApiCase） ----------
   listCases: (apiId: string) => http.get<ApiCase[]>(`/apis/${apiId}/cases`).then((r) => r.data),
   createCase: (apiId: string, data: Partial<ApiCase>) =>
     http.post<ApiCase>(`/apis/${apiId}/cases`, data).then((r) => r.data),
@@ -56,7 +67,7 @@ export const api = {
     http.put<ApiCase>(`/cases/${id}`, data).then((r) => r.data),
   deleteCase: (id: string) => http.delete(`/cases/${id}`).then((r) => r.data),
 
-  // ---------- Scenario ----------
+  // ---------- 场景（Scenario） ----------
   listScenarios: (projectId: string) =>
     http.get<Scenario[]>(`/projects/${projectId}/scenarios`).then((r) => r.data),
   createScenario: (projectId: string, data: { name: string; description?: string }) =>
@@ -78,10 +89,11 @@ export const api = {
       extracts?: unknown
     }>,
   ) => http.put(`/scenarios/${id}/steps`, steps).then((r) => r.data),
+  // 在指定环境下执行整个场景，返回本次执行报告
   runScenario: (id: string, environmentId: string) =>
     http.post<Report>(`/scenarios/${id}/run`, { environmentId }).then((r) => r.data),
 
-  // ---------- Report ----------
+  // ---------- 报告（Report） ----------
   listReports: (projectId: string) =>
     http.get<Report[]>(`/projects/${projectId}/reports`).then((r) => r.data),
   getReport: (id: string) => http.get<Report>(`/reports/${id}`).then((r) => r.data),

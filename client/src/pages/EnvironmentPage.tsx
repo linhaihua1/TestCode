@@ -1,3 +1,9 @@
+/**
+ * 环境配置页
+ *
+ * 职责：管理指定项目下的运行环境（如 dev / test / prod），
+ * 每个环境包含 Base URL、环境变量和公共请求头，供场景执行时选用。
+ */
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -7,13 +13,14 @@ import type { Environment } from '../api/types'
 import KeyValueEditor from '../components/KeyValueEditor'
 
 export default function EnvironmentPage() {
-  const { projectId } = useParams<{ projectId: string }>()
-  const [envs, setEnvs] = useState<Environment[]>([])
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Environment | null>(null)
-  const [form] = Form.useForm()
+  const { projectId } = useParams<{ projectId: string }>() // 当前项目 ID
+  const [envs, setEnvs] = useState<Environment[]>([]) // 环境列表数据
+  const [loading, setLoading] = useState(false) // 表格加载状态
+  const [open, setOpen] = useState(false) // 新建/编辑弹窗是否打开
+  const [editing, setEditing] = useState<Environment | null>(null) // 正在编辑的环境（null 表示新建）
+  const [form] = Form.useForm() // 弹窗表单实例
 
+  // 加载当前项目下的环境列表
   const load = async () => {
     setLoading(true)
     try {
@@ -25,13 +32,16 @@ export default function EnvironmentPage() {
     }
   }
 
+  // 项目切换时重新拉取环境列表
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
+  // 处理新建/编辑弹窗提交
   const handleSubmit = async () => {
     const values = await form.validateFields()
+    // 组装提交负载，缺失的数组字段兜底为空数组
     const payload = {
       name: values.name,
       baseUrl: values.baseUrl ?? '',
@@ -39,6 +49,7 @@ export default function EnvironmentPage() {
       headers: values.headers ?? [],
     }
     try {
+      // 有编辑对象则更新，否则新建
       if (editing) await api.updateEnvironment(editing.id, payload)
       else await api.createEnvironment(projectId!, payload)
       message.success('保存成功')
@@ -49,6 +60,7 @@ export default function EnvironmentPage() {
     }
   }
 
+  // 删除环境
   const handleDelete = async (id: string) => {
     try {
       await api.deleteEnvironment(id)
@@ -59,12 +71,14 @@ export default function EnvironmentPage() {
     }
   }
 
+  // 表格列定义
   const columns: ColumnsType<Environment> = [
     { title: '名称', dataIndex: 'name' },
     { title: 'Base URL', dataIndex: 'baseUrl' },
     {
       title: '变量',
       dataIndex: 'variables',
+      // 以标签形式展示键值对
       render: (v: Environment['variables']) => (
         <Space wrap>
           {(v ?? []).map((kv) => (
@@ -79,6 +93,7 @@ export default function EnvironmentPage() {
       title: '操作',
       render: (_, record) => (
         <Space>
+          {/* 编辑：回填表单（含变量与公共请求头）并打开弹窗 */}
           <Button
             size="small"
             type="link"
@@ -95,6 +110,7 @@ export default function EnvironmentPage() {
           >
             编辑
           </Button>
+          {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该环境？" onConfirm={() => handleDelete(record.id)}>
             <Button size="small" type="link" danger>
               删除
