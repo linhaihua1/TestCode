@@ -6,6 +6,7 @@
  * 页面组件通过 import { api } 调用，避免在组件中散落请求细节。
  */
 import axios from 'axios'
+import { clearAuth, getToken } from './auth'
 import type {
   ApiCase,
   ApiDefinition,
@@ -14,10 +15,32 @@ import type {
   Report,
   Scenario,
   ScenarioStep,
+  User,
 } from './types'
 
 // 创建共享的 axios 实例，所有请求统一以 /api 为前缀
 const http = axios.create({ baseURL: '/api' })
+
+// 请求拦截器：自动携带登录 token
+http.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// 响应拦截器：登录失效（401）时清除登录态并跳转登录页
+http.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      clearAuth()
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(err)
+  },
+)
 
 // 统一错误提示：从各类错误对象中提取用户可读的错误信息
 export function getErrorMessage(err: unknown): string {
@@ -97,4 +120,24 @@ export const api = {
   listReports: (projectId: string) =>
     http.get<Report[]>(`/projects/${projectId}/reports`).then((r) => r.data),
   getReport: (id: string) => http.get<Report>(`/reports/${id}`).then((r) => r.data),
+
+  // ---------- 认证（Auth） ----------
+  login: (username: string, password: string) =>
+    http
+      .post<{ token: string; user: { id: string; username: string; role: string } }>('/auth/login', {
+        username,
+        password,
+      })
+      .then((r) => r.data),
+  getMe: () => http.get<{ id: string; username: string; role: string }>('/auth/me').then((r) => r.data),
+
+  // ---------- 用户管理（User） ----------
+  listUsers: () => http.get<User[]>('/users').then((r) => r.data),
+  createUser: (data: { username: string; password: string; role?: string }) =>
+    http.post<User>('/users', data).then((r) => r.data),
+  updateUser: (id: string, data: { username?: string; role?: string }) =>
+    http.put<User>(`/users/${id}`, data).then((r) => r.data),
+  deleteUser: (id: string) => http.delete(`/users/${id}`).then((r) => r.data),
+  resetUserPassword: (id: string, newPassword: string) =>
+    http.put(`/users/${id}/password`, { newPassword }).then((r) => r.data),
 }

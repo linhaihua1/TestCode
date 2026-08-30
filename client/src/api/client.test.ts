@@ -14,6 +14,11 @@ vi.mock('axios', () => ({
       post: mocks.post,
       put: mocks.put,
       delete: mocks.delete,
+      // 拦截器（client.ts 会注册 request/response 拦截器）
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
     }),
     isAxiosError: () => false,
   },
@@ -62,5 +67,27 @@ describe('api client', () => {
     mocks.delete.mockResolvedValue({ data: { ok: true } })
     await api.deleteProject('p1')
     expect(mocks.delete).toHaveBeenCalledWith('/projects/p1')
+  })
+
+  it('login → POST /auth/login', async () => {
+    mocks.post.mockResolvedValue({ data: { token: 't', user: { id: '1', username: 'admin' } } })
+    const result = await api.login('admin', 'admin@123')
+    expect(mocks.post).toHaveBeenCalledWith('/auth/login', {
+      username: 'admin',
+      password: 'admin@123',
+    })
+    expect(result.token).toBe('t')
+  })
+
+  it('listUsers → GET /users', async () => {
+    mocks.get.mockResolvedValue({ data: [] })
+    await api.listUsers()
+    expect(mocks.get).toHaveBeenCalledWith('/users')
+  })
+
+  it('resetUserPassword → PUT /users/:id/password', async () => {
+    mocks.put.mockResolvedValue({ data: { ok: true } })
+    await api.resetUserPassword('u1', 'newpass')
+    expect(mocks.put).toHaveBeenCalledWith('/users/u1/password', { newPassword: 'newpass' })
   })
 })

@@ -130,3 +130,12 @@ export interface Report {
 
 /** 支持的 HTTP 方法列表（用于请求构建器的下拉选择） */
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
+
+/** 系统用户（用户管理） */
+export interface User {
+  id: string // 用户 ID
+  username: string // 用户名（唯一）
+  role: string // 角色
+  createdAt: string // 创建时间
+  updatedAt: string // 更新时间
+}

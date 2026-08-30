@@ -1,20 +1,28 @@
 /**
  * 应用整体布局组件
  *
- * 职责：提供统一的页面框架——左侧固定导航菜单 + 右侧内容区。
+ * 职责：提供统一的页面框架——顶部栏（当前用户 + 退出登录）+ 左侧导航菜单 + 右侧内容区。
  * 菜单项会根据当前 URL 中的 projectId 动态拼接，并通过 Outlet 渲染子路由页面。
  */
-import { Layout, Menu } from 'antd'
+import { Button, Layout, Menu, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { clearAuth, getCurrentUser } from '../api/auth'
 
-// 解构出布局用到的侧边栏与内容区组件
-const { Sider, Content } = Layout
+// 解构出布局用到的侧边栏、顶部栏与内容区组件
+const { Sider, Header, Content } = Layout
 
 export default function AppLayout() {
   const { projectId } = useParams() // 从路由中读取当前项目 ID
   const navigate = useNavigate() // 用于菜单点击后跳转
   const location = useLocation() // 用于根据当前路径高亮菜单
+  const user = getCurrentUser() // 当前登录用户
+
+  // 退出登录：清除本地登录态并跳转登录页
+  const handleLogout = () => {
+    clearAuth()
+    navigate('/login')
+  }
 
   // 侧边栏菜单项；未进入具体项目时，项目相关的菜单置灰
   const items: MenuProps['items'] = [
@@ -23,6 +31,7 @@ export default function AppLayout() {
     { key: `/projects/${projectId}/scenarios`, label: '场景自动化', disabled: !projectId },
     { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
     { key: `/projects/${projectId}/reports`, label: '测试报告', disabled: !projectId },
+    { key: '/users', label: '用户管理' },
   ]
 
   // 根据当前路径前缀匹配需要高亮的菜单项
@@ -53,6 +62,24 @@ export default function AppLayout() {
         />
       </Sider>
       <Layout>
+        {/* 顶部栏：显示当前用户 + 退出登录 */}
+        <Header
+          style={{
+            background: '#fff',
+            padding: '0 24px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            borderBottom: '1px solid #f0f0f0',
+          }}
+        >
+          <Space>
+            <span style={{ color: '#333' }}>{user?.username ?? ''}</span>
+            <Button size="small" onClick={handleLogout}>
+              退出登录
+            </Button>
+          </Space>
+        </Header>
         <Content style={{ padding: 24, overflow: 'auto' }}>
           <Outlet />
         </Content>
