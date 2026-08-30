@@ -60,12 +60,11 @@ export default function AppLayout() {
     }
   }
 
-  // 侧边栏菜单项；未进入具体项目时，项目相关的菜单置灰
-  // 侧边栏菜单项：接口自动化与 UI 自动化分成两个独立分组，互不干扰
+  // 侧边栏菜单：一级（项目列表/用户管理）+ 二级（接口自动化/UI 自动化）+ 三级（具体功能）
   const items: MenuProps['items'] = [
     { key: '/projects', label: '项目列表' },
     {
-      type: 'group',
+      key: 'api-automation',
       label: '接口自动化',
       children: [
         { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
@@ -75,11 +74,11 @@ export default function AppLayout() {
       ],
     },
     {
-      type: 'group',
+      key: 'ui-automation',
       label: 'UI 自动化',
       children: [
         { key: `/projects/${projectId}/ui-tests`, label: 'UI 用例', disabled: !projectId },
-        { key: `/projects/${projectId}/ui-scenarios`, label: 'UI 执行', disabled: !projectId },
+        { key: `/projects/${projectId}/ui-scenarios`, label: 'UI 用例执行', disabled: !projectId },
         { key: `/projects/${projectId}/ui-reports`, label: 'UI 测试报告', disabled: !projectId },
       ],
     },
@@ -119,9 +118,13 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
+          defaultOpenKeys={['api-automation', 'ui-automation']}
           selectedKeys={selectedKey ? [selectedKey] : []}
           items={items}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            // 仅路由路径才触发跳转（二级菜单标题 key 不是路径，用于展开/折叠）
+            if (key.startsWith('/')) navigate(key)
+          }}
         />
       </Sider>
       <Layout>
