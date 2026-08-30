@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id           String          @id @default(cuid())
+  name         String
+  description  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  environments Environment[]
+  apis         ApiDefinition[]
+  scenarios    Scenario[]
+  reports      Report[]
+}
+
+model Environment {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  baseUrl   String?
+  variables Json     @default("[]")
+  headers   Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApiDefinition {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  method      String
+  path        String
+  headers     Json      @default("[]")
+  query       Json      @default("[]")
+  body        String?
+  description String?
+  cases       ApiCase[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ApiCase {
+  id         String         @id @default(cuid())
+  apiId      String
+  api        ApiDefinition  @relation(fields: [apiId], references: [id], onDelete: Cascade)
+  name       String
+  assertions Json           @default("[]")
+  extracts   Json           @default("[]")
+  steps      ScenarioStep[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model Scenario {
+  id          String         @id @default(cuid())
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  steps       ScenarioStep[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model ScenarioStep {
+  id         String   @id @default(cuid())
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  order      Int
+  apiCaseId  String?
+  apiCase    ApiCase? @relation(fields: [apiCaseId], references: [id], onDelete: SetNull)
+  name       String?
+  assertions Json     @default("[]")
+  extracts   Json     @default("[]")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Report {
+  id         String         @id @default(cuid())
+  projectId  String
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scenarioId String?
+  name       String
+  status     String
+  duration   Int
+  startedAt  DateTime       @default(now())
+  details    ReportDetail[]
+}
+
+model ReportDetail {
+  id         String  @id @default(cuid())
+  reportId   String
+  report     Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  stepName   String
+  status     String
+  error      String?
+  assertions Json    @default("[]")
+  extracts   Json    @default("[]")
+}
