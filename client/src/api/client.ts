@@ -188,4 +188,6 @@ export const api = {
   updateUiScenarioSteps: (id: string, steps: Array<{ order: number; uiTestCaseId?: string | null }>) =>
     http.put(`/ui-scenarios/${id}/steps`, steps).then((r) => r.data),
   runUiScenario: (id: string) => http.post<UiReport>(`/ui-scenarios/${id}/run`).then((r) => r.data),
+  executeUiCases: (projectId: string, testCaseIds: string[]) =>
+    http.post<UiReport>(`/projects/${projectId}/ui-execute`, { testCaseIds }).then((r) => r.data),
 }

@@ -132,4 +132,53 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     })
     return report
   })
+
+  // 直接执行：接收按顺序排列的 UI 用例 ID 列表，收集用例后在同一个浏览器会话中执行
+  app.post('/api/projects/:projectId/ui-execute', async (req, reply) => {
+    const { projectId } = req.params as { projectId: string }
+    const body = req.body as { testCaseIds?: string[] }
+    const ids = body?.testCaseIds ?? []
+
+    // 按传入顺序加载用例（跳过不存在的）
+    const cases: { id: string; name: string; baseUrl?: string | null; steps: UiStep[] }[] = []
+    for (const id of ids) {
+      const tc = await prisma.uiTestCase.findUnique({ where: { id } })
+      if (tc) {
+        cases.push({
+          id: tc.id,
+          name: tc.name,
+          baseUrl: tc.baseUrl,
+          steps: (tc.steps as unknown as UiStep[]) ?? [],
+        })
+      }
+    }
+
+    const start = Date.now()
+    let caseResults
+    try {
+      caseResults = await runUiScenario(cases)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.code(500).send({ error: `执行失败：${message}` })
+    }
+
+    const duration = Date.now() - start
+    const status = caseResults.every((r) => r.status === 'PASS')
+      ? 'PASS'
+      : caseResults.some((r) => r.status === 'ERROR')
+        ? 'ERROR'
+        : 'FAIL'
+
+    const report = await prisma.uiReport.create({
+      data: {
+        projectId,
+        testCaseId: null,
+        name: 'UI 用例执行',
+        status,
+        duration,
+        details: caseResults as unknown as Prisma.InputJsonValue,
+      },
+    })
+    return report
+  })
 }

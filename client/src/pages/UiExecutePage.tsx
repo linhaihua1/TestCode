@@ -1,5 +1,6 @@
 /**
- * UI 执行编排页：拖拽排序组合 UI 用例，按业务流程执行并展示报告。
+ * UI 用例执行页：收集 UI 用例 → 拖拽排序 → 按顺序执行。
+ * 不经过「场景列表」，直接在同一页面完成用例收集与执行。
  */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Select, Space, Spin, Tag, message } from 'antd'
@@ -18,13 +19,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import type { UiReport, UiScenarioStep, UiStepResult, UiTestCase } from '../api/types'
+import type { UiReport, UiTestCase, UiStepResult } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
-/** 场景报告中单个用例的执行结果 */
+/** 报告中单个用例的执行结果 */
 interface CaseResult {
   testCaseId: string
   name: string
@@ -32,18 +33,16 @@ interface CaseResult {
   steps: UiStepResult[]
 }
 
-/** 可拖拽的单步骤行（引用一个 UI 用例） */
-function SortableStep(props: {
-  step: UiScenarioStep
+/** 可拖拽的单个用例行 */
+function SortableCase(props: {
+  testCase: UiTestCase
   index: number
   total: number
-  caseOptions: { value: string; label: string }[]
-  onUpdate: (index: number, patch: Partial<UiScenarioStep>) => void
   onRemove: (index: number) => void
 }) {
-  const { step, index, total, caseOptions, onUpdate, onRemove } = props
+  const { testCase, index, total, onRemove } = props
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: step.id,
+    id: testCase.id,
   })
 
   const style: React.CSSProperties = {
@@ -73,29 +72,18 @@ function SortableStep(props: {
       <span style={{ width: 90, color: '#999', fontSize: 12 }}>
         {index === 0 ? '① 起始步骤' : index === total - 1 ? '② 结束步骤' : `步骤 ${index + 1}`}
       </span>
-      <Select
-        style={{ flex: 1 }}
-        placeholder="选择 UI 用例"
-        value={step.uiTestCaseId ?? undefined}
-        options={caseOptions}
-        showSearch
-        optionFilterProp="label"
-        onChange={(v) => onUpdate(index, { uiTestCaseId: v })}
-      />
+      <span style={{ flex: 1 }}>{testCase.name}</span>
       <Button size="small" danger onClick={() => onRemove(index)}>
-        删除
+        移除
       </Button>
     </div>
   )
 }
 
-export default function UiScenarioEditor() {
-  const { projectId, scenarioId } = useParams<{ projectId: string; scenarioId: string }>()
-  const navigate = useNavigate()
-
-  const [scenarioName, setScenarioName] = useState('')
-  const [steps, setSteps] = useState<UiScenarioStep[]>([])
-  const [caseOptions, setCaseOptions] = useState<{ value: string; label: string }[]>([])
+export default function UiExecutePage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const [allCases, setAllCases] = useState<UiTestCase[]>([]) // 项目所有 UI 用例
+  const [selected, setSelected] = useState<UiTestCase[]>([]) // 已收集的执行列表
   const [report, setReport] = useState<UiReport | null>(null)
   const [running, setRunning] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -105,9 +93,7 @@ export default function UiScenarioEditor() {
   const load = async () => {
     setLoading(true)
     try {
-      const scenario = await api.getUiScenario(scenarioId!)
-      setScenarioName(scenario.name)
-      setSteps(scenario.steps ?? [])
+      setAllCases(await api.listUiTests(projectId!))
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
@@ -115,70 +101,46 @@ export default function UiScenarioEditor() {
     }
   }
 
-  const loadCaseOptions = async () => {
-    try {
-      const tests = await api.listUiTests(projectId!)
-      setCaseOptions(tests.map((t: UiTestCase) => ({ value: t.id, label: t.name })))
-    } catch (e) {
-      message.error(getErrorMessage(e))
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
+  // 添加用例到执行列表
+  const addCase = (id: string) => {
+    const tc = allCases.find((c) => c.id === id)
+    if (tc && !selected.some((c) => c.id === id)) {
+      setSelected((prev) => [...prev, tc])
     }
   }
 
-  useEffect(() => {
-    load()
-    loadCaseOptions()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenarioId])
-
-  const updateStep = (index: number, patch: Partial<UiScenarioStep>) => {
-    setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
+  const removeCase = (index: number) => {
+    setSelected((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const addStep = () => {
-    setSteps((prev) => [
-      ...prev,
-      {
-        id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        scenarioId: scenarioId!,
-        order: prev.length,
-        uiTestCaseId: null,
-      },
-    ])
-  }
-
-  const removeStep = (index: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== index))
-  }
-
+  // 拖拽结束：重排执行顺序
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (over && active.id !== over.id) {
-      setSteps((prev) => {
-        const oldIndex = prev.findIndex((s) => s.id === active.id)
-        const newIndex = prev.findIndex((s) => s.id === over.id)
+      setSelected((prev) => {
+        const oldIndex = prev.findIndex((c) => c.id === active.id)
+        const newIndex = prev.findIndex((c) => c.id === over.id)
         if (oldIndex < 0 || newIndex < 0) return prev
         return arrayMove(prev, oldIndex, newIndex)
       })
     }
   }
 
-  const save = async () => {
-    const payload = steps.map((s, i) => ({ order: i, uiTestCaseId: s.uiTestCaseId ?? null }))
-    try {
-      await api.updateUiScenarioSteps(scenarioId!, payload)
-      message.success('步骤已保存')
-      load()
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    }
-  }
-
+  // 执行：按当前顺序收集用例 ID，交给后端在同一个浏览器会话中执行
   const run = async () => {
-    await save()
+    if (selected.length === 0) {
+      message.warning('请先添加 UI 用例')
+      return
+    }
     setRunning(true)
     setReport(null)
     try {
-      const r = await api.runUiScenario(scenarioId!)
+      const r = await api.executeUiCases(projectId!, selected.map((c) => c.id))
       setReport(r)
       message.success(r.status === 'PASS' ? '执行通过' : '执行完成，存在失败步骤')
     } catch (e) {
@@ -188,45 +150,56 @@ export default function UiScenarioEditor() {
     }
   }
 
+  // 尚未被收集的用例（可添加）
+  const availableCases = allCases.filter((c) => !selected.some((s) => s.id === c.id))
+
   const caseResults = (report?.details ?? []) as unknown as CaseResult[]
 
   return (
     <Card
-      title={`UI 执行编排：${scenarioName || ''}`}
+      title="UI 用例执行"
       extra={
-        <Space>
-          <Button onClick={() => navigate(`/projects/${projectId}/ui-scenarios`)}>返回</Button>
-          <Button onClick={save}>保存步骤</Button>
-          <Button type="primary" loading={running} onClick={run}>
-            执行
-          </Button>
-        </Space>
+        <Button type="primary" loading={running} onClick={run}>
+          执行
+        </Button>
       }
     >
       <Spin spinning={loading}>
-        <div style={{ marginBottom: 16, color: '#999', fontSize: 12 }}>
-          拖动左侧 ⠿ 手柄调整 UI 用例执行顺序；所有用例在同一个浏览器会话中按顺序执行
+        {/* 收集用例 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <span>添加用例：</span>
+            <Select
+              style={{ width: 360 }}
+              placeholder="选择 UI 用例添加到执行列表"
+              value={undefined}
+              options={availableCases.map((c) => ({ value: c.id, label: c.name }))}
+              showSearch
+              optionFilterProp="label"
+              onChange={addCase}
+            />
+            <span style={{ color: '#999', fontSize: 12 }}>
+              已选 {selected.length} 个，拖动左侧 ⠿ 手柄调整执行顺序
+            </span>
+          </Space>
         </div>
 
+        {/* 拖拽排序列表 */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-            {steps.map((s, i) => (
-              <SortableStep
-                key={s.id}
-                step={s}
-                index={i}
-                total={steps.length}
-                caseOptions={caseOptions}
-                onUpdate={updateStep}
-                onRemove={removeStep}
-              />
+          <SortableContext items={selected.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            {selected.map((c, i) => (
+              <SortableCase key={c.id} testCase={c} index={i} total={selected.length} onRemove={removeCase} />
             ))}
           </SortableContext>
         </DndContext>
-        <Button type="dashed" block onClick={addStep}>
-          添加 UI 用例
-        </Button>
 
+        {selected.length === 0 && (
+          <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>
+            暂无用例，请从上方下拉添加 UI 用例
+          </div>
+        )}
+
+        {/* 执行报告 */}
         {report && (
           <Card
             size="small"
