@@ -13,11 +13,11 @@ const TYPE_OPTIONS = [
   { value: 'regex', label: '正则' },
 ]
 
-/** 提取规则列表编辑器（ExtractRule[]） */
-export default function ExtractEditor() {
+/** 提取规则列表编辑器（ExtractRule[]），name 支持嵌套路径（多步骤用例） */
+export default function ExtractEditor({ name = 'extracts' }: { name?: string | (string | number)[] }) {
   return (
     // Form.List 管理提取规则数组字段的增删
-    <Form.List name="extracts">
+    <Form.List name={name}>
       {(fields, { add, remove }) => (
         <div>
           <div style={{ fontWeight: 500, marginBottom: 8 }}>提取（供后续步骤引用）</div>

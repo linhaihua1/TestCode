@@ -101,6 +101,8 @@ export const api = {
         passed: boolean
       }>(`/cases/${id}/debug`, { environmentId })
       .then((r) => r.data),
+  runCase: (id: string, environmentId?: string) =>
+    http.post<Report>(`/cases/${id}/run`, { environmentId }).then((r) => r.data),
 
   // ---------- 场景（Scenario） ----------
   listScenarios: (projectId: string) =>

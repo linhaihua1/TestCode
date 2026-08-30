@@ -63,13 +63,22 @@ export interface ExtractRule {
   expression: string // 提取表达式
 }
 
-/** 接口用例实体（一组断言 + 提取规则的组合） */
+/** 接口用例内的单个步骤定义（多步骤用例） */
+export interface CaseStepDef {
+  apiId: string // 该步骤引用的接口 ID
+  name?: string // 步骤名称
+  assertions: Assertion[] // 该步骤的断言
+  extracts: ExtractRule[] // 该步骤的提取
+}
+
+/** 接口用例实体（支持多步骤：前置准备/核心请求/后置清理） */
 export interface ApiCase {
   id: string // 用例 ID
-  apiId: string // 关联的接口 ID
+  apiId: string // 关联的默认接口 ID（单接口用例时使用）
   name: string // 用例名称
-  assertions: Assertion[] // 断言列表
-  extracts: ExtractRule[] // 提取规则列表
+  assertions: Assertion[] // 断言列表（单接口用例时使用）
+  extracts: ExtractRule[] // 提取规则列表（单接口用例时使用）
+  stepDefs: CaseStepDef[] // 多步骤定义（非空则按多步骤执行）
   createdAt: string // 创建时间
   updatedAt: string // 更新时间
 }

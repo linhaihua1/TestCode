@@ -67,7 +67,7 @@ export default function AppLayout() {
       label: '接口自动化',
       children: [
         { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
-        { key: `/projects/${projectId}/scenarios`, label: '场景自动化', disabled: !projectId },
+        { key: `/projects/${projectId}/scenarios`, label: '用例执行', disabled: !projectId },
         { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
         { key: `/projects/${projectId}/reports`, label: '接口测试报告', disabled: !projectId },
       ],

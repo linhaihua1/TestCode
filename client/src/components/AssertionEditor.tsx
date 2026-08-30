@@ -25,11 +25,11 @@ const OPERATOR_OPTIONS = [
   { value: 'lt', label: '小于' },
 ]
 
-/** 断言列表编辑器（Assertion[]） */
-export default function AssertionEditor() {
+/** 断言列表编辑器（Assertion[]），name 支持嵌套路径（多步骤用例） */
+export default function AssertionEditor({ name = 'assertions' }: { name?: string | (string | number)[] }) {
   return (
     // Form.List 管理断言数组字段的增删
-    <Form.List name="assertions">
+    <Form.List name={name}>
       {(fields, { add, remove }) => (
         <div>
           <div style={{ fontWeight: 500, marginBottom: 8 }}>断言</div>

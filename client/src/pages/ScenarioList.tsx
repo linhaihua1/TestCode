@@ -105,7 +105,7 @@ export default function ScenarioList() {
 
   return (
     <Card
-      title="场景自动化"
+      title="用例执行"
       extra={
         <Button
           type="primary"
@@ -115,13 +115,13 @@ export default function ScenarioList() {
             setOpen(true)
           }}
         >
-          新建场景
+          新建用例执行
         </Button>
       }
     >
       <Table rowKey="id" loading={loading} columns={columns} dataSource={scenarios} />
       <Modal
-        title={editing ? '编辑场景' : '新建场景'}
+        title={editing ? '编辑用例执行' : '新建用例执行'}
         open={open}
         onOk={handleSubmit}
         onCancel={() => setOpen(false)}

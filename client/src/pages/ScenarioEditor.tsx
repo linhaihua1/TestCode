@@ -1,12 +1,26 @@
 /**
- * 场景编排与执行页
+ * 场景编排与执行页（用例执行）
  *
- * 职责：本平台的核心页面，用于编排场景步骤（选择接口用例并调整顺序），
+ * 职责：编排场景步骤（选择接口用例并【拖拽】调整顺序），
  * 选择执行环境后运行整个场景，并实时展示执行报告。
  */
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Collapse, Select, Space, Spin, Table, Tag, message } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import { Alert, Button, Card, Collapse, Select, Space, Spin, Tag, message } from 'antd'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
 import type { Environment, Report, ScenarioStep } from '../api/types'
@@ -20,24 +34,88 @@ interface CaseOption {
 // 执行状态与标签颜色的映射
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
+/** 可拖拽的单步骤行组件 */
+function SortableStep(props: {
+  step: ScenarioStep
+  index: number
+  total: number
+  caseOptions: CaseOption[]
+  onUpdate: (index: number, patch: Partial<ScenarioStep>) => void
+  onRemove: (index: number) => void
+}) {
+  const { step, index, total, caseOptions, onUpdate, onRemove } = props
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: step.id,
+  })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 12px',
+    marginBottom: 8,
+    background: '#fff',
+    border: '1px solid #f0f0f0',
+    borderRadius: 6,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* 拖拽手柄 */}
+      <span
+        {...attributes}
+        {...listeners}
+        style={{ cursor: 'grab', fontSize: 18, color: '#999', userSelect: 'none', touchAction: 'none' }}
+        title="拖动排序"
+      >
+        ⠿
+      </span>
+      {/* 序号（起止标注） */}
+      <span style={{ width: 90, color: '#999', fontSize: 12 }}>
+        {index === 0 ? '① 起始步骤' : index === total - 1 ? '② 结束步骤' : `步骤 ${index + 1}`}
+      </span>
+      {/* 用例选择 */}
+      <Select
+        style={{ flex: 1 }}
+        placeholder="选择用例"
+        value={step.apiCaseId ?? undefined}
+        options={caseOptions}
+        showSearch
+        optionFilterProp="label"
+        onChange={(v) => onUpdate(index, { apiCaseId: v })}
+      />
+      {/* 删除 */}
+      <Button size="small" danger onClick={() => onRemove(index)}>
+        删除
+      </Button>
+    </div>
+  )
+}
+
 export default function ScenarioEditor() {
-  const { projectId, scenarioId } = useParams<{ projectId: string; scenarioId: string }>() // 当前项目与场景 ID
-  const navigate = useNavigate() // 路由跳转
+  const { projectId, scenarioId } = useParams<{ projectId: string; scenarioId: string }>()
+  const navigate = useNavigate()
 
-  const [scenarioName, setScenarioName] = useState('') // 场景名称
-  const [steps, setSteps] = useState<ScenarioStep[]>([]) // 场景步骤列表
-  const [caseOptions, setCaseOptions] = useState<CaseOption[]>([]) // 可选用例下拉选项
-  const [envs, setEnvs] = useState<Environment[]>([]) // 可用环境列表
-  const [selectedEnv, setSelectedEnv] = useState<string | undefined>() // 当前选中的执行环境
-  const [report, setReport] = useState<Report | null>(null) // 本次执行报告
-  const [running, setRunning] = useState(false) // 是否正在执行
-  const [loading, setLoading] = useState(false) // 页面加载状态
+  const [scenarioName, setScenarioName] = useState('')
+  const [steps, setSteps] = useState<ScenarioStep[]>([])
+  const [caseOptions, setCaseOptions] = useState<CaseOption[]>([])
+  const [envs, setEnvs] = useState<Environment[]>([])
+  const [selectedEnv, setSelectedEnv] = useState<string | undefined>()
+  const [report, setReport] = useState<Report | null>(null)
+  const [running, setRunning] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  // 加载场景详情与环境列表
+  // 拖拽传感器：移动超过 5px 才触发拖拽，避免误触
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
   const load = async () => {
     setLoading(true)
     try {
-      // 并行获取场景详情和环境列表
       const [scenario, envList] = await Promise.all([
         api.getScenario(scenarioId!),
         api.listEnvironments(projectId!),
@@ -45,7 +123,6 @@ export default function ScenarioEditor() {
       setScenarioName(scenario.name)
       setSteps(scenario.steps ?? [])
       setEnvs(envList)
-      // 默认选中第一个环境
       if (envList.length > 0) setSelectedEnv(envList[0].id)
     } catch (e) {
       message.error(getErrorMessage(e))
@@ -54,12 +131,10 @@ export default function ScenarioEditor() {
     }
   }
 
-  // 加载所有接口及其用例，组装为步骤可选的用例下拉选项
   const loadCaseOptions = async () => {
     try {
       const apis = await api.listApis(projectId!)
       const options: CaseOption[] = []
-      // 遍历接口与用例，生成「接口名 / 用例名」形式的标签
       for (const apiDef of apis) {
         const cases = await api.listCases(apiDef.id)
         for (const c of cases) {
@@ -72,24 +147,21 @@ export default function ScenarioEditor() {
     }
   }
 
-  // 场景切换时初始化页面数据
   useEffect(() => {
     load()
     loadCaseOptions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioId])
 
-  // 更新指定步骤的局部字段（如选择的用例）
   const updateStep = (index: number, patch: Partial<ScenarioStep>) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
   }
 
-  // 新增一个空步骤（使用临时 ID，待保存时由后端分配）
   const addStep = () => {
     setSteps((prev) => [
       ...prev,
       {
-        id: `tmp-${Date.now()}`,
+        id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         scenarioId: scenarioId!,
         order: prev.length,
         apiCaseId: null,
@@ -99,27 +171,24 @@ export default function ScenarioEditor() {
     ])
   }
 
-  // 删除指定步骤
   const removeStep = (index: number) => {
     setSteps((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // 上移 / 下移步骤：dir 为 -1 表示上移、1 表示下移
-  const moveStep = (index: number, dir: -1 | 1) => {
-    setSteps((prev) => {
-      const target = index + dir
-      // 越界时不移动
-      if (target < 0 || target >= prev.length) return prev
-      const next = [...prev]
-      // 交换相邻两步的位置
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
+  // 拖拽结束：根据新旧位置重排步骤
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setSteps((prev) => {
+        const oldIndex = prev.findIndex((s) => s.id === active.id)
+        const newIndex = prev.findIndex((s) => s.id === over.id)
+        if (oldIndex < 0 || newIndex < 0) return prev
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
   }
 
-  // 保存步骤顺序与用例关联
   const save = async () => {
-    // 组装提交负载：以数组下标作为步骤顺序
     const payload = steps.map((s, i) => ({
       order: i,
       apiCaseId: s.apiCaseId ?? null,
@@ -134,19 +203,16 @@ export default function ScenarioEditor() {
     }
   }
 
-  // 执行场景
   const run = async () => {
-    // 未选择环境时给出提示并中止
     if (!selectedEnv) {
       message.warning('请先选择执行环境')
       return
     }
     setRunning(true)
-    setReport(null) // 清空上一次报告
+    setReport(null)
     try {
       const r = await api.runScenario(scenarioId!, selectedEnv)
       setReport(r)
-      // 根据整体状态给出不同提示
       message.success(r.status === 'PASS' ? '执行通过' : '执行完成，存在失败步骤')
     } catch (e) {
       message.error(getErrorMessage(e))
@@ -155,48 +221,6 @@ export default function ScenarioEditor() {
     }
   }
 
-  // 步骤表格列定义
-  const stepColumns: ColumnsType<ScenarioStep> = [
-    // 序号列
-    { title: '#', width: 60, render: (_, __, i) => i + 1 },
-    {
-      title: '接口用例',
-      // 用例下拉选择，变更后更新对应步骤
-      render: (_, record, i) => (
-        <Select
-          style={{ width: '100%' }}
-          placeholder="选择用例"
-          value={record.apiCaseId ?? undefined}
-          options={caseOptions}
-          showSearch
-          optionFilterProp="label"
-          onChange={(v) => updateStep(i, { apiCaseId: v })}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      width: 200,
-      render: (_, __, i) => (
-        <Space>
-          {/* 上移：第一步禁用 */}
-          <Button size="small" onClick={() => moveStep(i, -1)} disabled={i === 0}>
-            上移
-          </Button>
-          {/* 下移：最后一步禁用 */}
-          <Button size="small" onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1}>
-            下移
-          </Button>
-          {/* 删除步骤 */}
-          <Button size="small" danger onClick={() => removeStep(i)}>
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ]
-
-  // 将报告明细转换为 Collapse（折叠面板）的 item 结构
   const reportItems = (report?.details ?? []).map((d, i) => ({
     key: String(i),
     label: (
@@ -207,9 +231,7 @@ export default function ScenarioEditor() {
     ),
     children: (
       <div>
-        {/* 步骤出错时展示错误信息 */}
         {d.error && <Alert type="error" message={d.error} style={{ marginBottom: 12 }} />}
-        {/* 逐条展示断言结果 */}
         {d.assertions.map((a, j) => (
           <Alert
             key={j}
@@ -219,7 +241,6 @@ export default function ScenarioEditor() {
             style={{ marginBottom: 8 }}
           />
         ))}
-        {/* 无错误且无断言时给出占位提示 */}
         {d.assertions.length === 0 && !d.error && <span style={{ color: '#999' }}>无断言</span>}
       </div>
     ),
@@ -227,18 +248,15 @@ export default function ScenarioEditor() {
 
   return (
     <Card
-      title={`场景编排：${scenarioName || ''}`}
+      title={`用例执行：${scenarioName || ''}`}
       extra={
         <Space>
-          {/* 返回场景列表 */}
           <Button onClick={() => navigate(`/projects/${projectId}/scenarios`)}>返回</Button>
-          {/* 保存当前步骤顺序与用例关联 */}
           <Button onClick={save}>保存步骤</Button>
         </Space>
       }
     >
       <Spin spinning={loading}>
-        {/* 执行环境选择与执行按钮 */}
         <div style={{ marginBottom: 16 }}>
           <Space>
             <span>执行环境：</span>
@@ -249,29 +267,35 @@ export default function ScenarioEditor() {
               options={envs.map((e) => ({ value: e.id, label: e.name }))}
               onChange={setSelectedEnv}
             />
-            {/* 执行中显示 loading */}
             <Button type="primary" loading={running} onClick={run}>
-              执行场景
+              执行
             </Button>
           </Space>
+          <span style={{ marginLeft: 16, color: '#999', fontSize: 12 }}>
+            拖动左侧 ⠿ 手柄调整用例执行顺序
+          </span>
         </div>
 
-        {/* 步骤编辑表格 */}
-        <Table
-          rowKey="id"
-          columns={stepColumns}
-          dataSource={steps}
-          pagination={false}
-          size="small"
-          footer={() => (
-            // 表格底部添加步骤按钮
-            <Button type="dashed" block onClick={addStep}>
-              添加步骤
-            </Button>
-          )}
-        />
+        {/* 可拖拽排序的步骤列表 */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            {steps.map((s, i) => (
+              <SortableStep
+                key={s.id}
+                step={s}
+                index={i}
+                total={steps.length}
+                caseOptions={caseOptions}
+                onUpdate={updateStep}
+                onRemove={removeStep}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <Button type="dashed" block onClick={addStep}>
+          添加步骤
+        </Button>
 
-        {/* 有执行报告时展示结果 */}
         {report && (
           <Card
             size="small"
@@ -284,7 +308,6 @@ export default function ScenarioEditor() {
             }
             style={{ marginTop: 24 }}
           >
-            {/* 默认展开所有步骤明细 */}
             <Collapse items={reportItems} defaultActiveKey={reportItems.map((i) => i.key)} />
           </Card>
         )}

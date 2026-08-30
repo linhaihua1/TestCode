@@ -26,7 +26,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import { HTTP_METHODS, type ApiCase, type ApiDefinition, type Environment } from '../api/types'
+import { HTTP_METHODS, type ApiCase, type ApiDefinition, type Environment, type Report } from '../api/types'
 import KeyValueEditor from '../components/KeyValueEditor'
 import AssertionEditor from '../components/AssertionEditor'
 import ExtractEditor from '../components/ExtractEditor'
@@ -41,6 +41,9 @@ const METHOD_COLOR: Record<string, string> = {
   HEAD: 'default',
   OPTIONS: 'default',
 }
+
+// 执行状态与标签颜色的映射
+const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
 export default function ApiList() {
   const { projectId } = useParams<{ projectId: string }>() // 当前项目 ID
@@ -72,6 +75,13 @@ export default function ApiList() {
     passed: boolean
   } | null>(null) // 调试结果
   const [debugLoading, setDebugLoading] = useState(false) // 调试请求进行中
+
+  // 运行相关状态
+  const [runOpen, setRunOpen] = useState(false) // 运行弹窗是否打开
+  const [runCaseData, setRunCaseData] = useState<ApiCase | null>(null) // 正在运行的用例
+  const [runEnvId, setRunEnvId] = useState<string | undefined>() // 选中的运行环境
+  const [runResult, setRunResult] = useState<Report | null>(null) // 运行报告结果
+  const [runLoading, setRunLoading] = useState(false) // 运行请求进行中
 
   // 加载当前项目下的接口列表
   const load = async () => {
@@ -141,11 +151,20 @@ export default function ApiList() {
   // 保存用例（新建或更新断言/提取规则）
   const saveCase = async () => {
     const values = await caseForm.validateFields()
-    // 组装提交负载，断言与提取列表兜底为空数组
+    // 将步骤列表映射为 stepDefs（多步骤定义）
+    const stepDefs = (values.steps ?? []).map(
+      (s: { apiId: string; name?: string; assertions?: unknown; extracts?: unknown }) => ({
+        apiId: s.apiId,
+        name: s.name,
+        assertions: s.assertions ?? [],
+        extracts: s.extracts ?? [],
+      }),
+    )
     const payload = {
       name: values.name,
-      assertions: values.assertions ?? [],
-      extracts: values.extracts ?? [],
+      stepDefs,
+      assertions: [],
+      extracts: [],
     }
     try {
       // 有编辑对象则更新，否则在当前接口下新建
@@ -195,6 +214,35 @@ export default function ApiList() {
       message.error(getErrorMessage(e))
     } finally {
       setDebugLoading(false)
+    }
+  }
+
+  // 打开运行弹窗：加载环境列表
+  const openRun = async (record: ApiCase) => {
+    setRunCaseData(record)
+    setRunResult(null)
+    setRunOpen(true)
+    try {
+      const envs = await api.listEnvironments(projectId!)
+      setDebugEnvList(envs) // 复用环境列表
+      setRunEnvId(envs[0]?.id)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  // 独立运行用例（多步骤），生成报告
+  const runCase = async () => {
+    setRunLoading(true)
+    setRunResult(null)
+    try {
+      const report = await api.runCase(runCaseData!.id, runEnvId)
+      setRunResult(report)
+      message.success(report.status === 'PASS' ? '运行通过' : '运行完成，存在失败步骤')
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setRunLoading(false)
     }
   }
 
@@ -251,32 +299,33 @@ export default function ApiList() {
   const caseColumns: ColumnsType<ApiCase> = [
     { title: '名称', dataIndex: 'name' },
     {
-      title: '断言数',
-      dataIndex: 'assertions',
-      // 统计断言条数
-      render: (v: ApiCase['assertions']) => (v ?? []).length,
-    },
-    {
-      title: '提取数',
-      dataIndex: 'extracts',
-      // 统计提取规则条数
-      render: (v: ApiCase['extracts']) => (v ?? []).length,
+      title: '步骤数',
+      // 多步骤用例显示 stepDefs 数量；单接口旧用例为 1
+      render: (_, record) => (record.stepDefs?.length ?? 0) > 0 ? record.stepDefs.length : 1,
     },
     {
       title: '操作',
       render: (_, record) => (
         <Space>
-          {/* 编辑：回填用例表单并打开编辑弹窗 */}
+          {/* 编辑：回填用例表单（多步骤或单接口转步骤）并打开编辑弹窗 */}
           <Button
             size="small"
             type="link"
             onClick={() => {
               setEditingCase(record)
-              caseForm.setFieldsValue({
-                name: record.name,
-                assertions: record.assertions ?? [],
-                extracts: record.extracts ?? [],
-              })
+              // 多步骤用例用 stepDefs；单接口旧用例转成一个步骤
+              const stepDefs =
+                (record.stepDefs?.length ?? 0) > 0
+                  ? record.stepDefs
+                  : [
+                      {
+                        apiId: record.apiId,
+                        name: record.name,
+                        assertions: record.assertions ?? [],
+                        extracts: record.extracts ?? [],
+                      },
+                    ]
+              caseForm.setFieldsValue({ name: record.name, steps: stepDefs })
               setCaseEditOpen(true)
             }}
           >
@@ -285,6 +334,10 @@ export default function ApiList() {
           {/* 调试：发送请求查看响应、提取结果与断言结果 */}
           <Button size="small" type="link" onClick={() => openDebug(record)}>
             调试
+          </Button>
+          {/* 运行：独立运行用例生成报告 */}
+          <Button size="small" type="link" onClick={() => openRun(record)}>
+            运行
           </Button>
           {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该用例？" onConfirm={() => deleteCase(record.id)}>
@@ -385,25 +438,72 @@ export default function ApiList() {
         <Table rowKey="id" columns={caseColumns} dataSource={cases} pagination={false} size="small" />
       </Modal>
 
-      {/* 用例编辑 */}
+      {/* 用例编辑（多步骤） */}
       <Modal
         title={editingCase ? '编辑用例' : '新建用例'}
         open={caseEditOpen}
         onOk={saveCase}
         onCancel={() => setCaseEditOpen(false)}
-        width={860}
+        width={920}
         destroyOnClose
       >
         <Form form={caseForm} layout="vertical">
           {/* 用例名称 */}
           <Form.Item name="name" label="用例名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如：登录成功" />
+            <Input placeholder="如：登录并查询用户" />
           </Form.Item>
-          {/* 断言列表编辑器 */}
-          <AssertionEditor />
-          <div style={{ height: 16 }} />
-          {/* 提取规则列表编辑器 */}
-          <ExtractEditor />
+
+          {/* 多步骤列表：每步引用一个接口 + 断言 + 提取 */}
+          <Form.List name="steps">
+            {(fields, { add, remove }) => (
+              <div>
+                <div style={{ fontWeight: 500, marginBottom: 8 }}>步骤（按顺序执行，变量在步骤间传递）</div>
+                {fields.map((field, index) => (
+                  <Card
+                    key={field.key}
+                    size="small"
+                    title={`步骤 ${index + 1}${index === 0 ? '（起）' : index === fields.length - 1 ? '（止）' : ''}`}
+                    style={{ marginBottom: 12 }}
+                    extra={
+                      <Button size="small" danger onClick={() => remove(field.name)}>
+                        删除
+                      </Button>
+                    }
+                  >
+                    {/* 步骤名 */}
+                    <Form.Item name={[field.name, 'name']} label="步骤名">
+                      <Input placeholder="如：登录（前置准备）" />
+                    </Form.Item>
+                    {/* 该步骤引用的接口 */}
+                    <Form.Item
+                      name={[field.name, 'apiId']}
+                      label="接口"
+                      rules={[{ required: true, message: '请选择接口' }]}
+                    >
+                      <Select
+                        placeholder="选择接口"
+                        showSearch
+                        optionFilterProp="label"
+                        options={apis.map((a) => ({ value: a.id, label: `${a.method} ${a.name}` }))}
+                      />
+                    </Form.Item>
+                    {/* 该步骤的断言 */}
+                    <AssertionEditor name={[field.name, 'assertions']} />
+                    <div style={{ height: 8 }} />
+                    {/* 该步骤的提取 */}
+                    <ExtractEditor name={[field.name, 'extracts']} />
+                  </Card>
+                ))}
+                <Button
+                  type="dashed"
+                  block
+                  onClick={() => add({ apiId: undefined, name: '', assertions: [], extracts: [] })}
+                >
+                  添加步骤
+                </Button>
+              </div>
+            )}
+          </Form.List>
         </Form>
       </Modal>
 
@@ -485,6 +585,64 @@ export default function ApiList() {
                   : JSON.stringify(debugResult.response.body, null, 2)}
               </pre>
             </Card>
+          </div>
+        )}
+      </Modal>
+
+      {/* 用例运行：独立运行多步骤用例并展示报告 */}
+      <Modal
+        title={`运行用例：${runCaseData?.name ?? ''}`}
+        open={runOpen}
+        onCancel={() => setRunOpen(false)}
+        footer={null}
+        width={760}
+      >
+        <Space style={{ marginBottom: 16 }}>
+          <span>环境：</span>
+          <Select
+            style={{ width: 240 }}
+            placeholder="选择环境（提供 baseUrl）"
+            value={runEnvId}
+            options={debugEnvList.map((e) => ({ value: e.id, label: e.name }))}
+            onChange={setRunEnvId}
+          />
+          <Button type="primary" loading={runLoading} onClick={runCase}>
+            运行
+          </Button>
+        </Space>
+
+        {runResult && (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <Tag color={STATUS_COLOR[runResult.status]}>{runResult.status}</Tag>
+              <span style={{ color: '#999' }}>耗时 {runResult.duration}ms</span>
+            </div>
+            {runResult.details.map((d, i) => (
+              <Card
+                key={i}
+                size="small"
+                title={
+                  <Space>
+                    <span>
+                      步骤 {i + 1}：{d.stepName}
+                    </span>
+                    <Tag color={STATUS_COLOR[d.status]}>{d.status}</Tag>
+                  </Space>
+                }
+                style={{ marginBottom: 8 }}
+              >
+                {d.error && <Alert type="error" message={d.error} style={{ marginBottom: 8 }} />}
+                {(d.assertions ?? []).map((a, j) => (
+                  <Alert
+                    key={j}
+                    type={a.passed ? 'success' : 'error'}
+                    showIcon
+                    message={a.message}
+                    style={{ marginBottom: 8 }}
+                  />
+                ))}
+              </Card>
+            ))}
           </div>
         )}
       </Modal>
