@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { Dropdown, Form, Input, Layout, Menu, Modal, message } from 'antd'
 import type { MenuProps } from 'antd'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuth, getCurrentUser } from '../api/auth'
 import { api, getErrorMessage } from '../api/client'
 
@@ -15,10 +15,12 @@ import { api, getErrorMessage } from '../api/client'
 const { Sider, Header, Content } = Layout
 
 export default function AppLayout() {
-  const { projectId } = useParams() // 从路由中读取当前项目 ID
   const navigate = useNavigate() // 用于菜单点击后跳转
   const location = useLocation() // 用于根据当前路径高亮菜单
   const user = getCurrentUser() // 当前登录用户
+
+  // 从 URL 路径解析 projectId（/projects/:projectId/...），比 useParams 在布局路由下更可靠
+  const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1]
 
   // 修改密码弹窗状态
   const [pwdOpen, setPwdOpen] = useState(false)
@@ -95,7 +97,10 @@ export default function AppLayout() {
       allKeys.push(String(item.key))
     }
   }
-  const selectedKey = allKeys.find((key) => location.pathname.startsWith(key))
+  // 用最长前缀匹配高亮菜单项（避免 /projects 短前缀抢占 /projects/xxx/... 的高亮）
+  const selectedKey = allKeys
+    .filter((key) => location.pathname.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
