@@ -17,6 +17,8 @@ model Project {
   apis         ApiDefinition[]
   scenarios    Scenario[]
   reports      Report[]
+  uiTests      UiTestCase[]
+  uiReports    UiReport[]
 }
 
 model Environment {
@@ -115,4 +117,30 @@ model User {
   role         String   @default("admin")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// UI 自动化测试用例（一组浏览器操作步骤）
+model UiTestCase {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  baseUrl     String?
+  steps       Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// UI 自动化测试报告（一次执行的完整结果）
+model UiReport {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testCaseId String?
+  name       String
+  status     String
+  duration   Int
+  startedAt  DateTime @default(now())
+  details    Json     @default("[]")
 }
