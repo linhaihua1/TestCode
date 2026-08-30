@@ -1,5 +1,6 @@
 /**
- * UI 测试编排页：步骤编排（打开/点击/输入/断言/等待）+ 执行 + 报告展示。
+ * UI 测试用例编排页（Pytest 三段式）：
+ * 前置步骤(setup) → 测试步骤(test) → 后置步骤(teardown)，执行时按此顺序串联。
  */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Collapse, Input, Select, Space, Spin, Table, Tag, message } from 'antd'
@@ -10,81 +11,19 @@ import { UI_ACTIONS, UI_LOCATORS, type UiReport, type UiStep } from '../api/type
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
-export default function UiTestEditor() {
-  const { projectId, testId } = useParams<{ projectId: string; testId: string }>()
-  const navigate = useNavigate()
+/** 单个阶段的步骤编辑表格（前置/测试/后置共用） */
+function StepTable(props: {
+  title: string
+  color: string
+  steps: UiStep[]
+  onUpdate: (index: number, patch: Partial<UiStep>) => void
+  onAdd: () => void
+  onRemove: (index: number) => void
+  onMove: (index: number, dir: -1 | 1) => void
+}) {
+  const { title, color, steps, onUpdate, onAdd, onRemove, onMove } = props
 
-  const [testName, setTestName] = useState('')
-  const [steps, setSteps] = useState<UiStep[]>([])
-  const [report, setReport] = useState<UiReport | null>(null)
-  const [running, setRunning] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const testCase = await api.getUiTest(testId!)
-      setTestName(testCase.name)
-      setSteps(testCase.steps ?? [])
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testId])
-
-  const updateStep = (index: number, patch: Partial<UiStep>) => {
-    setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
-  }
-
-  const addStep = () => {
-    setSteps((prev) => [...prev, { action: 'open', locatorType: 'css', target: '', value: '' }])
-  }
-
-  const removeStep = (index: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const moveStep = (index: number, dir: -1 | 1) => {
-    setSteps((prev) => {
-      const target = index + dir
-      if (target < 0 || target >= prev.length) return prev
-      const next = [...prev]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
-  }
-
-  const save = async () => {
-    try {
-      await api.updateUiTest(testId!, { steps })
-      message.success('步骤已保存')
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    }
-  }
-
-  const run = async () => {
-    await save() // 执行前先保存步骤
-    setRunning(true)
-    setReport(null)
-    try {
-      const r = await api.runUiTest(testId!)
-      setReport(r)
-      message.success(r.status === 'PASS' ? '执行通过' : '执行完成，存在失败步骤')
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    } finally {
-      setRunning(false)
-    }
-  }
-
-  const stepColumns: ColumnsType<UiStep> = [
+  const columns: ColumnsType<UiStep> = [
     { title: '#', width: 50, render: (_, __, i) => i + 1 },
     {
       title: '动作',
@@ -94,7 +33,7 @@ export default function UiTestEditor() {
           style={{ width: '100%' }}
           value={record.action}
           options={UI_ACTIONS}
-          onChange={(v) => updateStep(i, { action: v })}
+          onChange={(v) => onUpdate(i, { action: v })}
         />
       ),
     },
@@ -109,7 +48,7 @@ export default function UiTestEditor() {
             style={{ width: '100%' }}
             value={record.locatorType ?? 'css'}
             options={UI_LOCATORS}
-            onChange={(v) => updateStep(i, { locatorType: v })}
+            onChange={(v) => onUpdate(i, { locatorType: v })}
           />
         ),
     },
@@ -119,7 +58,7 @@ export default function UiTestEditor() {
         <Input
           value={record.target}
           placeholder={record.action === 'open' ? 'URL（如 / 或完整地址）' : '选择器'}
-          onChange={(e) => updateStep(i, { target: e.target.value })}
+          onChange={(e) => onUpdate(i, { target: e.target.value })}
         />
       ),
     },
@@ -138,7 +77,7 @@ export default function UiTestEditor() {
                   ? '超时秒数'
                   : '（可选）'
           }
-          onChange={(e) => updateStep(i, { value: e.target.value })}
+          onChange={(e) => onUpdate(i, { value: e.target.value })}
         />
       ),
     },
@@ -147,19 +86,110 @@ export default function UiTestEditor() {
       width: 180,
       render: (_, __, i) => (
         <Space>
-          <Button size="small" onClick={() => moveStep(i, -1)} disabled={i === 0}>
+          <Button size="small" onClick={() => onMove(i, -1)} disabled={i === 0}>
             上移
           </Button>
-          <Button size="small" onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1}>
+          <Button size="small" onClick={() => onMove(i, 1)} disabled={i === steps.length - 1}>
             下移
           </Button>
-          <Button size="small" danger onClick={() => removeStep(i)}>
+          <Button size="small" danger onClick={() => onRemove(i)}>
             删除
           </Button>
         </Space>
       ),
     },
   ]
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, color }}>{title}</div>
+      <Table
+        rowKey={(_, i) => String(i)}
+        columns={columns}
+        dataSource={steps}
+        pagination={false}
+        size="small"
+        footer={() => (
+          <Button type="dashed" block onClick={onAdd}>
+            添加步骤
+          </Button>
+        )}
+      />
+    </div>
+  )
+}
+
+export default function UiTestEditor() {
+  const { projectId, testId } = useParams<{ projectId: string; testId: string }>()
+  const navigate = useNavigate()
+
+  const [testName, setTestName] = useState('')
+  const [setupSteps, setSetupSteps] = useState<UiStep[]>([])
+  const [steps, setSteps] = useState<UiStep[]>([])
+  const [teardownSteps, setTeardownSteps] = useState<UiStep[]>([])
+  const [report, setReport] = useState<UiReport | null>(null)
+  const [running, setRunning] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const testCase = await api.getUiTest(testId!)
+      setTestName(testCase.name)
+      setSetupSteps(testCase.setupSteps ?? [])
+      setSteps(testCase.steps ?? [])
+      setTeardownSteps(testCase.teardownSteps ?? [])
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testId])
+
+  // 通用步骤操作（针对某个阶段数组）
+  const updateIn = (setter: React.Dispatch<React.SetStateAction<UiStep[]>>, index: number, patch: Partial<UiStep>) =>
+    setter((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
+  const addIn = (setter: React.Dispatch<React.SetStateAction<UiStep[]>>) =>
+    setter((prev) => [...prev, { action: 'open', locatorType: 'css', target: '', value: '' }])
+  const removeIn = (setter: React.Dispatch<React.SetStateAction<UiStep[]>>, index: number) =>
+    setter((prev) => prev.filter((_, i) => i !== index))
+  const moveIn = (setter: React.Dispatch<React.SetStateAction<UiStep[]>>, index: number, dir: -1 | 1) =>
+    setter((prev) => {
+      const target = index + dir
+      if (target < 0 || target >= prev.length) return prev
+      const next = [...prev]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+
+  const save = async () => {
+    try {
+      await api.updateUiTest(testId!, { setupSteps, steps, teardownSteps })
+      message.success('步骤已保存')
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  const run = async () => {
+    await save()
+    setRunning(true)
+    setReport(null)
+    try {
+      const r = await api.runUiTest(testId!)
+      setReport(r)
+      message.success(r.status === 'PASS' ? '执行通过' : '执行完成，存在失败步骤')
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setRunning(false)
+    }
+  }
 
   const reportItems = (report?.details ?? []).map((d, i) => ({
     key: String(i),
@@ -193,7 +223,7 @@ export default function UiTestEditor() {
 
   return (
     <Card
-      title={`UI 测试编排：${testName || ''}`}
+      title={`UI 测试用例编排：${testName || ''}`}
       extra={
         <Space>
           <Button onClick={() => navigate(`/projects/${projectId}/ui-tests`)}>返回</Button>
@@ -205,17 +235,32 @@ export default function UiTestEditor() {
       }
     >
       <Spin spinning={loading}>
-        <Table
-          rowKey={(_, i) => String(i)}
-          columns={stepColumns}
-          dataSource={steps}
-          pagination={false}
-          size="small"
-          footer={() => (
-            <Button type="dashed" block onClick={addStep}>
-              添加步骤
-            </Button>
-          )}
+        <StepTable
+          title="① 前置步骤（setup，如打开页面/登录）"
+          color="#1890ff"
+          steps={setupSteps}
+          onUpdate={(i, p) => updateIn(setSetupSteps, i, p)}
+          onAdd={() => addIn(setSetupSteps)}
+          onRemove={(i) => removeIn(setSetupSteps, i)}
+          onMove={(i, d) => moveIn(setSetupSteps, i, d)}
+        />
+        <StepTable
+          title="② 测试步骤（test，核心操作 + 断言）"
+          color="#52c41a"
+          steps={steps}
+          onUpdate={(i, p) => updateIn(setSteps, i, p)}
+          onAdd={() => addIn(setSteps)}
+          onRemove={(i) => removeIn(setSteps, i)}
+          onMove={(i, d) => moveIn(setSteps, i, d)}
+        />
+        <StepTable
+          title="③ 后置步骤（teardown，如清理/关闭）"
+          color="#fa8c16"
+          steps={teardownSteps}
+          onUpdate={(i, p) => updateIn(setTeardownSteps, i, p)}
+          onAdd={() => addIn(setTeardownSteps)}
+          onRemove={(i) => removeIn(setTeardownSteps, i)}
+          onMove={(i, d) => moveIn(setTeardownSteps, i, d)}
         />
 
         {report && (

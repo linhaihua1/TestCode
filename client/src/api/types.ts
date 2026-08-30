@@ -186,7 +186,9 @@ export interface UiTestCase {
   name: string
   description?: string | null
   baseUrl?: string | null
-  steps: UiStep[]
+  setupSteps: UiStep[] // 前置步骤（如打开浏览器、登录）
+  steps: UiStep[] // 测试步骤（核心操作 + 断言）
+  teardownSteps: UiStep[] // 后置步骤（如清理、关闭）
   createdAt: string
   updatedAt: string
 }
