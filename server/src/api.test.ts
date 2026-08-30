@@ -4,10 +4,12 @@ import type { AddressInfo } from 'node:net'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app.js'
 import { prisma } from './db.js'
+import { hashPassword } from './auth.js'
 
 let app: FastifyInstance
 let server: http.Server
 let baseUrl: string
+let auth: { authorization: string }
 
 beforeAll(async () => {
   server = http.createServer((req, res) => {
@@ -23,6 +25,19 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
   app = buildApp()
   await app.ready()
+
+  // 登录获取 token，后续业务接口请求需携带
+  await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: { username: 'admin', passwordHash: hashPassword('admin@123'), role: 'admin' },
+  })
+  const loginRes = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: { username: 'admin', password: 'admin@123' },
+  })
+  auth = { authorization: `Bearer ${loginRes.json().token}` }
 })
 
 afterAll(async () => {
@@ -46,7 +61,12 @@ describe('HTTP API 完整闭环', () => {
     await clean()
 
     // 1. 创建项目
-    const projRes = await app.inject({ method: 'POST', url: '/api/projects', payload: { name: 'demo' } })
+    const projRes = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: auth,
+      payload: { name: 'demo' },
+    })
     expect(projRes.statusCode).toBe(200)
     const project = projRes.json()
 
@@ -54,6 +74,7 @@ describe('HTTP API 完整闭环', () => {
     const envRes = await app.inject({
       method: 'POST',
       url: `/api/projects/${project.id}/environments`,
+      headers: auth,
       payload: { name: 'test', baseUrl },
     })
     expect(envRes.statusCode).toBe(200)
@@ -63,6 +84,7 @@ describe('HTTP API 完整闭环', () => {
     const apiRes = await app.inject({
       method: 'POST',
       url: `/api/projects/${project.id}/apis`,
+      headers: auth,
       payload: { name: 'login', method: 'POST', path: '/login' },
     })
     expect(apiRes.statusCode).toBe(200)
@@ -72,6 +94,7 @@ describe('HTTP API 完整闭环', () => {
     const caseRes = await app.inject({
       method: 'POST',
       url: `/api/apis/${api.id}/cases`,
+      headers: auth,
       payload: {
         name: 'login ok',
         assertions: [{ type: 'statusCode', expression: '', expected: '200' }],
@@ -85,6 +108,7 @@ describe('HTTP API 完整闭环', () => {
     const scnRes = await app.inject({
       method: 'POST',
       url: `/api/projects/${project.id}/scenarios`,
+      headers: auth,
       payload: { name: 'flow' },
     })
     expect(scnRes.statusCode).toBe(200)
@@ -94,6 +118,7 @@ describe('HTTP API 完整闭环', () => {
     const stepRes = await app.inject({
       method: 'PUT',
       url: `/api/scenarios/${scenario.id}/steps`,
+      headers: auth,
       payload: [{ order: 0, apiCaseId: apiCase.id }],
     })
     expect(stepRes.statusCode).toBe(200)
@@ -102,6 +127,7 @@ describe('HTTP API 完整闭环', () => {
     const runRes = await app.inject({
       method: 'POST',
       url: `/api/scenarios/${scenario.id}/run`,
+      headers: auth,
       payload: { environmentId: env.id },
     })
     expect(runRes.statusCode).toBe(200)
@@ -111,7 +137,11 @@ describe('HTTP API 完整闭环', () => {
     expect(report.details[0].status).toBe('PASS')
 
     // 8. 查报告列表
-    const reportsRes = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/reports` })
+    const reportsRes = await app.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/reports`,
+      headers: auth,
+    })
     expect(reportsRes.statusCode).toBe(200)
     expect(reportsRes.json()).toHaveLength(1)
   })
@@ -120,6 +150,7 @@ describe('HTTP API 完整闭环', () => {
     const runRes = await app.inject({
       method: 'POST',
       url: '/api/scenarios/any-id/run',
+      headers: auth,
       payload: {},
     })
     expect(runRes.statusCode).toBe(400)

@@ -106,3 +106,13 @@ model ReportDetail {
   assertions Json    @default("[]")
   extracts   Json    @default("[]")
 }
+
+// 系统用户（登录认证）
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

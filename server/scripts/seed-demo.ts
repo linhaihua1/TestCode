@@ -1,11 +1,20 @@
 import { prisma } from '../src/db.js'
+import { hashPassword } from '../src/auth.js'
 
 /**
  * 构造验收用的演示数据：
- * 项目 → 环境 → 接口(登录/查询用户) → 用例(断言+提取) → 场景(两步编排)
+ * 默认管理员 + 项目 → 环境 → 接口(登录/查询用户) → 用例(断言+提取) → 场景(两步编排)
  * 执行该场景可完整跑通「提取 token → 变量传递 → 断言」。
  */
 async function main() {
+  // 确保默认管理员存在（admin / admin@123）
+  const admin = await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: { username: 'admin', passwordHash: hashPassword('admin@123'), role: 'admin' },
+  })
+  console.log('默认管理员已就绪：', admin.username, '/ admin@123')
+
   // 清理旧的演示项目（级联删除其下所有数据）
   const existing = await prisma.project.findFirst({ where: { name: '演示项目' } })
   if (existing) {
