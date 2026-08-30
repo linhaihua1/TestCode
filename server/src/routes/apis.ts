@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
+import { debugCase } from '../engine/runner.js'
 
 /**
  * 接口定义与接口用例相关的 REST 路由：
@@ -119,5 +120,18 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!c) return reply.code(404).send({ error: '用例不存在' }) // 用例不存在返回 404
     await prisma.apiCase.delete({ where: { id } })
     return { ok: true }
+  })
+
+  // 调试单个用例：发送请求并返回响应、提取结果、断言结果
+  app.post('/api/cases/:id/debug', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const body = req.body as { environmentId?: string }
+    try {
+      const result = await debugCase(id, body?.environmentId)
+      return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.code(404).send({ error: message })
+    }
   })
 }

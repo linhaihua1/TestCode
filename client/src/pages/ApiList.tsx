@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react'
 import {
+  Alert,
   Button,
   Card,
   Drawer,
@@ -25,7 +26,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import { HTTP_METHODS, type ApiCase, type ApiDefinition } from '../api/types'
+import { HTTP_METHODS, type ApiCase, type ApiDefinition, type Environment } from '../api/types'
 import KeyValueEditor from '../components/KeyValueEditor'
 import AssertionEditor from '../components/AssertionEditor'
 import ExtractEditor from '../components/ExtractEditor'
@@ -58,6 +59,19 @@ export default function ApiList() {
   const [caseEditOpen, setCaseEditOpen] = useState(false) // 用例编辑弹窗是否打开
   const [editingCase, setEditingCase] = useState<ApiCase | null>(null) // 正在编辑的用例（null 表示新建）
   const [caseForm] = Form.useForm() // 用例表单实例
+
+  // 调试相关状态
+  const [debugOpen, setDebugOpen] = useState(false) // 调试弹窗是否打开
+  const [debugCaseData, setDebugCaseData] = useState<ApiCase | null>(null) // 正在调试的用例
+  const [debugEnvList, setDebugEnvList] = useState<Environment[]>([]) // 可用的环境列表
+  const [debugEnvId, setDebugEnvId] = useState<string | undefined>() // 选中的调试环境
+  const [debugResult, setDebugResult] = useState<{
+    response: { status: number; body: unknown; duration: number }
+    extracted: Record<string, string>
+    assertions: Array<{ passed: boolean; message: string }>
+    passed: boolean
+  } | null>(null) // 调试结果
+  const [debugLoading, setDebugLoading] = useState(false) // 调试请求进行中
 
   // 加载当前项目下的接口列表
   const load = async () => {
@@ -156,6 +170,34 @@ export default function ApiList() {
     }
   }
 
+  // 打开调试弹窗：加载环境列表，默认选中第一个环境
+  const openDebug = async (record: ApiCase) => {
+    setDebugCaseData(record)
+    setDebugResult(null)
+    setDebugOpen(true)
+    try {
+      const envs = await api.listEnvironments(projectId!)
+      setDebugEnvList(envs)
+      setDebugEnvId(envs[0]?.id)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  // 执行调试：发送请求并展示响应、提取结果、断言结果
+  const runDebug = async () => {
+    setDebugLoading(true)
+    setDebugResult(null)
+    try {
+      const result = await api.debugCase(debugCaseData!.id, debugEnvId)
+      setDebugResult(result)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setDebugLoading(false)
+    }
+  }
+
   // 接口列表列定义
   const apiColumns: ColumnsType<ApiDefinition> = [
     { title: '名称', dataIndex: 'name' },
@@ -239,6 +281,10 @@ export default function ApiList() {
             }}
           >
             编辑
+          </Button>
+          {/* 调试：发送请求查看响应、提取结果与断言结果 */}
+          <Button size="small" type="link" onClick={() => openDebug(record)}>
+            调试
           </Button>
           {/* 删除：带二次确认 */}
           <Popconfirm title="确认删除该用例？" onConfirm={() => deleteCase(record.id)}>
@@ -359,6 +405,88 @@ export default function ApiList() {
           {/* 提取规则列表编辑器 */}
           <ExtractEditor />
         </Form>
+      </Modal>
+
+      {/* 用例调试：发送请求查看响应、提取结果、断言结果 */}
+      <Modal
+        title={`调试用例：${debugCaseData?.name ?? ''}`}
+        open={debugOpen}
+        onCancel={() => setDebugOpen(false)}
+        footer={null}
+        width={760}
+      >
+        <Space style={{ marginBottom: 16 }}>
+          <span>环境：</span>
+          <Select
+            style={{ width: 240 }}
+            placeholder="选择环境（提供 baseUrl）"
+            value={debugEnvId}
+            options={debugEnvList.map((e) => ({ value: e.id, label: e.name }))}
+            onChange={setDebugEnvId}
+          />
+          <Button type="primary" loading={debugLoading} onClick={runDebug}>
+            发送请求
+          </Button>
+        </Space>
+
+        {debugResult && (
+          <div>
+            {/* 响应状态与耗时 */}
+            <div style={{ marginBottom: 12 }}>
+              <Tag color={debugResult.response.status < 400 ? 'green' : 'red'}>
+                状态码 {debugResult.response.status}
+              </Tag>
+              <span style={{ color: '#999' }}>耗时 {debugResult.response.duration}ms</span>
+            </div>
+
+            {/* 提取到的变量 */}
+            {Object.keys(debugResult.extracted).length > 0 && (
+              <Card size="small" title="提取结果" style={{ marginBottom: 12 }}>
+                <Space wrap>
+                  {Object.entries(debugResult.extracted).map(([k, v]) => (
+                    <Tag key={k} color="blue">
+                      {k} = {v}
+                    </Tag>
+                  ))}
+                </Space>
+              </Card>
+            )}
+
+            {/* 断言结果 */}
+            {debugResult.assertions.length > 0 && (
+              <Card size="small" title="断言结果" style={{ marginBottom: 12 }}>
+                {debugResult.assertions.map((a, i) => (
+                  <Alert
+                    key={i}
+                    type={a.passed ? 'success' : 'error'}
+                    showIcon
+                    message={a.message}
+                    style={{ marginBottom: 8 }}
+                  />
+                ))}
+              </Card>
+            )}
+
+            {/* 响应体 */}
+            <Card size="small" title="响应体">
+              <pre
+                style={{
+                  margin: 0,
+                  maxHeight: 320,
+                  overflow: 'auto',
+                  background: '#f5f5f5',
+                  padding: 12,
+                  borderRadius: 4,
+                  fontSize: 13,
+                }}
+              >
+                {typeof debugResult.response.body === 'string'
+                  ? debugResult.response.body
+                  : JSON.stringify(debugResult.response.body, null, 2)}
+              </pre>
+            </Card>
+          </div>
+        )}
       </Modal>
     </Card>
   )

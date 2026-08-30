@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import type {
   Assertion,
+  AssertionResult,
   ExtractRule,
   RequestSpec,
   StepResult,
@@ -245,4 +246,68 @@ export async function runScenario(input: RunScenarioInput) {
   })
 
   return { report, context }
+}
+
+/** 单用例调试结果：请求、响应、提取、断言 */
+export interface DebugResult {
+  request: RequestSpec
+  response: {
+    status: number
+    headers: Record<string, string>
+    body: unknown
+    rawBody: string
+    duration: number
+  }
+  extracted: Record<string, string>
+  assertions: AssertionResult[]
+  passed: boolean
+}
+
+/**
+ * 调试单个接口用例：按接口定义发送请求，执行提取与断言，
+ * 返回完整响应、提取到的变量与断言结果，供前端即时查看。
+ * 可选传入环境 ID 以使用其 baseUrl / 变量 / 公共请求头。
+ */
+export async function debugCase(caseId: string, environmentId?: string): Promise<DebugResult> {
+  const apiCase = await prisma.apiCase.findUnique({ where: { id: caseId }, include: { api: true } })
+  if (!apiCase) throw new Error('用例不存在')
+
+  const context: VariableContext = {}
+  let baseUrl = ''
+  let envHeaders: KeyValue[] = []
+
+  // 加载环境（可选）：提供 baseUrl、变量、公共请求头
+  if (environmentId) {
+    const env = await prisma.environment.findUnique({ where: { id: environmentId } })
+    if (env) {
+      baseUrl = env.baseUrl ?? ''
+      for (const kv of (env.variables as unknown as KeyValue[]) ?? []) context[kv.key] = kv.value
+      envHeaders = (env.headers as unknown as KeyValue[]) ?? []
+    }
+  }
+
+  const api = apiCase.api
+  const headers = {
+    ...kvToRecord(envHeaders, context),
+    ...kvToRecord((api.headers as unknown as KeyValue[]) ?? [], context),
+  }
+  const spec: RequestSpec = {
+    method: api.method,
+    url: buildUrl(baseUrl, api.path, context),
+    headers,
+    query: kvToRecord((api.query as unknown as KeyValue[]) ?? [], context),
+    body: buildBody(api.body, context),
+  }
+
+  const res = await executeRequest(spec)
+  const extracted = applyExtracts(res, (apiCase.extracts as unknown as ExtractRule[]) ?? [], context)
+  const { passed, results } = evaluateAssertions(res, (apiCase.assertions as unknown as Assertion[]) ?? [])
+
+  return {
+    request: spec,
+    response: res,
+    extracted,
+    assertions: results,
+    passed,
+  }
 }

@@ -91,6 +91,16 @@ export const api = {
   updateCase: (id: string, data: Partial<ApiCase>) =>
     http.put<ApiCase>(`/cases/${id}`, data).then((r) => r.data),
   deleteCase: (id: string) => http.delete(`/cases/${id}`).then((r) => r.data),
+  debugCase: (id: string, environmentId?: string) =>
+    http
+      .post<{
+        request: { method: string; url: string; headers: Record<string, string>; body: unknown }
+        response: { status: number; headers: Record<string, string>; body: unknown; rawBody: string; duration: number }
+        extracted: Record<string, string>
+        assertions: Array<{ passed: boolean; type: string; expression: string; expected: string; actual: string; message: string }>
+        passed: boolean
+      }>(`/cases/${id}/debug`, { environmentId })
+      .then((r) => r.data),
 
   // ---------- 场景（Scenario） ----------
   listScenarios: (projectId: string) =>
