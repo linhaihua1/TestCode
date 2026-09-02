@@ -102,3 +102,22 @@ describe('evaluateAssertions', () => {
     expect(results[1].passed).toBe(false)
   })
 })
+
+
+describe('evaluateAssertion - invalid regex safety', () => {
+  it('invalid regex expression in regex type does not crash', () => {
+    const r = makeRes()
+    // 不应抛出异常，应返回失败结果
+    expect(() => evaluateAssertion(r, { type: 'regex', expression: '[invalid(', expected: 'x' })).not.toThrow()
+    const result = evaluateAssertion(r, { type: 'regex', expression: '[invalid(', expected: 'x' })
+    expect(result.passed).toBe(false)
+  })
+
+  it('invalid regex expected in regex operator returns false, does not crash', () => {
+    const r = makeRes()
+    // expected 是无效正则，应捕获异常并返回 false，不崩溃
+    expect(() => evaluateAssertion(r, { type: 'statusCode', expression: '', expected: '[invalid(', operator: 'regex' })).not.toThrow()
+    const result = evaluateAssertion(r, { type: 'statusCode', expression: '', expected: '[invalid(', operator: 'regex' })
+    expect(result.passed).toBe(false)
+  })
+})

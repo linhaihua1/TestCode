@@ -66,3 +66,12 @@ describe('applyExtracts', () => {
     expect(context.missing).toBeUndefined()
   })
 })
+
+
+describe('extractValue - invalid regex safety', () => {
+  it('invalid regex expression does not crash', () => {
+    const res = makeRes()
+    expect(() => extractValue(res, { name: 'x', type: 'regex', expression: '[invalid(' })).not.toThrow()
+    expect(extractValue(res, { name: 'x', type: 'regex', expression: '[invalid(' })).toBeUndefined()
+  })
+})

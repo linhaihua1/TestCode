@@ -29,8 +29,13 @@ export function extractValue(res: ResponseData, rule: ExtractRule): string | und
     }
     case 'regex': {
       // 在原始响应体上做正则匹配，优先取第一个捕获组，否则取整个匹配
-      const match = res.rawBody.match(new RegExp(rule.expression))
-      raw = match ? (match[1] ?? match[0]) : undefined
+      // 表达式无效时不崩溃，返回 undefined（跳过该规则）
+      try {
+        const match = res.rawBody.match(new RegExp(rule.expression))
+        raw = match ? (match[1] ?? match[0]) : undefined
+      } catch {
+        raw = undefined
+      }
       break
     }
   }

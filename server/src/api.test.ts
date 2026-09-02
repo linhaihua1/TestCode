@@ -156,4 +156,36 @@ describe('HTTP API 完整闭环', () => {
     expect(runRes.statusCode).toBe(400)
     expect(runRes.json().error).toContain('environmentId')
   })
+
+  it('PUT 场景更新时忽略多余字段不报错', async () => {
+    const projRes = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: auth,
+      payload: { name: 'put-test-project' },
+    })
+    expect(projRes.statusCode).toBe(200)
+    const project = projRes.json()
+
+    const scnRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/scenarios`,
+      headers: auth,
+      payload: { name: 'flow-update-test' },
+    })
+    expect(scnRes.statusCode).toBe(200)
+    const scenario = scnRes.json()
+
+    // 传入不存在的字段（如 steps、projectId），应被忽略而非报错
+    const updateRes = await app.inject({
+      method: 'PUT',
+      url: `/api/scenarios/${scenario.id}`,
+      headers: auth,
+      payload: { name: 'updated name', steps: [], projectId: 'should-be-ignored' },
+    })
+    expect(updateRes.statusCode).toBe(200)
+    expect(updateRes.json().name).toBe('updated name')
+
+    await prisma.project.delete({ where: { id: project.id } })
+  })
 })

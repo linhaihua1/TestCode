@@ -53,7 +53,14 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     const body = req.body as UiScenarioBody
     const scenario = await prisma.uiScenario.findUnique({ where: { id } })
     if (!scenario) return reply.code(404).send({ error: '场景不存在' })
-    return prisma.uiScenario.update({ where: { id }, data: body })
+    // 只允许更新 name 和 description，防止前端传入不存在的字段导致 Prisma 报错
+    return prisma.uiScenario.update({
+      where: { id },
+      data: {
+        name: body.name,
+        description: body.description,
+      },
+    })
   })
 
   // 删除场景

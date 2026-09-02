@@ -28,8 +28,13 @@ function actualValue(res: ResponseData, type: Assertion['type'], expression: str
     }
     case 'regex': {
       // 正则断言：在原始响应体匹配，优先取第一个捕获组
-      const match = res.rawBody.match(new RegExp(expression))
-      return match ? (match[1] ?? match[0]) : ''
+      // 表达式无效时不崩溃，返回空串（断言自然失败）
+      try {
+        const match = res.rawBody.match(new RegExp(expression))
+        return match ? (match[1] ?? match[0]) : ''
+      } catch {
+        return ''
+      }
     }
   }
 }
@@ -46,7 +51,11 @@ function compare(actual: string, expected: string, operator: AssertionOperator):
     case 'notContains':
       return !actual.includes(expected) // 不包含
     case 'regex':
-      return new RegExp(expected).test(actual) // 正则匹配
+      try {
+        return new RegExp(expected).test(actual) // 正则匹配
+      } catch {
+        return false // 无效正则视为不匹配
+      }
     case 'gt':
       return Number(actual) > Number(expected) // 大于（数值比较）
     case 'lt':
