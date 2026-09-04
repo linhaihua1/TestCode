@@ -3,9 +3,11 @@
  * 三栏支持拖拽调宽、折叠/展开、宽度 localStorage 记忆；支持快捷键。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Dropdown } from 'antd'
+import { Button, Dropdown, Select } from 'antd'
 import type { MenuProps } from 'antd'
 import { clearAuth, getCurrentUser } from '../../api/auth'
+import { api } from '../../api/client'
+import type { Project } from '../../api/types'
 import CaseLibraryPanel from './CaseLibraryPanel'
 import CaseEditorPanel from './CaseEditorPanel'
 import ApiManagerPanel from './ApiManagerPanel'
@@ -33,6 +35,11 @@ function TopEntry(props: { label: string; icon?: string; onClick?: () => void })
 }
 
 export default function Workbench() {
+  // 项目与选中用例
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectId, setProjectId] = useState<string | undefined>()
+  const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>()
+
   // 三栏宽度（中间栏 = 总宽 - 左 - 右 - 分隔条）
   const [leftW, setLeftW] = useState(() => loadWidth('wb-left', 260))
   const [rightW, setRightW] = useState(() => loadWidth('wb-right', 320))
@@ -102,6 +109,18 @@ export default function Workbench() {
   const toggleMid = () => setMidCollapsed((v) => !v)
   const toggleRight = () => setRightCollapsed((v) => !v)
 
+  // 加载项目列表，默认选第一个
+  useEffect(() => {
+    api
+      .listProjects()
+      .then((list) => {
+        setProjects(list)
+        if (list.length > 0) setProjectId((prev) => prev ?? list[0].id)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ---------- 快捷键（PRD：Ctrl+S / Ctrl+Enter / Ctrl+F） ----------
   const onSave = useCallback(() => {
     // 第 1 期占位：后续接实际保存
@@ -166,7 +185,17 @@ export default function Workbench() {
         <TopEntry label="调试记录" icon="📋" />
         <TopEntry label="回收站" icon="🗑" />
         <div style={{ flex: 1 }} />
-        <span style={{ color: '#666', fontSize: 13 }}>当前项目</span>
+        <Select
+          style={{ width: 180 }}
+          size="small"
+          placeholder="选择项目"
+          value={projectId}
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          onChange={(v) => {
+            setProjectId(v)
+            setSelectedCaseId(undefined)
+          }}
+        />
         <Dropdown menu={{ items: userMenu, onClick: onUserMenuClick }}>
           <span style={{ cursor: 'pointer', color: '#333' }} title={user?.role}>
             {user?.username ?? ''}
@@ -186,7 +215,12 @@ export default function Workbench() {
               用例库
             </div>
           ) : (
-            <CaseLibraryPanel onCollapse={toggleLeft} />
+            <CaseLibraryPanel
+              projectId={projectId}
+              selectedCaseId={selectedCaseId}
+              onCollapse={toggleLeft}
+              onSelectCase={setSelectedCaseId}
+            />
           )}
           <ResizeHandle onMouseDown={onResizeMouseDown('left')} />
         </div>
@@ -202,7 +236,7 @@ export default function Workbench() {
             </div>
           ) : (
             <div style={{ flex: 1, minWidth: MIN_MID }}>
-              <CaseEditorPanel onCollapse={toggleMid} />
+              <CaseEditorPanel caseId={selectedCaseId} onCollapse={toggleMid} />
             </div>
           )}
         </div>
