@@ -243,3 +243,77 @@ export const UI_LOCATORS: { value: LocatorType; label: string }[] = [
   { value: 'name', label: 'Name' },
   { value: 'linkText', label: '链接文本' },
 ]
+
+// 全局变量
+export interface GlobalVariable {
+  id: string
+  projectId: string
+  name: string
+  type: string
+  value: string
+  encrypted: boolean
+  description?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// 目录模块
+export interface Module {
+  id: string
+  projectId: string
+  parentId?: string | null
+  name: string
+  type: string
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+// 新用例（含模块和版本）
+export interface CaseInfo {
+  id: string
+  projectId: string
+  moduleId?: string | null
+  module?: Module | null
+  name: string
+  description?: string | null
+  status: string
+  priority: string
+  tags: unknown[]
+  steps: unknown[]
+  version: number
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string | null
+  versions?: CaseVersion[]
+}
+
+export interface CaseVersion {
+  id: string
+  caseId: string
+  version: number
+  snapshot: unknown
+  changeSummary?: string | null
+  createdBy?: string | null
+  createdAt: string
+}
+
+// 调试记录
+export interface DebugRecord {
+  id: string
+  caseId: string
+  caseInfo?: CaseInfo | null
+  caseNameSnapshot: string
+  environmentId?: string | null
+  executeMode: string
+  result: string
+  totalDuration: number
+  requestSummary: unknown[]
+  responseSummary: unknown[]
+  assertionResults: unknown[]
+  extractedVariables: unknown[]
+  errorLog?: string | null
+  stepResults: unknown[]
+  createdBy?: string | null
+  createdAt: string
+}

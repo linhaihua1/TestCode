@@ -20,6 +20,10 @@ model Project {
   uiTests      UiTestCase[]
   uiReports    UiReport[]
   uiScenarios  UiScenario[]
+  globalVariables GlobalVariable[]
+  modules         Module[]
+  cases           CaseInfo[]
+  testTasks       TestTask[]
 }
 
 model Environment {
@@ -173,4 +177,119 @@ model UiScenarioStep {
   uiTestCase   UiTestCase? @relation(fields: [uiTestCaseId], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+}
+
+model GlobalVariable {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  type String @default("string")
+  value String @default("")
+  encrypted Boolean @default(false)
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Module {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent Module? @relation("ModuleChain", fields: [parentId], references: [id])
+  children Module[] @relation("ModuleChain")
+  name String
+  type String @default("case")
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cases CaseInfo[]
+}
+model CaseInfo {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  moduleId String?
+  module Module? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  name String
+  description String?
+  status String @default("draft")
+  priority String @default("P2")
+  tags Json @default("[]")
+  steps Json @default("[]")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  versions CaseVersion[]
+  debugRecords DebugRecord[]
+}
+model CaseVersion {
+  id String @id @default(cuid())
+  caseId String
+  case CaseInfo @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  version Int
+  snapshot Json
+  changeSummary String?
+  createdBy String?
+  createdAt DateTime @default(now())
+}
+model DebugRecord {
+  id String @id @default(cuid())
+  caseId String
+  caseInfo CaseInfo @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseNameSnapshot String
+  environmentId String?
+  executeMode String @default("local")
+  result String @default("pending")
+  totalDuration Int @default(0)
+  requestSummary Json @default("[]")
+  responseSummary Json @default("[]")
+  assertionResults Json @default("[]")
+  extractedVariables Json @default("[]")
+  errorLog String?
+  stepResults Json @default("[]")
+  createdBy String?
+  createdAt DateTime @default(now())
+}
+model TestTask {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  description String?
+  caseIds Json @default("[]")
+  environmentId String?
+  executeMode String @default("sequential")
+  retryCount Int @default(0)
+  timeout Int @default(300000)
+  cronExpr String?
+  enabled Boolean @default(true)
+  notifyUrl String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  runs TestTaskRun[]
+}
+model TestTaskRun {
+  id String @id @default(cuid())
+  taskId String
+  task TestTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  result String @default("pending")
+  duration Int @default(0)
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  details Json @default("[]")
+}
+model AuditLog {
+  id String @id @default(cuid())
+  userId String?
+  action String
+  entityType String
+  entityId String?
+  before Json?
+  after Json?
+  ip String?
+  createdAt DateTime @default(now())
 }

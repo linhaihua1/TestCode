@@ -10,7 +10,11 @@ import { clearAuth, getToken } from './auth'
 import type {
   ApiCase,
   ApiDefinition,
+  CaseInfo,
+  DebugRecord,
   Environment,
+  GlobalVariable,
+  Module,
   Project,
   Report,
   Scenario,
@@ -88,11 +92,11 @@ export const api = {
 
   // ---------- 接口用例（ApiCase） ----------
   listCases: (apiId: string) => http.get<ApiCase[]>(`/apis/${apiId}/cases`).then((r) => r.data),
-  createCase: (apiId: string, data: Partial<ApiCase>) =>
+  createApiCase: (apiId: string, data: Partial<ApiCase>) =>
     http.post<ApiCase>(`/apis/${apiId}/cases`, data).then((r) => r.data),
-  updateCase: (id: string, data: Partial<ApiCase>) =>
+  updateApiCase: (id: string, data: Partial<ApiCase>) =>
     http.put<ApiCase>(`/cases/${id}`, data).then((r) => r.data),
-  deleteCase: (id: string) => http.delete(`/cases/${id}`).then((r) => r.data),
+  deleteApiCase: (id: string) => http.delete(`/cases/${id}`).then((r) => r.data),
   debugCase: (id: string, environmentId?: string) =>
     http
       .post<{
@@ -190,4 +194,51 @@ export const api = {
   runUiScenario: (id: string) => http.post<UiReport>(`/ui-scenarios/${id}/run`).then((r) => r.data),
   executeUiCases: (projectId: string, testCaseIds: string[]) =>
     http.post<UiReport>(`/projects/${projectId}/ui-execute`, { testCaseIds }).then((r) => r.data),
+
+  // ---------- 全局变量 ----------
+  listGlobalVariables: (projectId: string) =>
+    http.get<GlobalVariable[]>(`/projects/${projectId}/global-variables`).then((r) => r.data),
+  createGlobalVariable: (projectId: string, data: Partial<GlobalVariable>) =>
+    http.post<GlobalVariable>(`/projects/${projectId}/global-variables`, data).then((r) => r.data),
+  updateGlobalVariable: (id: string, data: Partial<GlobalVariable>) =>
+    http.put<GlobalVariable>(`/global-variables/${id}`, data).then((r) => r.data),
+  deleteGlobalVariable: (id: string) => http.delete(`/global-variables/${id}`).then((r) => r.data),
+  deleteGlobalVariablesBatch: (ids: string[]) =>
+    http.delete('/global-variables', { data: { ids } }).then((r) => r.data),
+
+  // ---------- 目录模块 ----------
+  listModules: (projectId: string) =>
+    http.get<Module[]>(`/projects/${projectId}/modules`).then((r) => r.data),
+  createModule: (projectId: string, data: Partial<Module>) =>
+    http.post<Module>(`/projects/${projectId}/modules`, data).then((r) => r.data),
+  updateModule: (id: string, data: Partial<Module>) =>
+    http.put<Module>(`/modules/${id}`, data).then((r) => r.data),
+  deleteModule: (id: string) => http.delete(`/modules/${id}`).then((r) => r.data),
+  getModuleDetail: (id: string) => http.get<Module>(`/modules/${id}`).then((r) => r.data),
+  listModulesForSelect: (projectId: string) =>
+    http.get<Module[]>(`/projects/${projectId}/modules-for-select`).then((r) => r.data),
+
+  // ---------- 用例管理 ----------
+  listCaseLibraryCases: (projectId: string, params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString()
+    return http.get<CaseInfo[]>(`/projects/${projectId}/cases?${qs}`).then((r) => r.data)
+  },
+  createCase: (projectId: string, data: Partial<CaseInfo>) =>
+    http.post<CaseInfo>(`/projects/${projectId}/cases`, data).then((r) => r.data),
+  getCase: (id: string) => http.get<CaseInfo>(`/case-info/${id}`).then((r) => r.data),
+  updateCase: (id: string, data: Partial<CaseInfo>) =>
+    http.put<CaseInfo>(`/case-info/${id}`, data).then((r) => r.data),
+  deleteCase: (id: string) => http.delete(`/case-info/${id}`).then((r) => r.data),
+  rollbackCase: (id: string, versionId: string) =>
+    http.post(`/case-info/${id}/rollback/${versionId}`).then((r) => r.data),
+
+  // ---------- 调试记录 ----------
+  listDebugRecords: (projectId: string, params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString()
+    return http.get<DebugRecord[]>(`/projects/${projectId}/debug-records?${qs}`).then((r) => r.data)
+  },
+  getDebugRecord: (id: string) => http.get<DebugRecord>(`/debug-records/${id}`).then((r) => r.data),
+  deleteDebugRecord: (id: string) => http.delete(`/debug-records/${id}`).then((r) => r.data),
+  cleanDebugRecords: (days?: number) =>
+    http.delete('/debug-records/clean', { data: { days } }).then((r) => r.data),
 }

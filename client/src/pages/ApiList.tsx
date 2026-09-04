@@ -168,8 +168,8 @@ export default function ApiList() {
     }
     try {
       // 有编辑对象则更新，否则在当前接口下新建
-      if (editingCase) await api.updateCase(editingCase.id, payload)
-      else await api.createCase(currentApi!.id, payload)
+      if (editingCase) await api.updateApiCase(editingCase.id, payload)
+      else await api.createApiCase(currentApi!.id, payload)
       message.success('保存成功')
       setCaseEditOpen(false)
       setCases(await api.listCases(currentApi!.id))
@@ -181,7 +181,7 @@ export default function ApiList() {
   // 删除用例
   const deleteCase = async (id: string) => {
     try {
-      await api.deleteCase(id)
+      await api.deleteApiCase(id)
       message.success('删除成功')
       setCases(await api.listCases(currentApi!.id))
     } catch (e) {

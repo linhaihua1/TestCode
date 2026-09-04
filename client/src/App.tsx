@@ -8,6 +8,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import RequireAuth from './components/RequireAuth'
+import Workbench from './components/workbench/Workbench'
 import LoginPage from './pages/LoginPage'
 import ProjectList from './pages/ProjectList'
 import ApiList from './pages/ApiList'
@@ -28,7 +29,17 @@ export default function App() {
       {/* 登录页（公开，不套用业务布局） */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* 受保护路由：需登录（RequireAuth），并共享 AppLayout 布局 */}
+      {/* 工作台（PRD 三栏布局，登录后默认进入） */}
+      <Route
+        path="/workbench"
+        element={
+          <RequireAuth>
+            <Workbench />
+          </RequireAuth>
+        }
+      />
+
+      {/* 受保护路由：需登录（RequireAuth），并共享 AppLayout 布局（旧版页面，逐步迁移到工作台） */}
       <Route
         element={
           <RequireAuth>
@@ -36,8 +47,8 @@ export default function App() {
           </RequireAuth>
         }
       >
-        {/* 根路径重定向到项目列表 */}
-        <Route path="/" element={<Navigate to="/projects" replace />} />
+        {/* 根路径重定向到工作台 */}
+        <Route path="/" element={<Navigate to="/workbench" replace />} />
         {/* 项目列表页 */}
         <Route path="/projects" element={<ProjectList />} />
         {/* 接口管理页（项目维度） */}
