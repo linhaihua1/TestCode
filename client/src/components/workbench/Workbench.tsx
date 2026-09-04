@@ -12,6 +12,7 @@ import ApiManagerPanel from './ApiManagerPanel'
 
 // 三栏最小宽度（PRD 约束）
 const MIN_LEFT = 220
+const MIN_MID = 400
 const MIN_RIGHT = 280
 // 折叠后的窄条宽度
 const COLLAPSED_W = 40
@@ -41,7 +42,8 @@ export default function Workbench() {
   const [rightCollapsed, setRightCollapsed] = useState(false)
 
   // 拖拽中状态
-  const dragRef = useRef<{ type: 'left' | 'right'; startX: number; startW: number } | null>(null)
+  const dragRef = useRef<{ type: 'left' | 'right'; startX: number; startW: number; containerW: number } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // 宽度变化时记忆
   useEffect(() => {
@@ -56,10 +58,12 @@ export default function Workbench() {
   // ---------- 拖拽调宽 ----------
   const onResizeMouseDown = (type: 'left' | 'right') => (e: React.MouseEvent) => {
     e.preventDefault()
+    const containerW = containerRef.current?.clientWidth ?? window.innerWidth
     dragRef.current = {
       type,
       startX: e.clientX,
       startW: type === 'left' ? leftW : rightW,
+      containerW,
     }
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
@@ -71,9 +75,13 @@ export default function Workbench() {
       if (!d) return
       const dx = e.clientX - d.startX
       if (d.type === 'left') {
-        setLeftW(Math.max(MIN_LEFT, Math.min(d.startW + dx, 800)))
+        // 左栏最大宽度需保证中间栏 >= MIN_MID
+        const maxLeft = Math.max(MIN_LEFT, d.containerW - MIN_MID - rightW - 10)
+        setLeftW(Math.max(MIN_LEFT, Math.min(d.startW + dx, maxLeft)))
       } else {
-        setRightW(Math.max(MIN_RIGHT, Math.min(d.startW - dx, 800)))
+        // 右栏最大宽度需保证中间栏 >= MIN_MID
+        const maxRight = Math.max(MIN_RIGHT, d.containerW - MIN_MID - leftW - 10)
+        setRightW(Math.max(MIN_RIGHT, Math.min(d.startW - dx, maxRight)))
       }
     }
     const onUp = () => {
@@ -87,7 +95,7 @@ export default function Workbench() {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [])
+  }, [leftW, rightW])
 
   // ---------- 折叠/展开 ----------
   const toggleLeft = () => setLeftCollapsed((v) => !v)
@@ -167,7 +175,7 @@ export default function Workbench() {
       </div>
 
       {/* 水平分割线下方：三栏工作台 */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* 左栏：用例库 */}
         <div style={{ width: effLeft, display: 'flex', minWidth: effLeft === COLLAPSED_W ? COLLAPSED_W : MIN_LEFT }}>
           {leftCollapsed ? (
@@ -187,13 +195,13 @@ export default function Workbench() {
         <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
           {midCollapsed ? (
             <div
-              style={{ width: '100%', writingMode: 'vertical-rl', textAlign: 'center', cursor: 'pointer', background: '#fafafa', fontSize: 13, color: '#666' }}
+              style={{ width: COLLAPSED_W, flexShrink: 0, writingMode: 'vertical-rl', textAlign: 'center', cursor: 'pointer', background: '#fafafa', fontSize: 13, color: '#666' }}
               onClick={toggleMid}
             >
               编写用例
             </div>
           ) : (
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: MIN_MID }}>
               <CaseEditorPanel onCollapse={toggleMid} />
             </div>
           )}
