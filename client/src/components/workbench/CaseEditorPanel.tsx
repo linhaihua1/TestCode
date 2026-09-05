@@ -59,6 +59,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   // 状态/优先级/版本
   const [status, setStatus] = useState('draft')
   const [priority, setPriority] = useState('P2')
+  const [tags, setTags] = useState<string[]>([])
   const [versionOpen, setVersionOpen] = useState(false)
 
   // 加载用例详情 + 项目接口列表
@@ -76,6 +77,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
         setName(c.name)
         setStatus(c.status)
         setPriority(c.priority)
+        setTags((c.tags ?? []) as string[])
         setSteps((c.steps ?? []) as CaseStep[])
         return api.listApis(c.projectId)
       })
@@ -91,7 +93,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     if (!caseId) return
     setSaving(true)
     try {
-      await api.updateCase(caseId, { name, steps, status, priority })
+      await api.updateCase(caseId, { name, steps, status, priority, tags })
       message.success('已保存')
       const c = await api.getCase(caseId)
       setCaseInfo(c)
@@ -238,6 +240,16 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
         <Tabs
           style={{ height: '100%' }}
           tabBarStyle={{ margin: 0, padding: '0 12px' }}
+          tabBarExtraContent={
+            <Select
+              mode="tags"
+              size="small"
+              style={{ minWidth: 120, marginRight: 12 }}
+              placeholder="标签"
+              value={tags}
+              onChange={(v) => setTags(v as string[])}
+            />
+          }
           items={[
             {
               key: 'script',
