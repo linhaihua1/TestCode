@@ -19,6 +19,8 @@ import UiTestEditor from './pages/UiTestEditor'
 import UiReportList from './pages/UiReportList'
 import UiExecutePage from './pages/UiExecutePage'
 import EnvironmentConfigPage from './pages/EnvironmentConfigPage'
+import TestExecutionPage from './pages/TestExecutionPage'
+import TestReportPage from './pages/TestReportPage'
 
 /** 应用根组件：定义路由表 */
 export default function App() {
@@ -44,6 +46,9 @@ export default function App() {
 
         {/* 其余业务页面统一套用内边距 + 滚动容器 */}
         <Route element={<PageContainer />}>
+          {/* 接口自动化：测试执行 / 测试报告 */}
+          <Route path="/test-execution" element={<TestExecutionPage />} />
+          <Route path="/test-reports" element={<TestReportPage />} />
           {/* UI 自动化 */}
           <Route path="/ui-tests" element={<UiTestList />} />
           <Route path="/ui-tests/:testId" element={<UiTestEditor />} />

@@ -67,6 +67,8 @@ export default function AppLayout() {
             { key: '/workbench', label: '工作台' },
           ],
         },
+        { key: '/test-execution', label: '测试执行' },
+        { key: '/test-reports', label: '测试报告' },
       ],
     },
     {
