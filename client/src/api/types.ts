@@ -363,3 +363,69 @@ export interface CaseStep {
   loopCount?: number // for 循环次数
   maxLoops?: number // while 最大循环次数
 }
+
+// ---------- 测试任务与报告（PRD 第 5 期） ----------
+
+/** 测试任务（选中一组用例 + 环境，可手动或定时执行） */
+export interface TestTask {
+  id: string
+  projectId: string
+  name: string
+  description?: string | null
+  caseIds: string[] // 选中的用例 ID 列表
+  environmentId?: string | null
+  executeMode: string // sequential / parallel
+  retryCount: number
+  timeout: number
+  cronExpr?: string | null
+  enabled: boolean
+  notifyUrl?: string | null
+  createdBy?: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string | null
+  latestRun?: TestTaskRun | null // 列表接口附带最近一次执行结果
+}
+
+/** 单个用例在报告中的执行结果 */
+export interface CaseRunDetail {
+  caseId: string
+  caseName: string
+  status: 'PASS' | 'FAIL' | 'ERROR'
+  duration: number
+  retries: number
+  error?: string
+  stepResults: Array<{
+    id: string
+    name: string
+    type: string
+    status: string
+    message: string
+    request?: { method: string; url: string }
+    response?: { status: number; body: unknown; duration: number }
+    assertions?: Array<{ passed: boolean; message: string }>
+    extracted?: Record<string, string>
+    children?: Array<unknown>
+  }>
+}
+
+/** 报告汇总 */
+export interface RunSummary {
+  total: number
+  passed: number
+  failed: number
+  error: number
+  result: string
+}
+
+/** 单次任务执行报告 */
+export interface TestTaskRun {
+  id: string
+  taskId: string
+  result: string
+  duration: number
+  startedAt: string
+  endedAt?: string | null
+  details: CaseRunDetail[]
+  summary?: RunSummary
+}

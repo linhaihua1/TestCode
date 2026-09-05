@@ -14,6 +14,7 @@ import ApiManagerPanel from './ApiManagerPanel'
 import GlobalVariablesModal from './GlobalVariablesModal'
 import DebugRecordsModal from './DebugRecordsModal'
 import RecycleBinModal from './RecycleBinModal'
+import TestExecutionModal from './TestExecutionModal'
 
 // 三栏最小宽度（PRD 约束）
 const MIN_LEFT = 220
@@ -46,6 +47,7 @@ export default function Workbench() {
   const [gvOpen, setGvOpen] = useState(false)
   const [drOpen, setDrOpen] = useState(false)
   const [rbOpen, setRbOpen] = useState(false)
+  const [teOpen, setTeOpen] = useState(false)
 
   // 三栏宽度（中间栏 = 总宽 - 左 - 右 - 分隔条）
   const [leftW, setLeftW] = useState(() => loadWidth('wb-left', 260))
@@ -189,6 +191,7 @@ export default function Workbench() {
         }}
       >
         <TopEntry label="设置全局变量" icon="⚙" onClick={() => setGvOpen(true)} />
+        <TopEntry label="测试执行" icon="▶" onClick={() => setTeOpen(true)} />
         <TopEntry label="调试记录" icon="📋" onClick={() => setDrOpen(true)} />
         <TopEntry label="回收站" icon="🗑" onClick={() => setRbOpen(true)} />
         <div style={{ flex: 1 }} />
@@ -264,10 +267,11 @@ export default function Workbench() {
         </div>
       </div>
 
-      {/* 顶部三个弹窗 */}
+      {/* 顶部四个弹窗 */}
       <GlobalVariablesModal projectId={projectId} open={gvOpen} onClose={() => setGvOpen(false)} />
       <DebugRecordsModal projectId={projectId} open={drOpen} onClose={() => setDrOpen(false)} />
       <RecycleBinModal projectId={projectId} open={rbOpen} onClose={() => setRbOpen(false)} />
+      <TestExecutionModal projectId={projectId} open={teOpen} onClose={() => setTeOpen(false)} />
     </div>
   )
 }

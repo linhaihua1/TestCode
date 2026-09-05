@@ -19,6 +19,8 @@ import type {
   Report,
   Scenario,
   ScenarioStep,
+  TestTask,
+  TestTaskRun,
   UiReport,
   UiScenario,
   UiScenarioStep,
@@ -269,4 +271,17 @@ export const api = {
   deleteDebugRecord: (id: string) => http.delete(`/debug-records/${id}`).then((r) => r.data),
   cleanDebugRecords: (days?: number) =>
     http.delete('/debug-records/clean', { data: { days } }).then((r) => r.data),
+
+  // ---------- 测试任务与报告 ----------
+  listTestTasks: (projectId: string) =>
+    http.get<TestTask[]>(`/projects/${projectId}/test-tasks`).then((r) => r.data),
+  createTestTask: (projectId: string, data: Partial<TestTask>) =>
+    http.post<TestTask>(`/projects/${projectId}/test-tasks`, data).then((r) => r.data),
+  getTestTask: (id: string) => http.get<TestTask>(`/test-tasks/${id}`).then((r) => r.data),
+  updateTestTask: (id: string, data: Partial<TestTask>) =>
+    http.put<TestTask>(`/test-tasks/${id}`, data).then((r) => r.data),
+  deleteTestTask: (id: string) => http.delete(`/test-tasks/${id}`).then((r) => r.data),
+  runTestTask: (id: string) => http.post<TestTaskRun>(`/test-tasks/${id}/run`).then((r) => r.data),
+  listTestTaskRuns: (id: string) => http.get<TestTaskRun[]>(`/test-tasks/${id}/runs`).then((r) => r.data),
+  getTestTaskRun: (id: string) => http.get<TestTaskRun>(`/test-task-runs/${id}`).then((r) => r.data),
 }
