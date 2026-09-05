@@ -264,7 +264,7 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         open={modalOpen}
         onOk={submitModal}
         onCancel={() => setModalOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Input placeholder="名称" value={nameInput} onChange={(e) => setNameInput(e.target.value)} onPressEnter={submitModal} />
       </Modal>

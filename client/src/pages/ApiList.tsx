@@ -433,7 +433,7 @@ export default function ApiList() {
         onOk={saveCase}
         onCancel={() => setCaseEditOpen(false)}
         width={920}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={caseForm} layout="vertical">
           {/* 用例名称 */}

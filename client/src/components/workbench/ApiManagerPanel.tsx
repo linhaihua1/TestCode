@@ -362,7 +362,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
         title={editing ? '编辑接口' : '新建接口'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={640}
+        size={640}
         extra={<Button type="primary" onClick={save}>保存</Button>}
       >
         <Form form={form} layout="vertical">
@@ -420,7 +420,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
         footer={null}
         width={620}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        <Space orientation="vertical" style={{ width: '100%' }} size={8}>
           <div>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Swagger/OpenAPI 导入</div>
             <div style={{ marginBottom: 8 }}>URL 导入：</div>

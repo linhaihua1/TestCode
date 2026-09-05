@@ -132,7 +132,7 @@ export default function GlobalVariablesPanel({ projectId }: { projectId?: string
         open={editOpen}
         onOk={submit}
         onCancel={() => setEditOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="变量名" rules={[{ required: true, pattern: /^[a-zA-Z_][a-zA-Z0-9_]*$/, message: '字母/数字/下划线，不能以数字开头' }]}>

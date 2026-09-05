@@ -868,7 +868,7 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
   const { step, apis, onUpdate } = props
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={8}>
       <Input size="small" value={step.name} placeholder="步骤名称" onChange={(e) => onUpdate({ name: e.target.value })} style={{ width: 240 }} />
 
       {step.type === 'request' && (
@@ -931,7 +931,7 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
       )}
 
       {step.type === 'wait' && (
-        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        <Space orientation="vertical" style={{ width: '100%' }} size={8}>
           <Select
             size="small"
             style={{ width: 160 }}

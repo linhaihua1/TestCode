@@ -188,7 +188,7 @@ export default function DebugRecordsModal({ projectId, open, onClose }: Props) {
             />
 
             <div style={{ fontWeight: 600, margin: '16px 0 8px' }}>变量对比</div>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               {compareData.diff.varDiffs.added.map((v) => (
                 <div key={v.name}><Tag color="green">新增</Tag>{v.name} = {v.value}</div>
               ))}

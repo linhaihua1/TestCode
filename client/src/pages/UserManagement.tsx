@@ -157,7 +157,7 @@ export default function UserManagement() {
         open={open}
         onOk={handleSubmit}
         onCancel={() => setOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
@@ -186,7 +186,7 @@ export default function UserManagement() {
         open={pwdOpen}
         onOk={handleResetPassword}
         onCancel={() => setPwdOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={pwdForm} layout="vertical">
           <Form.Item

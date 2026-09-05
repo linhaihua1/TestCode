@@ -144,7 +144,7 @@ export default function EnvironmentPage() {
         onOk={handleSubmit}
         onCancel={() => setOpen(false)}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>

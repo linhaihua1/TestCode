@@ -178,7 +178,7 @@ export default function AppLayout() {
         open={pwdOpen}
         onOk={handleChangePassword}
         onCancel={() => setPwdOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={pwdForm} layout="vertical">
           <Form.Item name="oldPassword" label="旧密码" rules={[{ required: true, message: '请输入旧密码' }]}>

@@ -213,7 +213,7 @@ export default function TestExecutionPage() {
         onOk={submit}
         onCancel={() => setFormOpen(false)}
         width={680}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="任务名" rules={[{ required: true, message: '请输入任务名' }]}>
