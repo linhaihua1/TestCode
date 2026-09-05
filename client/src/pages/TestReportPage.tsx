@@ -1,11 +1,12 @@
 /**
  * 测试报告页（接口自动化二级菜单）。
- * 选择测试任务，查看各次执行报告：汇总 + 用例明细 + 步骤树。
+ * 选择测试任务，查看各次执行报告；参照 UI 自动化报告：统计卡片 + 状态分布/耗时趋势图表 + 报告明细。
  */
 import { useEffect, useState } from 'react'
-import { Card, Empty, Select, Space, Table, Tag, message } from 'antd'
+import { Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useSearchParams } from 'react-router-dom'
+import { Pie, Line } from '@ant-design/plots'
 import { api, getErrorMessage } from '../api/client'
 import { useProject } from '../context/ProjectContext'
 import type { CaseRunDetail, TestTask, TestTaskRun } from '../api/types'
@@ -68,6 +69,27 @@ export default function TestReportPage() {
     setTaskId(id)
     setSearchParams(id ? { taskId: id } : {})
   }
+
+  // ---------- 统计数据（基于所选任务的各次执行） ----------
+  const total = runs.length
+  const passCount = runs.filter((r) => r.result === 'PASS').length
+  const failCount = runs.filter((r) => r.result === 'FAIL').length
+  const errorCount = runs.filter((r) => r.result === 'ERROR').length
+  const passRate = total > 0 ? Math.round((passCount / total) * 100) : 0
+  const avgDuration = total > 0 ? Math.round(runs.reduce((s, r) => s + r.duration, 0) / total) : 0
+
+  // 状态分布环形图数据
+  const pieData = [
+    { type: '通过', value: passCount },
+    { type: '失败', value: failCount },
+    { type: '错误', value: errorCount },
+  ].filter((d) => d.value > 0)
+
+  // 耗时趋势：最近 10 次，按时间先后排列
+  const trendData = [...runs]
+    .reverse()
+    .slice(-10)
+    .map((r, i) => ({ index: `第${i + 1}次`, duration: r.duration }))
 
   const runColumns: ColumnsType<TestTaskRun> = [
     {
@@ -139,42 +161,128 @@ export default function TestReportPage() {
         </Space>
       }
     >
-      <Table rowKey="id" loading={loading} columns={runColumns} dataSource={runs} size="small" pagination={false} />
-
-      <div style={{ marginTop: 16 }}>
-        {activeRun ? (
-          <>
-            <Space size={12} style={{ marginBottom: 12 }}>
-              <span style={{ fontWeight: 600 }}>本次汇总：</span>
-              <Tag>总数 {activeSummary?.total ?? 0}</Tag>
-              <Tag color="green">通过 {activeSummary?.passed ?? 0}</Tag>
-              <Tag color="red">失败 {activeSummary?.failed ?? 0}</Tag>
-              <Tag color="volcano">错误 {activeSummary?.error ?? 0}</Tag>
-              <span style={{ color: '#999' }}>耗时 {activeRun.duration}ms</span>
-            </Space>
-            <Table
-              rowKey="caseId"
-              columns={caseColumns}
-              dataSource={activeRun.details}
-              size="small"
-              pagination={false}
-              expandable={{
-                expandedRowRender: (rec) => (
-                  <Table
-                    rowKey="key"
-                    columns={stepColumns}
-                    dataSource={toStepRows(rec.stepResults)}
-                    size="small"
-                    pagination={false}
-                  />
-                ),
-              }}
+      {/* 统计卡片 */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="执行总数" value={total} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="通过" value={passCount} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="失败/错误" value={failCount + errorCount} valueStyle={{ color: '#ff4d4f' }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic
+              title="通过率"
+              value={passRate}
+              suffix="%"
+              valueStyle={{ color: passRate >= 80 ? '#52c41a' : '#fa8c16' }}
             />
-          </>
-        ) : (
-          <Empty description="请选择任务查看报告" />
-        )}
-      </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic title="平均耗时" value={avgDuration} suffix="ms" />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 图表区 */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={10}>
+          <Card title="状态分布" size="small">
+            {pieData.length > 0 ? (
+              <Pie
+                data={pieData}
+                angleField="value"
+                colorField="type"
+                innerRadius={0.6}
+                height={280}
+                label={{ text: 'value', position: 'outside' }}
+                legend={{ color: { position: 'bottom' } }}
+                scale={{ color: { range: ['#52c41a', '#ff4d4f', '#fa8c16'] } }}
+              />
+            ) : (
+              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                暂无数据
+              </div>
+            )}
+          </Card>
+        </Col>
+        <Col span={14}>
+          <Card title="耗时趋势（最近 10 次）" size="small">
+            {trendData.length > 0 ? (
+              <Line
+                data={trendData}
+                xField="index"
+                yField="duration"
+                height={280}
+                point={{ shapeField: 'circle', sizeField: 4 }}
+                style={{ lineWidth: 2 }}
+              />
+            ) : (
+              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                暂无数据
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 报告明细：执行记录列表 + 选中记录详情 */}
+      <Card title="报告明细" size="small" style={{ marginBottom: 16 }}>
+        <Table rowKey="id" loading={loading} columns={runColumns} dataSource={runs} size="small" pagination={false} />
+      </Card>
+
+      {activeRun ? (
+        <Card
+          size="small"
+          title={
+            <Space>
+              <span>本次详情</span>
+              <StatusTag status={activeRun.result} />
+              <span style={{ color: '#999' }}>开始于 {new Date(activeRun.startedAt).toLocaleString()}</span>
+            </Space>
+          }
+        >
+          <Space size={12} style={{ marginBottom: 12 }}>
+            <span style={{ fontWeight: 600 }}>汇总：</span>
+            <Tag>总数 {activeSummary?.total ?? 0}</Tag>
+            <Tag color="green">通过 {activeSummary?.passed ?? 0}</Tag>
+            <Tag color="red">失败 {activeSummary?.failed ?? 0}</Tag>
+            <Tag color="volcano">错误 {activeSummary?.error ?? 0}</Tag>
+            <span style={{ color: '#999' }}>耗时 {activeRun.duration}ms</span>
+          </Space>
+          <Table
+            rowKey="caseId"
+            columns={caseColumns}
+            dataSource={activeRun.details}
+            size="small"
+            pagination={false}
+            expandable={{
+              expandedRowRender: (rec) => (
+                <Table
+                  rowKey="key"
+                  columns={stepColumns}
+                  dataSource={toStepRows(rec.stepResults)}
+                  size="small"
+                  pagination={false}
+                />
+              ),
+            }}
+          />
+        </Card>
+      ) : (
+        <Empty description="请选择任务查看报告" />
+      )}
     </Card>
   )
 }
