@@ -10,6 +10,7 @@ export async function debugRecordRoutes(app: FastifyInstance) {
     const where: Record<string, unknown> = { caseInfo: { projectId } }
     if (query.result) where.result = query.result
     if (query.caseName) where.caseNameSnapshot = { contains: query.caseName }
+    if (query.caseId) where.caseId = query.caseId
     return prisma.debugRecord.findMany({
       where,
       orderBy: { createdAt: 'desc' },

@@ -3,7 +3,8 @@
  * 步骤类型：接口请求（引用接口 + 断言 + 提取）、脚本、等待、变量赋值。
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Input, InputNumber, Modal, Radio, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import { Alert, Button, Card, Dropdown, Input, InputNumber, Modal, Radio, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   DndContext,
   PointerSensor,
@@ -29,7 +30,9 @@ import {
   type CaseReview,
   type CaseStep,
   type CaseStepType,
+  type DebugRecord,
   type ExtractRule,
+  type KeyValue,
 } from '../../api/types'
 
 interface Props {
@@ -88,10 +91,21 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const [reviews, setReviews] = useState<CaseReview[]>([])
   const [reviewComment, setReviewComment] = useState('')
   const [reviewLoading, setReviewLoading] = useState(false)
+  // 步骤复制/粘贴 + 本用例调试记录
+  const [copiedStep, setCopiedStep] = useState<CaseStep | null>(null)
+  const [caseDebugRecords, setCaseDebugRecords] = useState<DebugRecord[]>([])
 
   const loadReviews = async (id: string) => {
     try {
       setReviews(await api.listCaseReviews(id))
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
+  const loadCaseDebugRecords = async (id: string) => {
+    try {
+      setCaseDebugRecords(await api.listDebugRecords(projectId ?? '', { caseId: id }))
     } catch (e) {
       message.error(getErrorMessage(e))
     }
@@ -119,6 +133,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       .then((apiList) => setApis(apiList))
       .catch((e) => message.error(getErrorMessage(e)))
     loadReviews(caseId)
+    loadCaseDebugRecords(caseId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId])
 
@@ -258,6 +273,33 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     message.success(`已添加接口步骤「${a.name}」`)
   }
 
+  // 复制步骤到剪贴板（深拷贝，避免引用）
+  const copyStep = (step: CaseStep) => {
+    setCopiedStep(JSON.parse(JSON.stringify(step)))
+    message.success('已复制步骤')
+  }
+
+  // 粘贴步骤：插入到指定阶段的指定位置之后
+  const pasteStep = (phase: CaseStep['phase'], afterId: string) => {
+    if (!copiedStep) {
+      message.warning('请先复制一个步骤')
+      return
+    }
+    const clone: CaseStep = {
+      ...JSON.parse(JSON.stringify(copiedStep)),
+      id: `${phase}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      phase,
+    }
+    setSteps((prev) => {
+      const phaseList = prev.filter((s) => s.phase === phase)
+      const idx = phaseList.findIndex((s) => s.id === afterId)
+      const insertAt = idx >= 0 ? idx + 1 : phaseList.length
+      phaseList.splice(insertAt, 0, clone)
+      return [...prev.filter((s) => s.phase !== phase), ...phaseList]
+    })
+    message.success('已粘贴步骤')
+  }
+
   const removeStep = (phase: CaseStep['phase'], index: number) => {
     setSteps((prev) => {
       const phaseList = prev.filter((s) => s.phase === phase)
@@ -342,16 +384,58 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               label: '脚本',
               children: (
                 <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
-                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
-                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
+                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+
+                  {/* 底部快捷添加 */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                    <span style={{ color: '#999', fontSize: 12 }}>快捷添加（测试步骤）：</span>
+                    <Button size="small" onClick={() => addStep('test', 'request')}>接口请求</Button>
+                    <Button size="small" onClick={() => addStep('test', 'wait')}>等待时间</Button>
+                    <Button size="small" onClick={() => addStep('test', 'script')}>自定义代码</Button>
+                    <Button size="small" onClick={() => addStep('test', 'controller')}>IF 判断</Button>
+                  </div>
                 </div>
               ),
             },
             {
               key: 'debug',
               label: '调试记录',
-              children: <div style={{ padding: 16, color: '#999' }}>调试记录（后续期次）</div>,
+              children: (
+                <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+                  {caseDebugRecords.length === 0 ? (
+                    <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>暂无调试记录</div>
+                  ) : (
+                    caseDebugRecords.map((r) => {
+                      const steps = (r.stepResults ?? []) as Array<{ name: string; type: string; status: string; message: string }>
+                      return (
+                        <Card
+                          key={r.id}
+                          size="small"
+                          style={{ marginBottom: 8 }}
+                          title={
+                            <Space>
+                              <Tag color={r.result === 'success' ? 'green' : r.result === 'error' ? 'orange' : 'red'}>{r.result}</Tag>
+                              <span style={{ color: '#999', fontSize: 12 }}>{new Date(r.createdAt).toLocaleString()}</span>
+                              <span style={{ color: '#999', fontSize: 12 }}>耗时 {r.totalDuration}ms</span>
+                            </Space>
+                          }
+                        >
+                          {Array.isArray(steps) &&
+                            steps.map((s, i) => (
+                              <div key={i} style={{ padding: '3px 0', fontSize: 12 }}>
+                                <Tag color={s.status === 'PASS' ? 'green' : s.status === 'SKIP' ? 'default' : 'red'}>{s.status}</Tag>
+                                <span style={{ marginRight: 8 }}>{s.name}</span>
+                                <span style={{ color: '#999' }}>{s.message}</span>
+                              </div>
+                            ))}
+                        </Card>
+                      )
+                    })
+                  )}
+                </div>
+              ),
             },
             {
               key: 'review',
@@ -571,8 +655,11 @@ function StepSection(props: {
   onRemove: (phase: CaseStep['phase'], index: number) => void
   onReorder: (phase: CaseStep['phase'], reordered: CaseStep[]) => void
   onDropApi: (phase: CaseStep['phase'], apiId: string) => void
+  onCopy: (step: CaseStep) => void
+  onPaste: (phase: CaseStep['phase'], afterId: string) => void
+  hasCopied: boolean
 }) {
-  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder, onDropApi } = props
+  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder, onDropApi, onCopy, onPaste, hasCopied } = props
   const [addType, setAddType] = useState<CaseStepType>('request')
   const [dragOver, setDragOver] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -645,6 +732,9 @@ function StepSection(props: {
                   apis={apis}
                   onUpdate={(patch) => onUpdate(phase, i, patch)}
                   onRemove={() => onRemove(phase, i)}
+                  onCopy={() => onCopy(s)}
+                  onPaste={() => onPaste(phase, s.id)}
+                  hasCopied={hasCopied}
                 />
               ))}
             </SortableContext>
@@ -661,31 +751,47 @@ function StepCard(props: {
   apis: ApiDefinition[]
   onUpdate: (patch: Partial<CaseStep>) => void
   onRemove: () => void
+  onCopy?: () => void
+  onPaste?: () => void
+  hasCopied?: boolean
 }) {
-  const { step, apis, onUpdate, onRemove } = props
+  const { step, apis, onUpdate, onRemove, onCopy, onPaste, hasCopied = false } = props
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
+
+  const contextMenu: MenuProps = {
+    items: [
+      { key: 'copy', label: '复制步骤', disabled: !onCopy },
+      { key: 'paste', label: '粘贴步骤', disabled: !hasCopied || !onPaste },
+    ],
+    onClick: ({ key }) => {
+      if (key === 'copy') onCopy?.()
+      if (key === 'paste') onPaste?.()
+    },
+  }
 
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
-      <Card
-        size="small"
-        style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
-        title={
-          <Space>
-            <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
-            <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
-            <span style={{ fontSize: 13 }}>{step.name}</span>
-          </Space>
-        }
-        extra={
-          <Space size={4}>
-            <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} />
-            <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
-          </Space>
-        }
-      >
-        <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
-      </Card>
+      <Dropdown menu={contextMenu} trigger={['contextMenu']}>
+        <Card
+          size="small"
+          style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
+          title={
+            <Space>
+              <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
+              <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} title="启用/禁用" />
+              <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
+              <span style={{ fontSize: 13 }}>{step.name}</span>
+            </Space>
+          }
+          extra={
+            <Space size={4}>
+              <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
+            </Space>
+          }
+        >
+          <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
+        </Card>
+      </Dropdown>
     </div>
   )
 }
@@ -761,6 +867,8 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
             <Input size="small" style={{ flex: 1, minWidth: 0 }} value={step.url} placeholder="URL（支持 ${变量}）" onChange={(e) => onUpdate({ url: e.target.value })} />
           </div>
           <Input size="small" value={step.body} placeholder="请求体（JSON，支持 ${变量}）" onChange={(e) => onUpdate({ body: e.target.value })} />
+          <KeyValueMiniEditor label="请求头" value={step.headers ?? []} onChange={(headers) => onUpdate({ headers })} />
+          <KeyValueMiniEditor label="查询参数" value={step.query ?? []} onChange={(query) => onUpdate({ query })} />
           <AssertionMiniEditor value={step.assertions ?? []} onChange={(assertions) => onUpdate({ assertions })} />
           <ExtractMiniEditor value={step.extracts ?? []} onChange={(extracts) => onUpdate({ extracts })} />
         </>
@@ -890,6 +998,25 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
         </>
       )}
     </Space>
+  )
+}
+
+/** 简化的键值对编辑器（state 版，用于请求头/查询参数） */
+function KeyValueMiniEditor(props: { label: string; value: KeyValue[]; onChange: (v: KeyValue[]) => void }) {
+  const { label, value, onChange } = props
+  const upd = (i: number, patch: Partial<KeyValue>) => onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  return (
+    <div>
+      <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 4 }}>{label}（{value.length}）</div>
+      {value.map((kv, i) => (
+        <Space key={i} size={4} wrap style={{ marginBottom: 4, display: 'flex' }}>
+          <Input size="small" style={{ width: 150 }} value={kv.key} placeholder="键" onChange={(e) => upd(i, { key: e.target.value })} />
+          <Input size="small" style={{ width: 200 }} value={kv.value} placeholder="值（支持 ${变量}）" onChange={(e) => upd(i, { value: e.target.value })} />
+          <Button size="small" type="text" danger onClick={() => onChange(value.filter((_, j) => j !== i))}>删</Button>
+        </Space>
+      ))}
+      <Button size="small" type="dashed" block onClick={() => onChange([...value, { key: '', value: '' }])}>添加{label}</Button>
+    </div>
   )
 }
 
