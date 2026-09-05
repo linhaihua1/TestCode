@@ -164,10 +164,10 @@ export default function Workbench() {
           borderBottom: '1px solid #e8e8e8',
         }}
       >
+        <div style={{ flex: 1 }} />
         <TopEntry label="设置全局变量" icon="⚙" onClick={() => setGvOpen(true)} />
         <TopEntry label="调试记录" icon="📋" onClick={() => setDrOpen(true)} />
         <TopEntry label="回收站" icon="🗑" onClick={() => setRbOpen(true)} />
-        <div style={{ flex: 1 }} />
       </div>
 
       {/* 水平分割线下方：三栏工作台 */}
