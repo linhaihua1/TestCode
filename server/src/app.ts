@@ -20,7 +20,8 @@ function isPublicPath(url: string): boolean {
   return (
     url === '/api/health' ||
     url === '/api/auth/login' ||
-    url.startsWith('/demo/')
+    url.startsWith('/demo/') ||
+    url.startsWith('/mock/')
   )
 }
 

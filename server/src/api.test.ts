@@ -189,3 +189,118 @@ describe('HTTP API 完整闭环', () => {
     await prisma.project.delete({ where: { id: project.id } })
   })
 })
+
+describe('接口管理（第 4 期）：Swagger 导入 + Mock', () => {
+  it('Swagger 导入：按 tag 建模块、创建接口、重复导入去重', async () => {
+    await clean()
+
+    const projRes = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: auth,
+      payload: { name: 'swagger-project' },
+    })
+    expect(projRes.statusCode).toBe(200)
+    const project = projRes.json()
+
+    const doc = {
+      openapi: '3.0.0',
+      info: { title: 't', version: '1' },
+      paths: {
+        '/order': {
+          get: { summary: '查询订单', tags: ['订单'] },
+          post: { summary: '创建订单', tags: ['订单'] },
+        },
+        '/product/{id}': {
+          get: { summary: '查询商品', tags: ['商品'] },
+        },
+      },
+    }
+
+    const importRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis/import-swagger`,
+      headers: auth,
+      payload: { content: doc },
+    })
+    expect(importRes.statusCode).toBe(200)
+    expect(importRes.json()).toEqual({ created: 3, skipped: 0 })
+
+    // 接口应带上 tags 与 moduleId
+    const apis = await app.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/apis`,
+      headers: auth,
+    })
+    const imported = apis.json().filter((a: { path: string }) => a.path.startsWith('/order') || a.path.startsWith('/product'))
+    expect(imported).toHaveLength(3)
+    for (const a of imported) {
+      expect(Array.isArray(a.tags)).toBe(true)
+      expect(a.tags.length).toBeGreaterThan(0)
+      expect(a.moduleId).toBeTruthy()
+    }
+
+    // 按 tag 生成 api 类型的模块
+    const mods = await app.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/modules`,
+      headers: auth,
+    })
+    const apiMods = mods.json().filter((m: { type: string }) => m.type === 'api')
+    expect(apiMods.map((m: { name: string }) => m.name).sort()).toEqual(['商品', '订单'])
+
+    // 重复导入应全部跳过
+    const reimportRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis/import-swagger`,
+      headers: auth,
+      payload: { content: doc },
+    })
+    expect(reimportRes.json()).toEqual({ created: 0, skipped: 3 })
+  })
+
+  it('Mock：启用后返回模拟响应，未启用返回 404，公开访问无需鉴权', async () => {
+    await clean()
+
+    const projRes = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: auth,
+      payload: { name: 'mock-project' },
+    })
+    const project = projRes.json()
+
+    // 创建启用 Mock 的接口，验证 mockEnabled/mockResponse/tags 持久化
+    const apiRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis`,
+      headers: auth,
+      payload: {
+        name: 'mock api', method: 'GET', path: '/mock-me',
+        mockEnabled: true, mockResponse: '{"code":0,"data":{"ok":true}}', tags: ['mock'],
+      },
+    })
+    expect(apiRes.statusCode).toBe(200)
+    const api = apiRes.json()
+    expect(api.mockEnabled).toBe(true)
+    expect(api.mockResponse).toBe('{"code":0,"data":{"ok":true}}')
+    expect(api.tags).toEqual(['mock'])
+
+    // 公开访问（不携带鉴权头）应返回模拟响应
+    const mockRes = await app.inject({ method: 'GET', url: `/mock/${api.id}` })
+    expect(mockRes.statusCode).toBe(200)
+    expect(mockRes.json()).toEqual({ code: 0, data: { ok: true } })
+
+    // 未启用 Mock 的接口返回 404
+    const plainRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis`,
+      headers: auth,
+      payload: { name: 'plain api', method: 'GET', path: '/plain' },
+    })
+    const plain = plainRes.json()
+    expect(plain.mockEnabled).toBe(false)
+    const plainMockRes = await app.inject({ method: 'GET', url: `/mock/${plain.id}` })
+    expect(plainMockRes.statusCode).toBe(404)
+  })
+})

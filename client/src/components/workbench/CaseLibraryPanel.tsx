@@ -34,7 +34,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         api.listModules(projectId),
         api.listCaseLibraryCases(projectId),
       ])
-      setModules(modList)
+      // 用例库只展示「用例」类型的目录，接口导入产生的 api 类型目录由接口管理面板负责
+      setModules(modList.filter((m) => m.type !== 'api'))
       setCases(caseList)
     } catch (e) {
       message.error(getErrorMessage(e))

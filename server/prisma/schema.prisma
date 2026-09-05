@@ -39,19 +39,23 @@ model Environment {
 }
 
 model ApiDefinition {
-  id          String    @id @default(cuid())
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  method      String
-  path        String
-  headers     Json      @default("[]")
-  query       Json      @default("[]")
-  body        String?
-  description String?
-  cases       ApiCase[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  method       String
+  path         String
+  headers      Json      @default("[]")
+  query        Json      @default("[]")
+  body         String?
+  description  String?
+  mockEnabled  Boolean   @default(false)
+  mockResponse String?
+  moduleId     String?
+  tags         Json      @default("[]")
+  cases        ApiCase[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model ApiCase {

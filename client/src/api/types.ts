@@ -44,6 +44,10 @@ export interface ApiDefinition {
   query: KeyValue[] // Query 参数列表
   body?: string | null // 请求体（JSON 或文本）
   description?: string | null // 接口描述
+  mockEnabled: boolean // 是否启用 Mock
+  mockResponse?: string | null // Mock 响应内容
+  moduleId?: string | null // 所属模块
+  tags: string[] // 标签
   createdAt: string // 创建时间
   updatedAt: string // 更新时间
 }

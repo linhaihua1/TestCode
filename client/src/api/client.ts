@@ -89,6 +89,10 @@ export const api = {
   updateApi: (id: string, data: Partial<ApiDefinition>) =>
     http.put<ApiDefinition>(`/apis/${id}`, data).then((r) => r.data),
   deleteApi: (id: string) => http.delete(`/apis/${id}`).then((r) => r.data),
+  importSwagger: (projectId: string, content: Record<string, unknown>) =>
+    http
+      .post<{ created: number; skipped: number }>(`/projects/${projectId}/apis/import-swagger`, { content })
+      .then((r) => r.data),
 
   // ---------- 接口用例（ApiCase） ----------
   listCases: (apiId: string) => http.get<ApiCase[]>(`/apis/${apiId}/cases`).then((r) => r.data),

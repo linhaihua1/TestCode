@@ -16,6 +16,10 @@ interface ApiBody {
   query?: Prisma.InputJsonValue // 查询参数（可选，JSON）
   body?: string | null // 请求体（可选，字符串）
   description?: string // 接口描述（可选）
+  mockEnabled?: boolean // 是否启用 Mock
+  mockResponse?: string | null // Mock 响应内容
+  moduleId?: string | null // 所属模块
+  tags?: Prisma.InputJsonValue // 标签
 }
 
 interface CaseBody {
@@ -53,6 +57,10 @@ export async function apiRoutes(app: FastifyInstance) {
         query: body.query ?? [], // 查询参数缺省为空数组
         body: body.body ?? null, // 请求体缺省为 null
         description: body.description,
+        mockEnabled: body.mockEnabled ?? false,
+        mockResponse: body.mockResponse ?? null,
+        moduleId: body.moduleId ?? null,
+        tags: body.tags ?? [],
       },
     })
   })
@@ -147,6 +155,92 @@ export async function apiRoutes(app: FastifyInstance) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       return reply.code(404).send({ error: message })
+    }
+  })
+
+  // ---------- Swagger/OpenAPI 导入 ----------
+  app.post('/api/projects/:projectId/apis/import-swagger', async (req, reply) => {
+    const { projectId } = req.params as { projectId: string }
+    const body = req.body as { content?: Record<string, unknown> }
+    const doc = body?.content
+    if (!doc || typeof doc !== 'object') return reply.code(400).send({ error: 'OpenAPI 文档内容无效' })
+
+    const paths = (doc.paths ?? {}) as Record<string, Record<string, unknown>>
+    const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options']
+
+    let created = 0
+    let skipped = 0
+
+    // tag → 模块映射缓存
+    const moduleCache = new Map<string, string>()
+
+    for (const [path, pathItem] of Object.entries(paths)) {
+      if (!pathItem || typeof pathItem !== 'object') continue
+      for (const m of methods) {
+        const op = pathItem[m]
+        if (!op || typeof op !== 'object') continue
+        const opObj = op as Record<string, unknown>
+        const name = String(opObj.summary ?? opObj.operationId ?? `${m.toUpperCase()} ${path}`)
+        const method = m.toUpperCase()
+        const tags = (opObj.tags as string[]) ?? []
+
+        // 按 tag 找/建模块
+        let moduleId: string | null = null
+        if (tags.length > 0) {
+          const tagName = tags[0]
+          if (moduleCache.has(tagName)) {
+            moduleId = moduleCache.get(tagName)!
+          } else {
+            const mod = await prisma.module.findFirst({ where: { projectId, name: tagName, type: 'api' } })
+            if (mod) {
+              moduleId = mod.id
+            } else {
+              const newMod = await prisma.module.create({ data: { projectId, name: tagName, type: 'api' } })
+              moduleId = newMod.id
+            }
+            moduleCache.set(tagName, moduleId)
+          }
+        }
+
+        // 检查同名同路径接口是否已存在
+        const exists = await prisma.apiDefinition.findFirst({ where: { projectId, method, path } })
+        if (exists) {
+          skipped++
+          continue
+        }
+
+        await prisma.apiDefinition.create({
+          data: {
+            projectId,
+            name,
+            method,
+            path,
+            moduleId,
+            tags: tags as unknown as Prisma.InputJsonValue,
+            description: String(opObj.description ?? ''),
+            headers: [],
+            query: [],
+          },
+        })
+        created++
+      }
+    }
+
+    return { created, skipped }
+  })
+
+  // ---------- Mock ----------
+  // 请求 Mock 地址，返回接口配置的模拟响应
+  app.get('/mock/:apiId', async (req, reply) => {
+    const { apiId } = req.params as { apiId: string }
+    const api = await prisma.apiDefinition.findUnique({ where: { id: apiId } })
+    if (!api) return reply.code(404).send({ error: '接口不存在' })
+    if (!api.mockEnabled) return reply.code(404).send({ error: '该接口未启用 Mock' })
+    try {
+      const data = api.mockResponse ? JSON.parse(api.mockResponse) : {}
+      return reply.type('application/json').send(data)
+    } catch {
+      return reply.type('text/plain').send(api.mockResponse ?? '')
     }
   })
 }

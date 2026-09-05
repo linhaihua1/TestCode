@@ -259,7 +259,7 @@ export default function Workbench() {
               接口管理
             </div>
           ) : (
-            <ApiManagerPanel onCollapse={toggleRight} />
+            <ApiManagerPanel projectId={projectId} onCollapse={toggleRight} />
           )}
         </div>
       </div>
