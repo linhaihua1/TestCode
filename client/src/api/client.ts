@@ -11,7 +11,9 @@ import type {
   ApiCase,
   ApiDefinition,
   ApiImportItem,
+  AuditLog,
   CaseInfo,
+  CaseReview,
   DebugRecord,
   Environment,
   GlobalVariable,
@@ -276,6 +278,19 @@ export const api = {
   deleteDebugRecord: (id: string) => http.delete(`/debug-records/${id}`).then((r) => r.data),
   cleanDebugRecords: (days?: number) =>
     http.delete('/debug-records/clean', { data: { days } }).then((r) => r.data),
+
+  // ---------- 审计日志 ----------
+  listAuditLogs: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString()
+    return http.get<{ total: number; logs: AuditLog[] }>(`/audit-logs?${qs}`).then((r) => r.data)
+  },
+  getAuditLogMeta: () =>
+    http.get<{ actions: string[]; entityTypes: string[] }>('/audit-logs/meta').then((r) => r.data),
+
+  // ---------- 评审 ----------
+  reviewCase: (id: string, data: { action: string; comment?: string }) =>
+    http.post<CaseReview>(`/case-info/${id}/review`, data).then((r) => r.data),
+  listCaseReviews: (id: string) => http.get<CaseReview[]>(`/case-info/${id}/reviews`).then((r) => r.data),
 
   // ---------- 测试任务与报告 ----------
   listTestTasks: (projectId: string) =>

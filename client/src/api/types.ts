@@ -337,6 +337,33 @@ export interface DebugRecord {
   createdAt: string
 }
 
+// 评审记录
+export interface CaseReview {
+  id: string
+  caseId: string
+  reviewerId?: string | null
+  reviewerName?: string | null
+  action: string // submit / approve / reject
+  comment?: string | null
+  fromStatus?: string | null
+  toStatus?: string | null
+  createdAt: string
+}
+
+// 审计日志
+export interface AuditLog {
+  id: string
+  userId?: string | null
+  username?: string | null
+  action: string
+  entityType: string
+  entityId?: string | null
+  before?: unknown
+  after?: unknown
+  ip?: string | null
+  createdAt: string
+}
+
 /** 用例步骤类型（PRD 第四章节） */
 export type CaseStepType = 'request' | 'script' | 'wait' | 'variable' | 'controller'
 

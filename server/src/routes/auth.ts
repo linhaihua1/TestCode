@@ -18,7 +18,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(401).send({ error: '用户名或密码错误' })
     }
 
-    const token = signToken({ userId: user.id, username: user.username })
+    const token = signToken({ userId: user.id, username: user.username, role: user.role })
     return { token, user: { id: user.id, username: user.username, role: user.role } }
   })
 

@@ -82,6 +82,7 @@ export default function AppLayout() {
     },
     { key: '/environments', label: '环境配置' },
     { key: '/users', label: '用户管理' },
+    { key: '/audit-logs', label: '审计日志' },
   ]
 
   // 递归收集所有叶子路由 key（以 / 开头），用于最长前缀高亮

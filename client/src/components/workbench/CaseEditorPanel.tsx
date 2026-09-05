@@ -26,6 +26,7 @@ import {
   type ApiDefinition,
   type Assertion,
   type CaseInfo,
+  type CaseReview,
   type CaseStep,
   type CaseStepType,
   type ExtractRule,
@@ -45,6 +46,12 @@ const STEP_TYPE_LABELS: Record<CaseStepType, string> = {
   controller: '流程控制器',
 }
 
+const REVIEW_ACTION: Record<string, { label: string; color: string }> = {
+  submit: { label: '提交评审', color: 'blue' },
+  approve: { label: '通过', color: 'green' },
+  reject: { label: '驳回', color: 'red' },
+}
+
 export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props) {
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
   const [name, setName] = useState('')
@@ -61,6 +68,18 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const [priority, setPriority] = useState('P2')
   const [tags, setTags] = useState<string[]>([])
   const [versionOpen, setVersionOpen] = useState(false)
+  // 评审状态
+  const [reviews, setReviews] = useState<CaseReview[]>([])
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+
+  const loadReviews = async (id: string) => {
+    try {
+      setReviews(await api.listCaseReviews(id))
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
 
   // 加载用例详情 + 项目接口列表
   useEffect(() => {
@@ -83,6 +102,8 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       })
       .then((apiList) => setApis(apiList))
       .catch((e) => message.error(getErrorMessage(e)))
+    loadReviews(caseId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId])
 
   const setupSteps = useMemo(() => steps.filter((s) => s.phase === 'setup'), [steps])
@@ -103,6 +124,25 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       message.error(getErrorMessage(e))
     } finally {
       setSaving(false)
+    }
+  }
+
+  // 评审动作：提交/通过/驳回
+  const doReview = async (action: string) => {
+    if (!caseId) return
+    setReviewLoading(true)
+    try {
+      await api.reviewCase(caseId, { action, comment: reviewComment })
+      message.success(`${REVIEW_ACTION[action]?.label ?? action}成功`)
+      setReviewComment('')
+      await loadReviews(caseId)
+      const c = await api.getCase(caseId)
+      setStatus(c.status)
+      setCaseInfo(c)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setReviewLoading(false)
     }
   }
 
@@ -219,6 +259,9 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
           value={status}
           options={[
             { value: 'draft', label: '草稿' },
+            { value: 'pending', label: '待评审' },
+            { value: 'passed', label: '已通过' },
+            { value: 'rejected', label: '已驳回' },
             { value: 'completed', label: '已完成' },
             { value: 'deprecated', label: '已废弃' },
           ]}
@@ -266,6 +309,48 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               key: 'debug',
               label: '调试记录',
               children: <div style={{ padding: 16, color: '#999' }}>调试记录（后续期次）</div>,
+            },
+            {
+              key: 'review',
+              label: '评审',
+              children: (
+                <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+                  <Card size="small" title="评审操作" style={{ marginBottom: 16 }}>
+                    <Input.TextArea
+                      rows={2}
+                      placeholder="评审意见（可选）"
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      style={{ marginBottom: 12 }}
+                    />
+                    <Space>
+                      <Button size="small" type="primary" loading={reviewLoading} onClick={() => doReview('submit')}>提交评审</Button>
+                      <Button size="small" loading={reviewLoading} onClick={() => doReview('approve')}>通过</Button>
+                      <Button size="small" danger loading={reviewLoading} onClick={() => doReview('reject')}>驳回</Button>
+                    </Space>
+                  </Card>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>评审记录</div>
+                  {reviews.length === 0 ? (
+                    <div style={{ color: '#999' }}>暂无评审记录</div>
+                  ) : (
+                    reviews.map((r) => (
+                      <Card key={r.id} size="small" style={{ marginBottom: 8 }}>
+                        <Space>
+                          <Tag color={REVIEW_ACTION[r.action]?.color}>{REVIEW_ACTION[r.action]?.label ?? r.action}</Tag>
+                          <span>{r.reviewerName ?? '-'}</span>
+                          <span style={{ color: '#999', fontSize: 12 }}>{new Date(r.createdAt).toLocaleString()}</span>
+                        </Space>
+                        {r.comment && <div style={{ marginTop: 8 }}>{r.comment}</div>}
+                        {(r.fromStatus || r.toStatus) && (
+                          <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                            状态：{r.fromStatus ?? '-'} → {r.toStatus ?? '-'}
+                          </div>
+                        )}
+                      </Card>
+                    ))
+                  )}
+                </div>
+              ),
             },
           ]}
         />

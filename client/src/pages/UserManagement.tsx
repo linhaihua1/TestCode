@@ -86,7 +86,11 @@ export default function UserManagement() {
     {
       title: '角色',
       dataIndex: 'role',
-      render: (r: string) => <Tag color={r === 'admin' ? 'blue' : 'default'}>{r}</Tag>,
+      render: (r: string) => {
+        const color = r === 'admin' ? 'blue' : r === 'member' ? 'green' : 'default'
+        const label = r === 'admin' ? '管理员' : r === 'member' ? '成员' : '查看者'
+        return <Tag color={color}>{label}</Tag>
+      },
     },
     {
       title: '创建时间',
@@ -168,6 +172,7 @@ export default function UserManagement() {
             <Select
               options={[
                 { value: 'admin', label: '管理员' },
+                { value: 'member', label: '成员' },
                 { value: 'viewer', label: '查看者' },
               ]}
             />

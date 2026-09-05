@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../db.js'
 import { hashPassword } from '../auth.js'
+import { recordAudit } from '../audit.js'
 
 interface UserBody {
   username?: string
@@ -41,6 +42,7 @@ export async function userRoutes(app: FastifyInstance) {
         role: body.role ?? 'admin',
       },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'user', entityId: user.id, after: { username: user.username, role: user.role } })
     return toSafeUser(user)
   })
 
@@ -62,6 +64,7 @@ export async function userRoutes(app: FastifyInstance) {
       where: { id },
       data: { username: body.username, role: body.role },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'update', entityType: 'user', entityId: id, after: { username: updated.username, role: updated.role } })
     return toSafeUser(updated)
   })
 
@@ -71,6 +74,7 @@ export async function userRoutes(app: FastifyInstance) {
     const user = await prisma.user.findUnique({ where: { id } })
     if (!user) return reply.code(404).send({ error: '用户不存在' })
     await prisma.user.delete({ where: { id } })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'delete', entityType: 'user', entityId: id, before: { username: user.username } })
     return { ok: true }
   })
 

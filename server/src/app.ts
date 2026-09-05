@@ -38,11 +38,24 @@ export function buildApp(): FastifyInstance {
       return reply.code(401).send({ error: '未登录' })
     }
     const token = authHeader.slice('Bearer '.length)
+    let payload: { userId: string; username: string; role?: string }
     try {
-      const payload = verifyToken(token)
+      payload = verifyToken(token)
       ;(req as unknown as { user: unknown }).user = payload
     } catch {
       return reply.code(401).send({ error: '登录已过期，请重新登录' })
+    }
+
+    // ---------- 权限（RBAC） ----------
+    const role = payload.role ?? 'viewer'
+    const readOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    // 只读用户禁止写操作（自服务改密码除外）
+    if (role === 'viewer' && !readOnly && !req.url.startsWith('/api/auth/')) {
+      return reply.code(403).send({ error: '只读用户无写权限' })
+    }
+    // 用户管理仅管理员可写
+    if (req.url.startsWith('/api/users') && !readOnly && role !== 'admin') {
+      return reply.code(403).send({ error: '仅管理员可管理用户' })
     }
   })
 

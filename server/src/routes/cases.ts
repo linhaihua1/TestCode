@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import { executeCaseSteps, type CaseStepDef } from '../engine/case-executor.js'
 import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
+import { recordAudit } from '../audit.js'
 
 interface CaseBody {
   name?: string
@@ -34,7 +35,7 @@ export async function caseRoutes(app: FastifyInstance) {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as CaseBody
     if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
-    return prisma.caseInfo.create({
+    const created = await prisma.caseInfo.create({
       data: {
         projectId,
         name: body.name,
@@ -46,6 +47,8 @@ export async function caseRoutes(app: FastifyInstance) {
         steps: [],
       },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'case', entityId: created.id, after: { name: created.name } })
+    return created
   })
 
   // 获取用例详情
@@ -86,6 +89,9 @@ export async function caseRoutes(app: FastifyInstance) {
         steps: (body.steps ?? c.steps) as unknown as Prisma.InputJsonValue,
         version: newVersion,
       },
+    }).then(async (updated) => {
+      await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'update', entityType: 'case', entityId: id, after: { name: updated.name, status: updated.status } })
+      return updated
     })
   })
 
@@ -95,6 +101,7 @@ export async function caseRoutes(app: FastifyInstance) {
     const c = await prisma.caseInfo.findUnique({ where: { id } })
     if (!c) return reply.code(404).send({ error: '用例不存在' })
     await prisma.caseInfo.update({ where: { id }, data: { deletedAt: new Date().toISOString() } })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'delete', entityType: 'case', entityId: id, before: { name: c.name } })
     return { ok: true }
   })
 
@@ -113,7 +120,7 @@ export async function caseRoutes(app: FastifyInstance) {
         changeSummary: 'rollback to version ' + ver.version,
       },
     })
-    return prisma.caseInfo.update({
+    const updated = await prisma.caseInfo.update({
       where: { id },
       data: {
         name: (snapshot.name as string) ?? (ver.case as any).name,
@@ -124,6 +131,52 @@ export async function caseRoutes(app: FastifyInstance) {
         version: newVersion,
       },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'rollback', entityType: 'case', entityId: id, after: { version: newVersion } })
+    return updated
+  })
+
+  // ---------- 评审 ----------
+  // 提交/通过/驳回评审（含评审意见）
+  app.post('/api/case-info/:id/review', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const body = req.body as { action?: string; comment?: string }
+    const c = await prisma.caseInfo.findUnique({ where: { id } })
+    if (!c) return reply.code(404).send({ error: '用例不存在' })
+    const user = (req as unknown as { user: { userId: string; username: string } }).user
+    const action = body?.action ?? 'submit'
+
+    const transition: Record<string, string> = {
+      submit: 'pending',
+      approve: 'passed',
+      reject: 'rejected',
+    }
+    const toStatus = transition[action] ?? c.status
+
+    const review = await prisma.caseReview.create({
+      data: {
+        caseId: id,
+        reviewerId: user.userId,
+        reviewerName: user.username,
+        action,
+        comment: body?.comment ?? null,
+        fromStatus: c.status,
+        toStatus,
+      },
+    })
+
+    if (toStatus !== c.status) {
+      await prisma.caseInfo.update({ where: { id }, data: { status: toStatus } })
+    }
+    await recordAudit({ user, action: `review:${action}`, entityType: 'case', entityId: id, after: { status: toStatus, comment: body?.comment ?? null } })
+    return review
+  })
+
+  // 评审记录列表
+  app.get('/api/case-info/:id/reviews', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const c = await prisma.caseInfo.findUnique({ where: { id } })
+    if (!c) return reply.code(404).send({ error: '用例不存在' })
+    return prisma.caseReview.findMany({ where: { caseId: id }, orderBy: { createdAt: 'desc' } })
   })
 
   // 获取可用目录选项

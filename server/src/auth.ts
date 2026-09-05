@@ -8,6 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'api-web-secret-change-me'
 export interface JwtPayload {
   userId: string
   username: string
+  role?: string
 }
 
 /** 密码哈希（bcrypt，cost=10） */

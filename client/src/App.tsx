@@ -21,6 +21,7 @@ import UiExecutePage from './pages/UiExecutePage'
 import EnvironmentConfigPage from './pages/EnvironmentConfigPage'
 import TestExecutionPage from './pages/TestExecutionPage'
 import TestReportPage from './pages/TestReportPage'
+import AuditLogPage from './pages/AuditLogPage'
 
 /** 应用根组件：定义路由表 */
 export default function App() {
@@ -58,6 +59,8 @@ export default function App() {
           <Route path="/environments" element={<EnvironmentConfigPage />} />
           {/* 用户管理 */}
           <Route path="/users" element={<UserManagement />} />
+          {/* 审计日志 */}
+          <Route path="/audit-logs" element={<AuditLogPage />} />
           {/* 项目管理 */}
           <Route path="/projects" element={<ProjectList />} />
         </Route>

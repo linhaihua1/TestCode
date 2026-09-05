@@ -227,6 +227,7 @@ model CaseInfo {
   deletedAt DateTime?
   versions CaseVersion[]
   debugRecords DebugRecord[]
+  reviews CaseReview[]
 }
 model CaseVersion {
   id String @id @default(cuid())
@@ -254,6 +255,19 @@ model DebugRecord {
   errorLog String?
   stepResults Json @default("[]")
   createdBy String?
+  createdAt DateTime @default(now())
+}
+
+model CaseReview {
+  id String @id @default(cuid())
+  caseId String
+  caseInfo CaseInfo @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  reviewerId String?
+  reviewerName String?
+  action String
+  comment String?
+  fromStatus String?
+  toStatus String?
   createdAt DateTime @default(now())
 }
 model TestTask {

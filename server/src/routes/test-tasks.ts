@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import { executeCaseSteps, type CaseStepDef, type StepExecResult } from '../engine/case-executor.js'
 import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
+import { recordAudit } from '../audit.js'
 
 /**
  * 测试任务与报告路由（PRD 第 5 期）。
@@ -145,7 +146,7 @@ export async function testTaskRoutes(app: FastifyInstance) {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as TaskBody
     if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
-    return prisma.testTask.create({
+    const created = await prisma.testTask.create({
       data: {
         projectId,
         name: body.name,
@@ -160,6 +161,8 @@ export async function testTaskRoutes(app: FastifyInstance) {
         notifyUrl: body.notifyUrl ?? null,
       },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'task', entityId: created.id, after: { name: created.name } })
+    return created
   })
 
   // 任务详情
@@ -202,6 +205,7 @@ export async function testTaskRoutes(app: FastifyInstance) {
     const task = await prisma.testTask.findUnique({ where: { id } })
     if (!task) return reply.code(404).send({ error: '任务不存在' })
     await prisma.testTask.update({ where: { id }, data: { deletedAt: new Date() } })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'delete', entityType: 'task', entityId: id, before: { name: task.name } })
     return { ok: true }
   })
 
@@ -243,6 +247,7 @@ export async function testTaskRoutes(app: FastifyInstance) {
       },
     })
 
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'run', entityType: 'task', entityId: id, after: { result: summary.result, total: summary.total } })
     return { ...run, details, summary }
   })
 

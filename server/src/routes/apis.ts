@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import { debugCase, runCase } from '../engine/runner.js'
+import { recordAudit } from '../audit.js'
 
 /**
  * 接口定义与接口用例相关的 REST 路由：
@@ -119,7 +120,7 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!body?.name || !body?.method || !body?.path) {
       return reply.code(400).send({ error: 'name/method/path 必填' }) // 名称/方法/路径必填校验
     }
-    return prisma.apiDefinition.create({
+    const created = await prisma.apiDefinition.create({
       data: {
         projectId,
         name: body.name,
@@ -135,6 +136,8 @@ export async function apiRoutes(app: FastifyInstance) {
         tags: body.tags ?? [],
       },
     })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'api', entityId: created.id, after: { name: created.name, method: created.method, path: created.path } })
+    return created
   })
 
   // 获取接口定义详情（含其用例）
@@ -151,7 +154,9 @@ export async function apiRoutes(app: FastifyInstance) {
     const body = req.body as ApiBody
     const api = await prisma.apiDefinition.findUnique({ where: { id } })
     if (!api) return reply.code(404).send({ error: '接口不存在' }) // 接口不存在返回 404
-    return prisma.apiDefinition.update({ where: { id }, data: body })
+    const updated = await prisma.apiDefinition.update({ where: { id }, data: body })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'update', entityType: 'api', entityId: id, after: { name: updated.name, path: updated.path } })
+    return updated
   })
 
   // 删除接口定义
@@ -160,6 +165,7 @@ export async function apiRoutes(app: FastifyInstance) {
     const api = await prisma.apiDefinition.findUnique({ where: { id } })
     if (!api) return reply.code(404).send({ error: '接口不存在' }) // 接口不存在返回 404
     await prisma.apiDefinition.delete({ where: { id } })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'delete', entityType: 'api', entityId: id, before: { name: api.name, path: api.path } })
     return { ok: true }
   })
 
@@ -259,7 +265,9 @@ export async function apiRoutes(app: FastifyInstance) {
       }
     }
 
-    return importApiItems(projectId, items)
+    const result = await importApiItems(projectId, items)
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'import:swagger', entityType: 'api', after: { created: result.created, skipped: result.skipped } })
+    return result
   })
 
   // ---------- 批量导入（Excel 模板导入） ----------
@@ -270,7 +278,9 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!Array.isArray(items) || items.length === 0) {
       return reply.code(400).send({ error: '未提供有效的导入数据' })
     }
-    return importApiItems(projectId, items)
+    const result = await importApiItems(projectId, items)
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'import:excel', entityType: 'api', after: { created: result.created, skipped: result.skipped } })
+    return result
   })
 
   // ---------- Mock ----------
