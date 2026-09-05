@@ -23,12 +23,18 @@ export async function moduleRoutes(app: FastifyInstance) {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as ModuleBody
     if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
+    // 校验父目录存在（且属于当前项目），避免外键错误；不存在则回退到根目录
+    let parentId: string | null = body.parentId ?? null
+    if (parentId) {
+      const parent = await prisma.module.findFirst({ where: { id: parentId, projectId } })
+      if (!parent) parentId = null
+    }
     return prisma.module.create({
       data: {
         projectId,
         name: body.name,
         type: body.type ?? 'case',
-        parentId: body.parentId ?? null,
+        parentId,
         sortOrder: body.sortOrder ?? 0,
       },
     })

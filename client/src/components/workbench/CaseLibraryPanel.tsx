@@ -37,8 +37,11 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         api.listCaseLibraryCases(projectId),
       ])
       // 用例库只展示「用例」类型的目录，接口导入产生的 api 类型目录由接口管理面板负责
-      setModules(modList.filter((m) => m.type !== 'api'))
+      const caseModules = modList.filter((m) => m.type !== 'api')
+      setModules(caseModules)
       setCases(caseList)
+      // 项目切换或目录删除后，清理失效的选中目录，避免新建时引用已不存在的父目录
+      setSelectedModuleId((prev) => (prev && caseModules.some((m) => m.id === prev) ? prev : null))
     } catch (e) {
       message.error(getErrorMessage(e))
     }
@@ -137,7 +140,9 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
   const deleteNode = async (key: string) => {
     try {
       if (key.startsWith('module:')) {
-        await api.deleteModule(key.slice(7))
+        const id = key.slice(7)
+        await api.deleteModule(id)
+        if (selectedModuleId === id) setSelectedModuleId(null)
       } else if (key.startsWith('case:')) {
         await api.deleteCase(key.slice(5))
       }
