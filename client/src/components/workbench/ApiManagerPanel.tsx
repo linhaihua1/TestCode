@@ -2,12 +2,13 @@
  * 右侧接口管理面板（PRD 第 4 期）：接口定义库。
  * 接口列表 + 请求构建器 + Swagger 导入 + Mock 配置。
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Divider, Drawer, Form, Input, List, Modal, Popconfirm, Select, Space, Switch, Tag, Tooltip, message } from 'antd'
 import * as XLSX from 'xlsx'
 import { api, getErrorMessage } from '../../api/client'
 import { HTTP_METHODS, type ApiDefinition, type ApiImportItem } from '../../api/types'
 import KeyValueEditor from '../KeyValueEditor'
+import ScrollBar from '../ScrollBar'
 
 interface Props {
   projectId?: string
@@ -156,6 +157,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
   const [apis, setApis] = useState<ApiDefinition[]>([])
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
+  const listScrollRef = useRef<HTMLDivElement>(null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<ApiDefinition | null>(null)
@@ -292,12 +294,13 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
         </Space>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 8px' }}>
-        <List
-          size="small"
-          loading={loading}
-          dataSource={filtered}
-          renderItem={(a) => (
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div ref={listScrollRef} className="scrollbar-hidden" style={{ flex: 1, overflow: 'auto', padding: '0 8px' }}>
+          <List
+            size="small"
+            loading={loading}
+            dataSource={filtered}
+            renderItem={(a) => (
             <List.Item style={{ padding: '6px 8px' }}>
               <div
                 style={{ width: '100%', cursor: 'grab' }}
@@ -329,7 +332,9 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
               </div>
             </List.Item>
           )}
-        />
+          />
+        </div>
+        <ScrollBar containerRef={listScrollRef} />
       </div>
 
       {/* 请求构建器 Drawer */}

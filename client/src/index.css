@@ -42,3 +42,11 @@ body {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* 隐藏原生滚动条（配合自定义拖拽条使用） */
+.scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

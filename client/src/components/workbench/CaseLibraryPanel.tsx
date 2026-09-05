@@ -2,11 +2,12 @@
  * 左侧用例库面板（PRD 第 2 期）：目录树 + 用例管理。
  * 目录/用例的新增、重命名、删除通过节点上的图标直接操作（无需右键）。
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Input, Modal, Space, Tree, message } from 'antd'
 import type { TreeDataNode } from 'antd'
 import { DeleteOutlined, EditOutlined, FileAddOutlined, FolderAddOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, getErrorMessage } from '../../api/client'
+import ScrollBar from '../ScrollBar'
 import type { CaseInfo, Module } from '../../api/types'
 
 interface Props {
@@ -27,6 +28,7 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
   const [modalTitle, setModalTitle] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [targetParentId, setTargetParentId] = useState<string | null>(null)
+  const treeScrollRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     if (!projectId) return
@@ -215,9 +217,10 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         </Button>
       </div>
 
-      {/* 目录树 */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 8px 8px' }}>
-        <Tree
+      {/* 目录树 + 滚动拖拽条 */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div ref={treeScrollRef} className="scrollbar-hidden" style={{ flex: 1, overflow: 'auto', padding: '0 8px 8px' }}>
+          <Tree
           treeData={treeData}
           blockNode
           defaultExpandAll
@@ -251,6 +254,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
             )
           }}
         />
+        </div>
+        <ScrollBar containerRef={treeScrollRef} />
       </div>
 
       {/* 弹窗 */}

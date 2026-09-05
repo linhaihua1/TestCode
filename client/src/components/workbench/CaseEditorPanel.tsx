@@ -2,7 +2,7 @@
  * 中间编写用例面板（PRD 第 2 期）：用例名称 + 前置/测试/后置三段式步骤编辑器。
  * 步骤类型：接口请求（引用接口 + 断言 + 提取）、脚本、等待、变量赋值。
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Dropdown, Input, InputNumber, Modal, Radio, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { api, getErrorMessage } from '../../api/client'
 import EnvironmentSelect from '../EnvironmentSelect'
+import ScrollBar from '../ScrollBar'
 import {
   HTTP_METHODS,
   type ApiDefinition,
@@ -94,6 +95,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   // 步骤复制/粘贴 + 本用例调试记录
   const [copiedStep, setCopiedStep] = useState<CaseStep | null>(null)
   const [caseDebugRecords, setCaseDebugRecords] = useState<DebugRecord[]>([])
+  const scriptScrollRef = useRef<HTMLDivElement>(null)
 
   const loadReviews = async (id: string) => {
     try {
@@ -364,7 +366,8 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
         </Tooltip>
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
         <Tabs
           style={{ height: '100%' }}
           tabBarStyle={{ margin: 0, padding: '0 12px' }}
@@ -383,7 +386,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               key: 'script',
               label: '脚本',
               children: (
-                <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+                <div ref={scriptScrollRef} className="scrollbar-hidden" style={{ padding: 16, height: '100%', overflow: 'auto' }}>
                   <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
                   <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
                   <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
@@ -481,6 +484,8 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
             },
           ]}
         />
+        </div>
+        <ScrollBar containerRef={scriptScrollRef} />
       </div>
 
       {/* 调试弹窗 */}
