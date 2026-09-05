@@ -40,6 +40,7 @@ const STEP_TYPE_LABELS: Record<CaseStepType, string> = {
   script: '脚本',
   wait: '等待',
   variable: '变量赋值',
+  controller: '流程控制器',
 }
 
 export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
@@ -127,6 +128,10 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
       base.varValue = ''
     } else if (type === 'script') {
       base.script = ''
+    } else if (type === 'controller') {
+      base.controllerType = 'if'
+      base.condition = ''
+      base.children = []
     }
     setSteps((prev) => [...prev, base])
   }
@@ -340,6 +345,81 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
           <span>=</span>
           <Input size="small" style={{ width: 200 }} value={step.varValue} placeholder="变量值" onChange={(e) => onUpdate({ varValue: e.target.value })} />
         </Space>
+      )}
+
+      {step.type === 'controller' && (
+        <>
+          <Select
+            size="small"
+            style={{ width: 140 }}
+            value={step.controllerType}
+            options={[
+              { value: 'if', label: 'IF-ELSE 条件' },
+              { value: 'for', label: 'FOR 循环' },
+              { value: 'while', label: 'WHILE 循环' },
+            ]}
+            onChange={(v) => onUpdate({ controllerType: v })}
+          />
+          {step.controllerType === 'if' && (
+            <Input size="small" value={step.condition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ condition: e.target.value })} />
+          )}
+          {step.controllerType === 'for' && (
+            <Space>
+              <span>循环变量</span>
+              <Input size="small" style={{ width: 100 }} value={step.loopVar} placeholder="如 i" onChange={(e) => onUpdate({ loopVar: e.target.value })} />
+              <span>次数</span>
+              <InputNumber size="small" value={step.loopCount} onChange={(v) => onUpdate({ loopCount: v ?? 1 })} />
+            </Space>
+          )}
+          {step.controllerType === 'while' && (
+            <Space>
+              <Input size="small" style={{ width: 200 }} value={step.condition} placeholder="条件表达式" onChange={(e) => onUpdate({ condition: e.target.value })} />
+              <span>最大循环</span>
+              <InputNumber size="small" value={step.maxLoops} onChange={(v) => onUpdate({ maxLoops: v ?? 100 })} />
+            </Space>
+          )}
+          <div style={{ borderLeft: '2px solid #e0e0e0', paddingLeft: 8 }}>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>子步骤（{step.children?.length ?? 0}）</div>
+            {(step.children ?? []).map((child, ci) => (
+              <StepCard
+                key={child.id}
+                step={child}
+                apis={apis}
+                onUpdate={(patch) => {
+                  const children = [...(step.children ?? [])]
+                  children[ci] = { ...children[ci], ...patch }
+                  onUpdate({ children })
+                }}
+                onRemove={() => {
+                  const children = (step.children ?? []).filter((_, j) => j !== ci)
+                  onUpdate({ children })
+                }}
+              />
+            ))}
+            <Button
+              size="small"
+              type="dashed"
+              block
+              onClick={() => {
+                const child: CaseStep = {
+                  id: `child-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  type: 'request',
+                  phase: step.phase,
+                  name: '子步骤',
+                  enabled: true,
+                  method: 'GET',
+                  headers: [],
+                  query: [],
+                  assertions: [],
+                  extracts: [],
+                }
+                onUpdate({ children: [...(step.children ?? []), child] })
+              }}
+            >
+              添加子步骤
+            </Button>
+          </div>
+        </>
       )}
     </Space>
   )

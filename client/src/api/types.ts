@@ -319,7 +319,10 @@ export interface DebugRecord {
 }
 
 /** 用例步骤类型（PRD 第四章节） */
-export type CaseStepType = 'request' | 'script' | 'wait' | 'variable'
+export type CaseStepType = 'request' | 'script' | 'wait' | 'variable' | 'controller'
+
+/** 流程控制器类型 */
+export type ControllerType = 'if' | 'for' | 'while'
 
 /** 用例步骤阶段：前置 / 测试 / 后置 */
 export type CaseStepPhase = 'setup' | 'test' | 'teardown'
@@ -348,4 +351,11 @@ export interface CaseStep {
   // 变量赋值步骤
   varName?: string // 变量名
   varValue?: string // 变量值
+  // 流程控制器步骤
+  controllerType?: ControllerType // 控制器类型
+  condition?: string // 条件表达式（if/while 用）
+  children?: CaseStep[] // 控制器子步骤（嵌套，支持递归）
+  loopVar?: string // for 循环变量名
+  loopCount?: number // for 循环次数
+  maxLoops?: number // while 最大循环次数
 }
