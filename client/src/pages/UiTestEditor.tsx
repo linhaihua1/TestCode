@@ -7,7 +7,7 @@ import { Alert, Button, Card, Collapse, Input, Select, Space, Spin, Table, Tag, 
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import { UI_LOCATORS, type UiReport, type UiStep } from '../api/types'
+import { UI_LOCATORS, type UiReport, type UiStep, type UiStepResult } from '../api/types'
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
 /** 单个阶段的步骤编辑表格（前置/测试/后置共用） */
@@ -189,7 +189,7 @@ export default function UiTestEditor() {
     }
   }
 
-  const reportItems = (report?.details ?? []).map((d, i) => ({
+  const reportItems = ((report?.details ?? []) as UiStepResult[]).map((d, i) => ({
     key: String(i),
     label: (
       <Space>

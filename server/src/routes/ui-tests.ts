@@ -95,8 +95,18 @@ export async function uiTestRoutes(app: FastifyInstance) {
     try {
       results = await runUiSteps(allSteps, { baseUrl: testCase.baseUrl ?? undefined })
     } catch (err) {
+      // 驱动启动/环境错误：仍写入报告，让错误信息在报告里可见
       const message = err instanceof Error ? err.message : String(err)
-      return reply.code(500).send({ error: `执行失败：${message}` })
+      return prisma.uiReport.create({
+        data: {
+          projectId: testCase.projectId,
+          testCaseId: testCase.id,
+          name: testCase.name,
+          status: 'ERROR',
+          duration: Date.now() - start,
+          details: [{ action: 'open', status: 'ERROR', message: `执行失败：${message}` }] as unknown as Prisma.InputJsonValue,
+        },
+      })
     }
 
     const duration = Date.now() - start

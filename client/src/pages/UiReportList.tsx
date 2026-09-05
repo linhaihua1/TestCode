@@ -7,9 +7,36 @@ import type { ColumnsType } from 'antd/es/table'
 import { api, getErrorMessage } from '../api/client'
 import { useProject } from '../context/ProjectContext'
 import { Pie, Line } from '@ant-design/plots'
-import type { UiReport } from '../api/types'
+import type { UiReport, UiScenarioCaseResult, UiStepResult } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
+
+/** 单个步骤结果（含错误信息与截图） */
+function StepResultRow(props: { step: UiStepResult }) {
+  const { step } = props
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <Alert
+        type={step.status === 'PASS' ? 'success' : 'error'}
+        showIcon
+        message={`${step.action}${step.target ? `（${step.target}）` : ''}：${step.message}`}
+        style={{ marginBottom: 4 }}
+      />
+      {step.screenshot && (
+        <img
+          src={`data:image/png;base64,${step.screenshot}`}
+          alt="失败截图"
+          style={{ maxWidth: '100%', border: '1px solid #eee' }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** 判断详情项是「场景用例结果」还是「单步骤结果」 */
+function isCaseResult(item: UiStepResult | UiScenarioCaseResult): item is UiScenarioCaseResult {
+  return Array.isArray((item as UiScenarioCaseResult).steps)
+}
 
 export default function UiReportList() {
   const { projectId } = useProject()
@@ -157,36 +184,47 @@ export default function UiReportList() {
           expandable={{
             expandedRowRender: (report) => (
               <div>
-                {(report.details ?? []).map((d, i) => (
-                  <Card
-                    key={i}
-                    size="small"
-                    title={
-                      <Space>
-                        <span>
-                          步骤 {i + 1}：{d.action}
-                          {d.target ? `（${d.target}）` : ''}
-                        </span>
-                        <Tag color={STATUS_COLOR[d.status]}>{d.status}</Tag>
-                      </Space>
-                    }
-                    style={{ marginBottom: 8 }}
-                  >
-                    <Alert
-                      type={d.status === 'PASS' ? 'success' : 'error'}
-                      showIcon
-                      message={d.message}
+                {(report.details ?? []).map((item, i) => {
+                  if (isCaseResult(item)) {
+                    // 场景/批量执行：每个 item 是一个 UI 用例，内含步骤明细
+                    return (
+                      <Card
+                        key={i}
+                        size="small"
+                        title={
+                          <Space>
+                            <span>用例 {i + 1}：{item.name}</span>
+                            <Tag color={STATUS_COLOR[item.status]}>{item.status}</Tag>
+                          </Space>
+                        }
+                        style={{ marginBottom: 8 }}
+                      >
+                        {item.steps.map((st, j) => (
+                          <StepResultRow key={j} step={st} />
+                        ))}
+                      </Card>
+                    )
+                  }
+                  // 单用例执行：每个 item 是一个步骤
+                  return (
+                    <Card
+                      key={i}
+                      size="small"
+                      title={
+                        <Space>
+                          <span>
+                            步骤 {i + 1}：{item.action}
+                            {item.target ? `（${item.target}）` : ''}
+                          </span>
+                          <Tag color={STATUS_COLOR[item.status]}>{item.status}</Tag>
+                        </Space>
+                      }
                       style={{ marginBottom: 8 }}
-                    />
-                    {d.screenshot && (
-                      <img
-                        src={`data:image/png;base64,${d.screenshot}`}
-                        alt="失败截图"
-                        style={{ maxWidth: '100%', border: '1px solid #eee' }}
-                      />
-                    )}
-                  </Card>
-                ))}
+                    >
+                      <StepResultRow step={item} />
+                    </Card>
+                  )
+                })}
               </div>
             ),
           }}

@@ -455,16 +455,6 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
           className="case-editor-tabs"
           style={{ height: '100%' }}
           tabBarStyle={{ margin: 0, padding: '0 12px' }}
-          tabBarExtraContent={
-            <Select
-              mode="tags"
-              size="small"
-              style={{ minWidth: 120, marginRight: 12 }}
-              placeholder="标签"
-              value={tags}
-              onChange={(v) => setTags(v as string[])}
-            />
-          }
           items={[
             {
               key: 'script',
@@ -873,6 +863,7 @@ function StepCard(props: {
   const { step, apis, onUpdate, onRemove, onCopy, onPaste, hasCopied = false, onInsertRelative } = props
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
   const [dropPos, setDropPos] = useState<'before' | 'after' | null>(null)
+  const [collapsed, setCollapsed] = useState(step.type === 'controller')
 
   const contextMenu: MenuProps = {
     items: [
@@ -922,6 +913,9 @@ function StepCard(props: {
               <Space>
                 <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
                 <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} title="启用/禁用" />
+                <Button size="small" type="text" style={{ padding: '0 4px', height: 22, lineHeight: '22px' }} onClick={() => setCollapsed((v) => !v)} title={collapsed ? '展开' : '折叠'}>
+                  {collapsed ? '▶' : '▼'}
+                </Button>
                 <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
                 <span style={{ fontSize: 13 }}>{step.name}</span>
               </Space>
@@ -932,7 +926,7 @@ function StepCard(props: {
               </Space>
             }
           >
-            <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
+            {!collapsed && <StepEditor step={step} apis={apis} onUpdate={onUpdate} />}
           </Card>
         </Dropdown>
       </div>

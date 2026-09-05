@@ -120,8 +120,18 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     try {
       caseResults = await runUiScenario(cases)
     } catch (err) {
+      // 驱动启动/环境错误：仍写入报告，让错误信息在报告里可见
       const message = err instanceof Error ? err.message : String(err)
-      return reply.code(500).send({ error: `执行失败：${message}` })
+      return prisma.uiReport.create({
+        data: {
+          projectId: scenario.projectId,
+          testCaseId: null, // 场景执行，非单用例
+          name: scenario.name,
+          status: 'ERROR',
+          duration: Date.now() - start,
+          details: [{ testCaseId: '', name: '执行失败', status: 'ERROR', steps: [{ action: 'open', status: 'ERROR', message: `执行失败：${message}` }] }] as unknown as Prisma.InputJsonValue,
+        },
+      })
     }
 
     const duration = Date.now() - start
@@ -173,8 +183,18 @@ export async function uiScenarioRoutes(app: FastifyInstance) {
     try {
       caseResults = await runUiScenario(cases)
     } catch (err) {
+      // 驱动启动/环境错误：仍写入报告，让错误信息在报告里可见
       const message = err instanceof Error ? err.message : String(err)
-      return reply.code(500).send({ error: `执行失败：${message}` })
+      return prisma.uiReport.create({
+        data: {
+          projectId,
+          testCaseId: null,
+          name: 'UI 用例执行',
+          status: 'ERROR',
+          duration: Date.now() - start,
+          details: [{ testCaseId: '', name: '执行失败', status: 'ERROR', steps: [{ action: 'open', status: 'ERROR', message: `执行失败：${message}` }] }] as unknown as Prisma.InputJsonValue,
+        },
+      })
     }
 
     const duration = Date.now() - start

@@ -216,6 +216,14 @@ export interface UiTestCase {
   updatedAt: string
 }
 
+/** UI 场景中单个用例的执行结果 */
+export interface UiScenarioCaseResult {
+  testCaseId: string
+  name: string
+  status: 'PASS' | 'FAIL' | 'ERROR'
+  steps: UiStepResult[]
+}
+
 /** UI 自动化测试报告 */
 export interface UiReport {
   id: string
@@ -225,7 +233,8 @@ export interface UiReport {
   status: 'PASS' | 'FAIL' | 'ERROR'
   duration: number
   startedAt: string
-  details: UiStepResult[]
+  /** 单用例执行时为 UiStepResult[]；场景/批量执行时为 UiScenarioCaseResult[] */
+  details: Array<UiStepResult | UiScenarioCaseResult>
 }
 
 /** UI 执行场景中的单个步骤（引用一个 UI 用例） */
