@@ -408,21 +408,12 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               label: '脚本',
               children: (
                 <div ref={scriptScrollRef} className="scrollbar-hidden" style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-                  {/* 前置/测试/后置三列从左到右排列 */}
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
-                    </div>
-                  </div>
+                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
 
                   {/* 底部快捷添加 */}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
                     <span style={{ color: '#999', fontSize: 12 }}>快捷添加（测试步骤）：</span>
                     <Button size="small" onClick={() => addStep('test', 'request')}>接口请求</Button>
                     <Button size="small" onClick={() => addStep('test', 'wait')}>等待时间</Button>
@@ -713,6 +704,7 @@ function StepSection(props: {
   return (
     <div
       style={{
+        marginBottom: 16,
         border: `1px dashed ${dragOver ? '#1677ff' : '#e8e8e8'}`,
         borderRadius: 6,
         padding: 12,
@@ -735,7 +727,7 @@ function StepSection(props: {
       }}
     >
       <div
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 6, marginBottom: collapsed ? 0 : 12, cursor: 'pointer', userSelect: 'none' }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsed ? 0 : 12, cursor: 'pointer', userSelect: 'none' }}
         onClick={() => setCollapsed((v) => !v)}
       >
         <span style={{ fontWeight: 600, color }}>
@@ -743,11 +735,11 @@ function StepSection(props: {
           {title}
           <span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>（{steps.length}）</span>
         </span>
-        <Space size={4} onClick={(e) => e.stopPropagation()}>
+        <Space onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
             <>
-              <Select size="small" value={addType} style={{ width: 88 }} onChange={setAddType} options={Object.entries(STEP_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
-              <Button size="small" type="dashed" onClick={() => onAdd(phase, addType)}>添加</Button>
+              <Select size="small" value={addType} style={{ width: 120 }} onChange={setAddType} options={Object.entries(STEP_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
+              <Button size="small" type="dashed" onClick={() => onAdd(phase, addType)}>添加步骤</Button>
             </>
           )}
         </Space>
