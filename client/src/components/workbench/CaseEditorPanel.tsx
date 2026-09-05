@@ -575,6 +575,7 @@ function StepSection(props: {
   const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder, onDropApi } = props
   const [addType, setAddType] = useState<CaseStepType>('request')
   const [dragOver, setDragOver] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -612,29 +613,44 @@ function StepSection(props: {
         if (apiId) onDropApi(phase, apiId)
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, color }}>{title}</span>
-        <Space>
-          <Select size="small" value={addType} style={{ width: 120 }} onChange={setAddType} options={Object.entries(STEP_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
-          <Button size="small" type="dashed" onClick={() => onAdd(phase, addType)}>添加步骤</Button>
+      <div
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsed ? 0 : 12, cursor: 'pointer', userSelect: 'none' }}
+        onClick={() => setCollapsed((v) => !v)}
+      >
+        <span style={{ fontWeight: 600, color }}>
+          <span style={{ display: 'inline-block', width: 14, color: '#999' }}>{collapsed ? '▶' : '▼'}</span>
+          {title}
+          <span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>（{steps.length}）</span>
+        </span>
+        <Space onClick={(e) => e.stopPropagation()}>
+          {!collapsed && (
+            <>
+              <Select size="small" value={addType} style={{ width: 120 }} onChange={setAddType} options={Object.entries(STEP_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
+              <Button size="small" type="dashed" onClick={() => onAdd(phase, addType)}>添加步骤</Button>
+            </>
+          )}
         </Space>
       </div>
 
-      {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤，可从右侧接口管理拖拽接口到此处</div>}
+      {!collapsed && (
+        <>
+          {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤，可从右侧接口管理拖拽接口到此处</div>}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-          {steps.map((s, i) => (
-            <StepCard
-              key={s.id}
-              step={s}
-              apis={apis}
-              onUpdate={(patch) => onUpdate(phase, i, patch)}
-              onRemove={() => onRemove(phase, i)}
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              {steps.map((s, i) => (
+                <StepCard
+                  key={s.id}
+                  step={s}
+                  apis={apis}
+                  onUpdate={(patch) => onUpdate(phase, i, patch)}
+                  onRemove={() => onRemove(phase, i)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
     </div>
   )
 }
@@ -740,10 +756,10 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
               else onUpdate({ apiId: undefined })
             }}
           />
-          <Space size={8}>
-            <Select size="small" style={{ width: 110 }} value={step.method} options={HTTP_METHODS.map((m) => ({ value: m, label: m }))} onChange={(v) => onUpdate({ method: v })} />
-            <Input size="small" style={{ width: 300 }} value={step.url} placeholder="URL（支持 ${变量}）" onChange={(e) => onUpdate({ url: e.target.value })} />
-          </Space>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <Select size="small" style={{ width: 110, flexShrink: 0 }} value={step.method} options={HTTP_METHODS.map((m) => ({ value: m, label: m }))} onChange={(v) => onUpdate({ method: v })} />
+            <Input size="small" style={{ flex: 1, minWidth: 0 }} value={step.url} placeholder="URL（支持 ${变量}）" onChange={(e) => onUpdate({ url: e.target.value })} />
+          </div>
           <Input size="small" value={step.body} placeholder="请求体（JSON，支持 ${变量}）" onChange={(e) => onUpdate({ body: e.target.value })} />
           <AssertionMiniEditor value={step.assertions ?? []} onChange={(assertions) => onUpdate({ assertions })} />
           <ExtractMiniEditor value={step.extracts ?? []} onChange={(extracts) => onUpdate({ extracts })} />

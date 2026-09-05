@@ -238,14 +238,15 @@ function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
     <div
       onMouseDown={onMouseDown}
       style={{
-        width: 5,
+        width: 6,
         cursor: 'col-resize',
-        background: 'transparent',
+        background: '#f0f0f0',
         flexShrink: 0,
         transition: 'background 0.2s',
       }}
+      title="拖动调整宽度"
       onMouseEnter={(e) => (e.currentTarget.style.background = '#d9d9d9')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = '#f0f0f0')}
     />
   )
 }
