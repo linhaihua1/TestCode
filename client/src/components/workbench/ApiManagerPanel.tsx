@@ -3,7 +3,7 @@
  * 接口列表 + 请求构建器 + Swagger 导入 + Mock 配置。
  */
 import { useEffect, useState } from 'react'
-import { Button, Divider, Drawer, Form, Input, List, Modal, Popconfirm, Select, Space, Switch, Tag, message } from 'antd'
+import { Button, Divider, Drawer, Form, Input, List, Modal, Popconfirm, Select, Space, Switch, Tag, Tooltip, message } from 'antd'
 import * as XLSX from 'xlsx'
 import { api, getErrorMessage } from '../../api/client'
 import { HTTP_METHODS, type ApiDefinition, type ApiImportItem } from '../../api/types'
@@ -217,15 +217,6 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
     }
   }
 
-  const generateCase = async (apiId: string) => {
-    try {
-      const c = await api.generateCaseFromApi(apiId)
-      message.success(`已生成用例「${c.name}」`)
-    } catch (e) {
-      message.error(getErrorMessage(e))
-    }
-  }
-
   const importFromUrl = async () => {
     if (!importUrl.trim()) {
       message.warning('请输入 Swagger/OpenAPI 文档地址')
@@ -307,16 +298,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
           loading={loading}
           dataSource={filtered}
           renderItem={(a) => (
-            <List.Item
-              style={{ padding: '6px 8px' }}
-              actions={[
-                <Button key="gen" size="small" type="link" onClick={() => generateCase(a.id)}>生成用例</Button>,
-                <Button key="edit" size="small" type="link" onClick={() => { setEditing(a); form.setFieldsValue({ ...a }); setDrawerOpen(true) }}>编辑</Button>,
-                <Popconfirm key="del" title="确认删除？" onConfirm={() => remove(a.id)}>
-                  <Button size="small" type="link" danger>删除</Button>
-                </Popconfirm>,
-              ]}
-            >
+            <List.Item style={{ padding: '6px 8px' }}>
               <div
                 style={{ width: '100%', cursor: 'grab' }}
                 draggable
@@ -326,12 +308,24 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
                 }}
                 title="拖拽到用例编辑器生成接口请求步骤"
               >
-                <Space size={4}>
-                  <Tag color={METHOD_COLOR[a.method]}>{a.method}</Tag>
-                  {a.mockEnabled && <Tag color="purple">Mock</Tag>}
-                  <span style={{ fontWeight: 600 }}>{a.name}</span>
-                </Space>
-                <div style={{ color: '#999', fontSize: 12 }}>{a.path}</div>
+                {/* 左上角：请求方式 + 接口名称（超 6 字省略，悬停显示完整名） */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                  <Tag color={METHOD_COLOR[a.method]} style={{ flexShrink: 0 }}>{a.method}</Tag>
+                  {a.mockEnabled && <Tag color="purple" style={{ flexShrink: 0 }}>Mock</Tag>}
+                  <Tooltip title={a.name}>
+                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.name.length > 6 ? `${a.name.slice(0, 6)}…` : a.name}
+                    </span>
+                  </Tooltip>
+                </div>
+                <div style={{ color: '#999', fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.path}</div>
+                {/* 右下角：编辑 / 删除 */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+                  <Button size="small" type="link" onClick={() => { setEditing(a); form.setFieldsValue({ ...a }); setDrawerOpen(true) }}>编辑</Button>
+                  <Popconfirm title="确认删除？" onConfirm={() => remove(a.id)}>
+                    <Button size="small" type="link" danger>删除</Button>
+                  </Popconfirm>
+                </div>
               </div>
             </List.Item>
           )}

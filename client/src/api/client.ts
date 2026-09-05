@@ -103,8 +103,6 @@ export const api = {
     http
       .post<{ created: number; skipped: number }>(`/projects/${projectId}/apis/import-batch`, { items })
       .then((r) => r.data),
-  generateCaseFromApi: (apiId: string) =>
-    http.post<CaseInfo>(`/apis/${apiId}/generate-case`).then((r) => r.data),
 
   // ---------- 接口用例（ApiCase） ----------
   listCases: (apiId: string) => http.get<ApiCase[]>(`/apis/${apiId}/cases`).then((r) => r.data),

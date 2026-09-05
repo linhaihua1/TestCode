@@ -359,26 +359,4 @@ describe('接口管理（第 4 期）：Swagger 导入 + Mock', () => {
     })
     expect(reimportRes.json()).toEqual({ created: 0, skipped: 2 })
   })
-
-  it('一键生成用例：由接口生成带默认断言的接口用例', async () => {
-    await clean()
-    const projRes = await app.inject({ method: 'POST', url: '/api/projects', headers: auth, payload: { name: 'gen-project' } })
-    const project = projRes.json()
-    const apiRes = await app.inject({
-      method: 'POST',
-      url: `/api/projects/${project.id}/apis`,
-      headers: auth,
-      payload: { name: '登录', method: 'POST', path: '/login', headers: [{ key: 'Content-Type', value: 'application/json' }] },
-    })
-    const api = apiRes.json()
-
-    const genRes = await app.inject({ method: 'POST', url: `/api/apis/${api.id}/generate-case`, headers: auth })
-    expect(genRes.statusCode).toBe(200)
-    const c = genRes.json()
-    expect(c.name).toContain('自动生成')
-    expect(c.steps).toHaveLength(1)
-    expect(c.steps[0].apiId).toBe(api.id)
-    expect(c.steps[0].method).toBe('POST')
-    expect(c.steps[0].assertions[0].type).toBe('statusCode')
-  })
 })
