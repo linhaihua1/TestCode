@@ -18,6 +18,32 @@ const METHOD_COLOR: Record<string, string> = {
   GET: 'green', POST: 'blue', PUT: 'orange', PATCH: 'purple', DELETE: 'red', HEAD: 'default', OPTIONS: 'default',
 }
 
+// Swagger/OpenAPI JSON 导入示例（用于指导用户填写）
+const SWAGGER_JSON_EXAMPLE = `{
+  "openapi": "3.0.0",
+  "info": { "title": "示例接口文档", "version": "1.0.0" },
+  "paths": {
+    "/demo/login": {
+      "post": {
+        "summary": "登录",
+        "tags": ["用户模块"],
+        "description": "登录接口",
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/demo/users/{id}": {
+      "get": {
+        "summary": "查询用户",
+        "tags": ["用户模块"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      }
+    }
+  }
+}`
+
 // ---------- Excel 导入相关 ----------
 // 模板列名（中文表头）
 const EXCEL_HEADERS = {
@@ -138,6 +164,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
   const [importOpen, setImportOpen] = useState(false)
   const [importUrl, setImportUrl] = useState('')
   const [importing, setImporting] = useState(false)
+  const [showJsonExample, setShowJsonExample] = useState(false)
 
   const load = async () => {
     if (!projectId) return
@@ -376,6 +403,29 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
             </Space.Compact>
             <div style={{ margin: '8px 0' }}>文件导入（JSON）：</div>
             <input type="file" accept=".json" onChange={(e) => { const f = e.target.files?.[0]; if (f) importFromFile(f) }} />
+            <div style={{ marginTop: 8 }}>
+              <Space>
+                <Button size="small" onClick={() => setShowJsonExample((v) => !v)}>
+                  {showJsonExample ? '收起 JSON 示例' : '查看 JSON 示例'}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(SWAGGER_JSON_EXAMPLE)
+                      .then(() => message.success('示例 JSON 已复制'))
+                      .catch(() => message.warning('复制失败，请手动复制'))
+                  }}
+                >
+                  复制示例
+                </Button>
+              </Space>
+              {showJsonExample && (
+                <pre style={{ background: '#f6f6f6', padding: 12, borderRadius: 6, fontSize: 12, overflow: 'auto', maxHeight: 240, marginTop: 8 }}>
+                  {SWAGGER_JSON_EXAMPLE}
+                </pre>
+              )}
+            </div>
           </div>
 
           <Divider style={{ margin: '8px 0' }} />
