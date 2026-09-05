@@ -4,6 +4,21 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Input, InputNumber, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { api, getErrorMessage } from '../../api/client'
 import {
   HTTP_METHODS,
@@ -125,15 +140,10 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
     })
   }
 
-  const moveStep = (phase: CaseStep['phase'], index: number, dir: -1 | 1) => {
+  const reorderStep = (phase: CaseStep['phase'], reordered: CaseStep[]) => {
     setSteps((prev) => {
       const others = prev.filter((s) => s.phase !== phase)
-      const phaseList = prev.filter((s) => s.phase === phase)
-      const target = index + dir
-      if (target < 0 || target >= phaseList.length) return prev
-      const next = [...phaseList]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return [...others, ...next]
+      return [...others, ...reordered]
     })
   }
 
@@ -169,9 +179,9 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
               label: '脚本',
               children: (
                 <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onMove={moveStep} />
-                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onMove={moveStep} />
-                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onMove={moveStep} />
+                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
+                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
+                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
                 </div>
               ),
             },
@@ -187,7 +197,7 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
   )
 }
 
-/** 单个阶段的步骤列表 */
+/** 单个阶段的步骤列表（支持拖拽排序） */
 function StepSection(props: {
   title: string
   color: string
@@ -197,10 +207,21 @@ function StepSection(props: {
   onAdd: (phase: CaseStep['phase'], type: CaseStepType) => void
   onUpdate: (phase: CaseStep['phase'], index: number, patch: Partial<CaseStep>) => void
   onRemove: (phase: CaseStep['phase'], index: number) => void
-  onMove: (phase: CaseStep['phase'], index: number, dir: -1 | 1) => void
+  onReorder: (phase: CaseStep['phase'], reordered: CaseStep[]) => void
 }) {
-  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onMove } = props
+  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder } = props
   const [addType, setAddType] = useState<CaseStepType>('request')
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = steps.findIndex((s) => s.id === active.id)
+      const newIndex = steps.findIndex((s) => s.id === over.id)
+      if (oldIndex < 0 || newIndex < 0) return
+      onReorder(phase, arrayMove(steps, oldIndex, newIndex))
+    }
+  }
 
   return (
     <div style={{ marginBottom: 16, border: '1px solid #e8e8e8', borderRadius: 6, padding: 12 }}>
@@ -214,55 +235,55 @@ function StepSection(props: {
 
       {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤</div>}
 
-      {steps.map((s, i) => (
-        <StepCard
-          key={s.id}
-          step={s}
-          index={i}
-          total={steps.length}
-          apis={apis}
-          onUpdate={(patch) => onUpdate(phase, i, patch)}
-          onRemove={() => onRemove(phase, i)}
-          onMove={(dir) => onMove(phase, i, dir)}
-        />
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          {steps.map((s, i) => (
+            <StepCard
+              key={s.id}
+              step={s}
+              apis={apis}
+              onUpdate={(patch) => onUpdate(phase, i, patch)}
+              onRemove={() => onRemove(phase, i)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
     </div>
   )
 }
 
-/** 单个步骤卡片 */
+/** 单个步骤卡片（拖拽手柄排序） */
 function StepCard(props: {
   step: CaseStep
-  index: number
-  total: number
   apis: ApiDefinition[]
   onUpdate: (patch: Partial<CaseStep>) => void
   onRemove: () => void
-  onMove: (dir: -1 | 1) => void
 }) {
-  const { step, index, total, apis, onUpdate, onRemove, onMove } = props
+  const { step, apis, onUpdate, onRemove } = props
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
 
   return (
-    <Card
-      size="small"
-      style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
-      title={
-        <Space>
-          <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
-          <span style={{ fontSize: 13 }}>{step.name}</span>
-        </Space>
-      }
-      extra={
-        <Space size={4}>
-          <Button size="small" type="text" disabled={index === 0} onClick={() => onMove(-1)}>↑</Button>
-          <Button size="small" type="text" disabled={index === total - 1} onClick={() => onMove(1)}>↓</Button>
-          <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} />
-          <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
-        </Space>
-      }
-    >
-      <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
-    </Card>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
+      <Card
+        size="small"
+        style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
+        title={
+          <Space>
+            <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
+            <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
+            <span style={{ fontSize: 13 }}>{step.name}</span>
+          </Space>
+        }
+        extra={
+          <Space size={4}>
+            <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} />
+            <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
+          </Space>
+        }
+      >
+        <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
+      </Card>
+    </div>
   )
 }
 
