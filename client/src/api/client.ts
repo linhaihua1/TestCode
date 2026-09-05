@@ -271,6 +271,8 @@ export const api = {
     http.get<CaseInfo[]>(`/projects/${projectId}/cases/recycle`).then((r) => r.data),
   restoreCase: (id: string) => http.post(`/case-info/${id}/restore`).then((r) => r.data),
   permanentDeleteCase: (id: string) => http.delete(`/case-info/${id}/permanent`).then((r) => r.data),
+  reorderCases: (projectId: string, caseIds: string[]) =>
+    http.put(`/projects/${projectId}/cases/reorder`, { caseIds }).then((r) => r.data),
 
   // ---------- 调试记录 ----------
   listDebugRecords: (projectId: string, params?: Record<string, string>) => {

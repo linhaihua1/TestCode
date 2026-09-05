@@ -156,6 +156,48 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
     })
   }
 
+  // 拖拽调整用例顺序 / 移动到目录
+  const handleDrop = (info: {
+    node: TreeDataNode
+    dragNode: TreeDataNode
+    dropPosition: number
+    dropToGap: boolean
+  }) => {
+    const dragKey = String(info.dragNode.key)
+    const nodeKey = String(info.node.key)
+    if (!dragKey.startsWith('case:')) return // 仅支持用例拖拽
+
+    const dragId = dragKey.slice(5)
+    if (nodeKey.startsWith('case:')) {
+      // 拖到另一个用例上：同目录下调整顺序
+      const targetId = nodeKey.slice(5)
+      const dragCase = cases.find((c) => c.id === dragId)
+      const targetCase = cases.find((c) => c.id === targetId)
+      if (!dragCase || !targetCase || dragCase.moduleId !== targetCase.moduleId) return
+
+      const moduleId = dragCase.moduleId ?? null
+      const ordered = cases.filter((c) => (c.moduleId ?? null) === moduleId).map((c) => c.id)
+      const fromIndex = ordered.indexOf(dragId)
+      if (fromIndex < 0) return
+      ordered.splice(fromIndex, 1)
+      const targetIndex = ordered.indexOf(targetId)
+      if (targetIndex < 0) return
+      const insertAt = info.dropPosition < 0 ? targetIndex : targetIndex + 1
+      ordered.splice(insertAt, 0, dragId)
+      api
+        .reorderCases(projectId!, ordered)
+        .then(load)
+        .catch((e) => message.error(getErrorMessage(e)))
+    } else if (nodeKey.startsWith('module:')) {
+      // 拖到目录上：移动到该目录末尾
+      const moduleId = nodeKey.slice(7)
+      api
+        .updateCase(dragId, { moduleId })
+        .then(load)
+        .catch((e) => message.error(getErrorMessage(e)))
+    }
+  }
+
   const treeData = buildTree()
 
   return (
@@ -179,6 +221,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
           treeData={treeData}
           blockNode
           defaultExpandAll
+          draggable={{ icon: false, nodeDraggable: (node) => String(node.key).startsWith('case:') }}
+          onDrop={handleDrop}
           selectedKeys={selectedCaseId ? [`case:${selectedCaseId}`] : []}
           onSelect={(keys) => {
             const k = String(keys[0] ?? '')

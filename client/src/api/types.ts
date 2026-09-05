@@ -304,6 +304,7 @@ export interface CaseInfo {
   tags: unknown[]
   steps: unknown[]
   version: number
+  sortOrder: number
   createdAt: string
   updatedAt: string
   deletedAt?: string | null

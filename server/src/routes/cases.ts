@@ -25,9 +25,27 @@ export async function caseRoutes(app: FastifyInstance) {
     if (query.moduleId) where.moduleId = query.moduleId
     return prisma.caseInfo.findMany({
       where,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: { module: true },
     })
+  })
+
+  // 用例排序：按传入的 ID 顺序更新 sortOrder（拖拽调整目录下用例顺序）
+  app.put('/api/projects/:projectId/cases/reorder', async (req, reply) => {
+    const { projectId } = req.params as { projectId: string }
+    const body = req.body as { caseIds?: unknown }
+    const caseIds = Array.isArray(body?.caseIds) ? body.caseIds.map((x) => String(x)) : []
+    if (caseIds.length === 0) return reply.code(400).send({ error: 'caseIds 必填' })
+
+    await prisma.$transaction(
+      caseIds.map((id, index) =>
+        prisma.caseInfo.updateMany({
+          where: { id, projectId },
+          data: { sortOrder: index },
+        }),
+      ),
+    )
+    return { ok: true }
   })
 
   // 新建用例

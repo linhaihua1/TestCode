@@ -222,6 +222,7 @@ model CaseInfo {
   tags Json @default("[]")
   steps Json @default("[]")
   version Int @default(1)
+  sortOrder Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
