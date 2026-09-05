@@ -26,6 +26,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
   const [modalTitle, setModalTitle] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [targetParentId, setTargetParentId] = useState<string | null>(null)
+  // 当前选中的目录，用于「新建用例/目录」默认挂到该目录下
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!projectId) return
@@ -110,7 +112,9 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
     }
     try {
       if (modalType === 'module') {
-        await api.createModule(projectId, { name: nameInput.trim(), parentId: targetParentId })
+        const m = await api.createModule(projectId, { name: nameInput.trim(), parentId: targetParentId })
+        // 新建目录后自动选中，后续新建用例默认挂在其下
+        setSelectedModuleId(m.id)
       } else if (modalType === 'case') {
         await api.createCase(projectId, { name: nameInput.trim(), moduleId: targetParentId })
       } else if (modalType === 'rename') {
@@ -182,8 +186,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
       {/* 工具栏 */}
       <div style={{ padding: 8, display: 'flex', gap: 4 }}>
         <Input placeholder="搜索用例" size="small" value={keyword} onChange={(e) => setKeyword(e.target.value)} allowClear style={{ flex: 1 }} />
-        <Button size="small" onClick={() => openModal('module', '新建目录', null)}>目录</Button>
-        <Button size="small" type="primary" onClick={() => openModal('case', '新建用例', null)}>用例</Button>
+        <Button size="small" onClick={() => openModal('module', '新建目录', selectedModuleId)}>目录</Button>
+        <Button size="small" type="primary" onClick={() => openModal('case', '新建用例', selectedModuleId)}>用例</Button>
       </div>
 
       {/* 目录树 */}
@@ -196,6 +200,7 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
           onSelect={(keys) => {
             const k = String(keys[0] ?? '')
             if (k.startsWith('case:')) onSelectCase(k.slice(5))
+            else if (k.startsWith('module:')) setSelectedModuleId(k.slice(7))
           }}
           titleRender={(node) => {
             const key = String(node.key)

@@ -235,6 +235,29 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     setSteps((prev) => [...prev, base])
   }
 
+  // 从右侧接口管理拖拽接口到步骤区，生成一条接口请求步骤
+  const addApiStep = (phase: CaseStep['phase'], apiId: string) => {
+    const a = apis.find((x) => x.id === apiId)
+    if (!a) return
+    const step: CaseStep = {
+      id: `${phase}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'request',
+      phase,
+      name: a.name,
+      enabled: true,
+      apiId: a.id,
+      method: a.method,
+      url: a.path,
+      headers: a.headers ?? [],
+      query: a.query ?? [],
+      body: a.body ?? '',
+      assertions: [{ type: 'statusCode', expression: '', expected: '200', operator: 'eq', failStrategy: 'continue' }],
+      extracts: [],
+    }
+    setSteps((prev) => [...prev, step])
+    message.success(`已添加接口步骤「${a.name}」`)
+  }
+
   const removeStep = (phase: CaseStep['phase'], index: number) => {
     setSteps((prev) => {
       const phaseList = prev.filter((s) => s.phase === phase)
@@ -319,9 +342,9 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               label: '脚本',
               children: (
                 <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
-                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
-                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} />
+                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
+                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
+                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} />
                 </div>
               ),
             },
@@ -547,9 +570,11 @@ function StepSection(props: {
   onUpdate: (phase: CaseStep['phase'], index: number, patch: Partial<CaseStep>) => void
   onRemove: (phase: CaseStep['phase'], index: number) => void
   onReorder: (phase: CaseStep['phase'], reordered: CaseStep[]) => void
+  onDropApi: (phase: CaseStep['phase'], apiId: string) => void
 }) {
-  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder } = props
+  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder, onDropApi } = props
   const [addType, setAddType] = useState<CaseStepType>('request')
+  const [dragOver, setDragOver] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -563,7 +588,30 @@ function StepSection(props: {
   }
 
   return (
-    <div style={{ marginBottom: 16, border: '1px solid #e8e8e8', borderRadius: 6, padding: 12 }}>
+    <div
+      style={{
+        marginBottom: 16,
+        border: `1px dashed ${dragOver ? '#1677ff' : '#e8e8e8'}`,
+        borderRadius: 6,
+        padding: 12,
+        background: dragOver ? '#f0f7ff' : undefined,
+        transition: 'all 0.2s',
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('application/api-id')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+          setDragOver(true)
+        }
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        const apiId = e.dataTransfer.getData('application/api-id')
+        if (apiId) onDropApi(phase, apiId)
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ fontWeight: 600, color }}>{title}</span>
         <Space>
@@ -572,7 +620,7 @@ function StepSection(props: {
         </Space>
       </div>
 
-      {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤</div>}
+      {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤，可从右侧接口管理拖拽接口到此处</div>}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>

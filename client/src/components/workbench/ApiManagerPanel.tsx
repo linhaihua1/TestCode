@@ -317,7 +317,15 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
                 </Popconfirm>,
               ]}
             >
-              <div style={{ width: '100%' }}>
+              <div
+                style={{ width: '100%', cursor: 'grab' }}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/api-id', a.id)
+                  e.dataTransfer.effectAllowed = 'copy'
+                }}
+                title="拖拽到用例编辑器生成接口请求步骤"
+              >
                 <Space size={4}>
                   <Tag color={METHOD_COLOR[a.method]}>{a.method}</Tag>
                   {a.mockEnabled && <Tag color="purple">Mock</Tag>}
