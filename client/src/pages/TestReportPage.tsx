@@ -47,6 +47,21 @@ export default function TestReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
+  // 同步：URL 参数（taskId）变化时更新选中任务（同一路由下切换）
+  useEffect(() => {
+    const id = searchParams.get('taskId') ?? undefined
+    setTaskId((prev) => (prev === id ? prev : id))
+  }, [searchParams])
+
+  // 默认选中第一个任务（无 taskId 时自动加载其报告）
+  useEffect(() => {
+    if (!taskId && tasks.length > 0) {
+      setTaskId(tasks[0].id)
+      setSearchParams({ taskId: tasks[0].id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, taskId])
+
   // 任务变化时加载其报告列表
   useEffect(() => {
     if (!taskId) {
