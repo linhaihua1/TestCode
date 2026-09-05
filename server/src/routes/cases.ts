@@ -13,11 +13,11 @@ interface CaseBody {
 }
 
 export async function caseRoutes(app: FastifyInstance) {
-  // 获取项目下的用例列表
+  // 获取项目下的用例列表（仅未删除的）
   app.get('/api/projects/:projectId/cases', async (req) => {
     const { projectId } = req.params as { projectId: string }
     const query = req.query as Record<string, string>
-    const where: Record<string, unknown> = { projectId }
+    const where: Record<string, unknown> = { projectId, deletedAt: null }
     if (query.status) where.status = query.status
     if (query.moduleId) where.moduleId = query.moduleId
     return prisma.caseInfo.findMany({
