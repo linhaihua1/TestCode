@@ -56,7 +56,19 @@ export default function AppLayout() {
 
   // 侧边栏菜单：四个顶层入口
   const items: MenuProps['items'] = [
-    { key: '/workbench', label: '接口自动化' },
+    {
+      key: 'api-automation',
+      label: '接口自动化',
+      children: [
+        {
+          key: 'api-case',
+          label: '接口用例',
+          children: [
+            { key: '/workbench', label: '工作台' },
+          ],
+        },
+      ],
+    },
     {
       key: 'ui-automation',
       label: 'UI 自动化',
@@ -70,17 +82,18 @@ export default function AppLayout() {
     { key: '/users', label: '用户管理' },
   ]
 
-  // 收集所有叶子路由 key，用于最长前缀高亮
+  // 递归收集所有叶子路由 key（以 / 开头），用于最长前缀高亮
   const allKeys: string[] = []
-  for (const item of items) {
-    if (item && 'children' in item && Array.isArray(item.children)) {
-      for (const child of item.children) {
-        if (child?.key) allKeys.push(String(child.key))
+  const collectKeys = (list: MenuProps['items']) => {
+    for (const item of list ?? []) {
+      if (item && 'children' in item && Array.isArray(item.children)) {
+        collectKeys(item.children)
+      } else if (item?.key) {
+        allKeys.push(String(item.key))
       }
-    } else if (item?.key) {
-      allKeys.push(String(item.key))
     }
   }
+  collectKeys(items)
   const selectedKey = allKeys
     .filter((key) => location.pathname === key || location.pathname.startsWith(key + '/'))
     .sort((a, b) => b.length - a.length)[0]
@@ -102,7 +115,7 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          defaultOpenKeys={['ui-automation']}
+          defaultOpenKeys={['api-automation', 'api-case', 'ui-automation']}
           selectedKeys={selectedKey ? [selectedKey] : []}
           items={items}
           onClick={({ key }) => {
