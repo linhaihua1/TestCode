@@ -96,6 +96,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const [copiedStep, setCopiedStep] = useState<CaseStep | null>(null)
   const [caseDebugRecords, setCaseDebugRecords] = useState<DebugRecord[]>([])
   const scriptScrollRef = useRef<HTMLDivElement>(null)
+  const skipAutoSaveRef = useRef(true)
 
   const loadReviews = async (id: string) => {
     try {
@@ -136,6 +137,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       .catch((e) => message.error(getErrorMessage(e)))
     loadReviews(caseId)
     loadCaseDebugRecords(caseId)
+    skipAutoSaveRef.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId])
 
@@ -143,22 +145,40 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const testSteps = useMemo(() => steps.filter((s) => s.phase === 'test'), [steps])
   const teardownSteps = useMemo(() => steps.filter((s) => s.phase === 'teardown'), [steps])
 
-  const save = async () => {
+  const persist = async (silent = false) => {
     if (!caseId) return
     setSaving(true)
     try {
       await api.updateCase(caseId, { name, steps, status, priority, tags })
-      message.success('已保存')
-      const c = await api.getCase(caseId)
-      setCaseInfo(c)
-      setName(c.name)
-      setSteps((c.steps ?? []) as CaseStep[])
+      if (!silent) {
+        message.success('已保存')
+        const c = await api.getCase(caseId)
+        setCaseInfo(c)
+        setName(c.name)
+        setSteps((c.steps ?? []) as CaseStep[])
+      }
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
       setSaving(false)
     }
   }
+
+  const save = () => persist(false)
+
+  // 步骤/名称等变化后自动保存（首次加载跳过，防抖 800ms）
+  useEffect(() => {
+    if (!caseId) return
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false
+      return
+    }
+    const timer = setTimeout(() => {
+      void persist(true)
+    }, 800)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps, name, status, priority, tags])
 
   // 评审动作：提交/通过/驳回
   const doReview = async (action: string) => {

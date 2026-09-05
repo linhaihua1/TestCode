@@ -158,6 +158,8 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const listScrollRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<ApiDefinition | null>(null)
@@ -184,6 +186,11 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
+
+  // 搜索/项目变化时回到第一页
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, projectId])
 
   const save = async () => {
     const values = await form.validateFields()
@@ -300,6 +307,19 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
             size="small"
             loading={loading}
             dataSource={filtered}
+            pagination={{
+              current: page,
+              pageSize,
+              total: filtered.length,
+              size: 'small',
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showQuickJumper: true,
+              onChange: (p, ps) => {
+                setPage(p)
+                setPageSize(ps)
+              },
+            }}
             renderItem={(a) => (
             <List.Item style={{ padding: '6px 8px' }}>
               <div
