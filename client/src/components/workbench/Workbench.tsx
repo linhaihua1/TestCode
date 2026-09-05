@@ -3,11 +3,8 @@
  * 三栏支持拖拽调宽、折叠/展开、宽度 localStorage 记忆；支持快捷键。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Dropdown, Select } from 'antd'
-import type { MenuProps } from 'antd'
-import { clearAuth, getCurrentUser } from '../../api/auth'
-import { api } from '../../api/client'
-import type { Project } from '../../api/types'
+import { Button } from 'antd'
+import { useProject } from '../../context/ProjectContext'
 import CaseLibraryPanel from './CaseLibraryPanel'
 import CaseEditorPanel from './CaseEditorPanel'
 import ApiManagerPanel from './ApiManagerPanel'
@@ -39,15 +36,19 @@ function TopEntry(props: { label: string; icon?: string; onClick?: () => void })
 }
 
 export default function Workbench() {
-  // 项目与选中用例
-  const [projects, setProjects] = useState<Project[]>([])
-  const [projectId, setProjectId] = useState<string | undefined>()
+  // 项目来自全局上下文（顶栏选择器统一维护），选中用例为工作台内部状态
+  const { projectId } = useProject()
   const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>()
   // 顶部弹窗状态
   const [gvOpen, setGvOpen] = useState(false)
   const [drOpen, setDrOpen] = useState(false)
   const [rbOpen, setRbOpen] = useState(false)
   const [teOpen, setTeOpen] = useState(false)
+
+  // 项目切换时清空当前选中用例
+  useEffect(() => {
+    setSelectedCaseId(undefined)
+  }, [projectId])
 
   // 三栏宽度（中间栏 = 总宽 - 左 - 右 - 分隔条）
   const [leftW, setLeftW] = useState(() => loadWidth('wb-left', 260))
@@ -68,8 +69,6 @@ export default function Workbench() {
   useEffect(() => {
     localStorage.setItem('wb-right', String(rightW))
   }, [rightW])
-
-  const user = getCurrentUser()
 
   // ---------- 拖拽调宽 ----------
   const onResizeMouseDown = (type: 'left' | 'right') => (e: React.MouseEvent) => {
@@ -118,18 +117,6 @@ export default function Workbench() {
   const toggleMid = () => setMidCollapsed((v) => !v)
   const toggleRight = () => setRightCollapsed((v) => !v)
 
-  // 加载项目列表，默认选第一个
-  useEffect(() => {
-    api
-      .listProjects()
-      .then((list) => {
-        setProjects(list)
-        if (list.length > 0) setProjectId((prev) => prev ?? list[0].id)
-      })
-      .catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // ---------- 快捷键（PRD：Ctrl+S / Ctrl+Enter / Ctrl+F） ----------
   const onSave = useCallback(() => {
     // 第 1 期占位：后续接实际保存
@@ -161,23 +148,12 @@ export default function Workbench() {
     return () => window.removeEventListener('keydown', onKey)
   }, [onSave, onDebug, onSearch])
 
-  // 右上角用户下拉
-  const userMenu: MenuProps['items'] = [
-    { key: 'logout', label: '退出登录' },
-  ]
-  const onUserMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === 'logout') {
-      clearAuth()
-      window.location.href = '/login'
-    }
-  }
-
   // 实际渲染宽度
   const effLeft = leftCollapsed ? COLLAPSED_W : leftW
   const effRight = rightCollapsed ? COLLAPSED_W : rightW
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* 顶部全局配置栏 */}
       <div
         style={{
@@ -195,22 +171,6 @@ export default function Workbench() {
         <TopEntry label="调试记录" icon="📋" onClick={() => setDrOpen(true)} />
         <TopEntry label="回收站" icon="🗑" onClick={() => setRbOpen(true)} />
         <div style={{ flex: 1 }} />
-        <Select
-          style={{ width: 180 }}
-          size="small"
-          placeholder="选择项目"
-          value={projectId}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
-          onChange={(v) => {
-            setProjectId(v)
-            setSelectedCaseId(undefined)
-          }}
-        />
-        <Dropdown menu={{ items: userMenu, onClick: onUserMenuClick }}>
-          <span style={{ cursor: 'pointer', color: '#333' }} title={user?.role}>
-            {user?.username ?? ''}
-          </span>
-        </Dropdown>
       </div>
 
       {/* 水平分割线下方：三栏工作台 */}

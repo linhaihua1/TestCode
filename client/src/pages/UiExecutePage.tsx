@@ -19,8 +19,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
 import type { UiReport, UiScenario, UiTestCase, UiStepResult } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
@@ -84,7 +84,7 @@ function SortableCase(props: {
 }
 
 export default function UiExecutePage() {
-  const { projectId } = useParams<{ projectId: string }>()
+  const { projectId } = useProject()
   const [allCases, setAllCases] = useState<UiTestCase[]>([]) // 项目所有 UI 用例
   const [selected, setSelected] = useState<UiTestCase[]>([]) // 已收集的执行列表
   const [plans, setPlans] = useState<UiScenario[]>([]) // 已有执行计划

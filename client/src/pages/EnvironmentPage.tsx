@@ -7,13 +7,13 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
 import type { Environment } from '../api/types'
 import KeyValueEditor from '../components/KeyValueEditor'
 
 export default function EnvironmentPage() {
-  const { projectId } = useParams<{ projectId: string }>() // 当前项目 ID
+  const { projectId } = useProject()
   const [envs, setEnvs] = useState<Environment[]>([]) // 环境列表数据
   const [loading, setLoading] = useState(false) // 表格加载状态
   const [open, setOpen] = useState(false) // 新建/编辑弹窗是否打开

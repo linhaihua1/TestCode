@@ -1,51 +1,45 @@
 /**
  * 应用整体布局组件
  *
- * 职责：提供统一的页面框架——顶部栏（当前用户下拉菜单：修改密码/退出登录）+ 左侧导航菜单 + 右侧内容区。
- * 菜单项会根据当前 URL 中的 projectId 动态拼接，并通过 Outlet 渲染子路由页面。
+ * 职责：提供统一的页面框架——左侧导航（四个入口：接口自动化 / UI 自动化 / 环境配置 / 用户管理）+
+ * 顶部栏（全局项目选择器 + 项目管理 + 当前用户下拉）+ 右侧内容区。
  */
 import { useState } from 'react'
-import { Dropdown, Form, Input, Layout, Menu, Modal, message } from 'antd'
+import { Dropdown, Form, Input, Layout, Menu, Modal, Select, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuth, getCurrentUser } from '../api/auth'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
 
-// 解构出布局用到的侧边栏、顶部栏与内容区组件
 const { Sider, Header, Content } = Layout
 
 export default function AppLayout() {
-  const navigate = useNavigate() // 用于菜单点击后跳转
-  const location = useLocation() // 用于根据当前路径高亮菜单
-  const user = getCurrentUser() // 当前登录用户
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = getCurrentUser()
+  const { projects, projectId, setProjectId } = useProject()
 
-  // 从 URL 路径解析 projectId（/projects/:projectId/...），比 useParams 在布局路由下更可靠
-  const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1]
-
-  // 修改密码弹窗状态
   const [pwdOpen, setPwdOpen] = useState(false)
   const [pwdForm] = Form.useForm()
 
-  // 退出登录：清除本地登录态并跳转登录页
   const handleLogout = () => {
     clearAuth()
     navigate('/login')
   }
 
-  // 提交修改密码
   const handleChangePassword = async () => {
     const values = await pwdForm.validateFields()
     try {
       await api.changePassword(values.oldPassword, values.newPassword)
       message.success('密码已修改，请重新登录')
       setPwdOpen(false)
-      handleLogout() // 修改后需重新登录
+      handleLogout()
     } catch (e) {
       message.error(getErrorMessage(e))
     }
   }
 
-  // 右上角用户下拉菜单项
   const userMenuItems: MenuProps['items'] = [
     { key: 'password', label: '修改密码' },
     { type: 'divider' },
@@ -60,32 +54,23 @@ export default function AppLayout() {
     }
   }
 
-  // 侧边栏菜单：一级（项目列表/用户管理）+ 二级（接口自动化/UI 自动化）+ 三级（具体功能）
+  // 侧边栏菜单：四个顶层入口
   const items: MenuProps['items'] = [
-    { key: '/projects', label: '项目列表' },
-    {
-      key: 'api-automation',
-      label: '接口自动化',
-      children: [
-        { key: `/projects/${projectId}/apis`, label: '接口管理', disabled: !projectId },
-        { key: `/projects/${projectId}/scenarios`, label: '用例执行', disabled: !projectId },
-        { key: `/projects/${projectId}/environments`, label: '环境管理', disabled: !projectId },
-        { key: `/projects/${projectId}/reports`, label: '接口测试报告', disabled: !projectId },
-      ],
-    },
+    { key: '/workbench', label: '接口自动化' },
     {
       key: 'ui-automation',
       label: 'UI 自动化',
       children: [
-        { key: `/projects/${projectId}/ui-tests`, label: 'UI 用例', disabled: !projectId },
-        { key: `/projects/${projectId}/ui-scenarios`, label: 'UI 用例执行', disabled: !projectId },
-        { key: `/projects/${projectId}/ui-reports`, label: 'UI 测试报告', disabled: !projectId },
+        { key: '/ui-tests', label: 'UI 用例' },
+        { key: '/ui-scenarios', label: 'UI 用例执行' },
+        { key: '/ui-reports', label: 'UI 测试报告' },
       ],
     },
+    { key: '/environments', label: '环境配置' },
     { key: '/users', label: '用户管理' },
   ]
 
-  // 从所有菜单项（含分组内的子项）中收集 key，用于根据当前路径高亮
+  // 收集所有叶子路由 key，用于最长前缀高亮
   const allKeys: string[] = []
   for (const item of items) {
     if (item && 'children' in item && Array.isArray(item.children)) {
@@ -96,13 +81,12 @@ export default function AppLayout() {
       allKeys.push(String(item.key))
     }
   }
-  // 用最长前缀匹配高亮菜单项（避免 /projects 短前缀抢占 /projects/xxx/... 的高亮）
   const selectedKey = allKeys
-    .filter((key) => location.pathname.startsWith(key))
+    .filter((key) => location.pathname === key || location.pathname.startsWith(key + '/'))
     .sort((a, b) => b.length - a.length)[0]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
       <Sider theme="dark" width={200}>
         <div
           style={{
@@ -118,32 +102,48 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          defaultOpenKeys={['api-automation', 'ui-automation']}
+          defaultOpenKeys={['ui-automation']}
           selectedKeys={selectedKey ? [selectedKey] : []}
           items={items}
           onClick={({ key }) => {
-            // 仅路由路径才触发跳转（二级菜单标题 key 不是路径，用于展开/折叠）
             if (key.startsWith('/')) navigate(key)
           }}
         />
       </Sider>
-      <Layout>
-        {/* 顶部栏：当前用户下拉菜单（修改密码/退出登录） */}
+      <Layout style={{ display: 'flex', flexDirection: 'column' }}>
         <Header
           style={{
             background: '#fff',
-            padding: '0 24px',
+            padding: '0 16px',
             display: 'flex',
-            justifyContent: 'flex-end',
             alignItems: 'center',
+            gap: 12,
             borderBottom: '1px solid #f0f0f0',
+            height: 48,
+            lineHeight: '48px',
           }}
         >
+          <span style={{ color: '#999', fontSize: 13 }}>当前项目</span>
+          <Select
+            style={{ width: 200 }}
+            size="small"
+            placeholder="选择项目"
+            value={projectId}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            onChange={(v) => setProjectId(v)}
+          />
+          <span
+            style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer' }}
+            onClick={() => navigate('/projects')}
+          >
+            项目管理
+          </span>
+          <div style={{ flex: 1 }} />
           <Dropdown menu={{ items: userMenuItems, onClick: onUserMenuClick }}>
             <span style={{ cursor: 'pointer', color: '#333' }}>{user?.username ?? ''}</span>
           </Dropdown>
         </Header>
-        <Content style={{ padding: 24, overflow: 'auto' }}>
+        <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <Outlet />
         </Content>
       </Layout>
@@ -157,18 +157,10 @@ export default function AppLayout() {
         destroyOnClose
       >
         <Form form={pwdForm} layout="vertical">
-          <Form.Item
-            name="oldPassword"
-            label="旧密码"
-            rules={[{ required: true, message: '请输入旧密码' }]}
-          >
+          <Form.Item name="oldPassword" label="旧密码" rules={[{ required: true, message: '请输入旧密码' }]}>
             <Input.Password />
           </Form.Item>
-          <Form.Item
-            name="newPassword"
-            label="新密码"
-            rules={[{ required: true, message: '请输入新密码' }]}
-          >
+          <Form.Item name="newPassword" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
             <Input.Password />
           </Form.Item>
         </Form>

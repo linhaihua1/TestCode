@@ -8,19 +8,17 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import RequireAuth from './components/RequireAuth'
+import PageContainer from './components/PageContainer'
+import { ProjectProvider } from './context/ProjectContext'
 import Workbench from './components/workbench/Workbench'
 import LoginPage from './pages/LoginPage'
 import ProjectList from './pages/ProjectList'
-import ApiList from './pages/ApiList'
-import ScenarioList from './pages/ScenarioList'
-import ScenarioEditor from './pages/ScenarioEditor'
-import EnvironmentPage from './pages/EnvironmentPage'
-import ReportList from './pages/ReportList'
 import UserManagement from './pages/UserManagement'
 import UiTestList from './pages/UiTestList'
 import UiTestEditor from './pages/UiTestEditor'
 import UiReportList from './pages/UiReportList'
 import UiExecutePage from './pages/UiExecutePage'
+import EnvironmentConfigPage from './pages/EnvironmentConfigPage'
 
 /** 应用根组件：定义路由表 */
 export default function App() {
@@ -29,50 +27,38 @@ export default function App() {
       {/* 登录页（公开，不套用业务布局） */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* 工作台（PRD 三栏布局，登录后默认进入） */}
-      <Route
-        path="/workbench"
-        element={
-          <RequireAuth>
-            <Workbench />
-          </RequireAuth>
-        }
-      />
-
-      {/* 受保护路由：需登录（RequireAuth），并共享 AppLayout 布局（旧版页面，逐步迁移到工作台） */}
+      {/* 受保护路由：需登录，并共享 AppLayout 布局与全局项目上下文 */}
       <Route
         element={
           <RequireAuth>
-            <AppLayout />
+            <ProjectProvider>
+              <AppLayout />
+            </ProjectProvider>
           </RequireAuth>
         }
       >
-        {/* 根路径重定向到工作台 */}
+        {/* 根路径重定向到接口自动化工作台 */}
         <Route path="/" element={<Navigate to="/workbench" replace />} />
-        {/* 项目列表页 */}
-        <Route path="/projects" element={<ProjectList />} />
-        {/* 接口管理页（项目维度） */}
-        <Route path="/projects/:projectId/apis" element={<ApiList />} />
-        {/* 场景列表页（项目维度） */}
-        <Route path="/projects/:projectId/scenarios" element={<ScenarioList />} />
-        {/* 场景编排与执行页 */}
-        <Route path="/projects/:projectId/scenarios/:scenarioId" element={<ScenarioEditor />} />
-        {/* 环境配置页 */}
-        <Route path="/projects/:projectId/environments" element={<EnvironmentPage />} />
-        {/* 测试报告页 */}
-        <Route path="/projects/:projectId/reports" element={<ReportList />} />
-        {/* UI 自动化测试列表页 */}
-        <Route path="/projects/:projectId/ui-tests" element={<UiTestList />} />
-        {/* UI 测试编排与执行页 */}
-        <Route path="/projects/:projectId/ui-tests/:testId" element={<UiTestEditor />} />
-        {/* UI 测试报告页 */}
-        <Route path="/projects/:projectId/ui-reports" element={<UiReportList />} />
-        {/* UI 用例执行页（收集用例 + 拖拽排序 + 执行） */}
-        <Route path="/projects/:projectId/ui-scenarios" element={<UiExecutePage />} />
-        {/* 用户管理页 */}
-        <Route path="/users" element={<UserManagement />} />
-        {/* 未匹配路径统一重定向到项目列表 */}
-        <Route path="*" element={<Navigate to="/projects" replace />} />
+        {/* 接口自动化工作台（全屏，不经过 PageContainer） */}
+        <Route path="/workbench" element={<Workbench />} />
+
+        {/* 其余业务页面统一套用内边距 + 滚动容器 */}
+        <Route element={<PageContainer />}>
+          {/* UI 自动化 */}
+          <Route path="/ui-tests" element={<UiTestList />} />
+          <Route path="/ui-tests/:testId" element={<UiTestEditor />} />
+          <Route path="/ui-scenarios" element={<UiExecutePage />} />
+          <Route path="/ui-reports" element={<UiReportList />} />
+          {/* 环境配置 */}
+          <Route path="/environments" element={<EnvironmentConfigPage />} />
+          {/* 用户管理 */}
+          <Route path="/users" element={<UserManagement />} />
+          {/* 项目管理 */}
+          <Route path="/projects" element={<ProjectList />} />
+        </Route>
+
+        {/* 未匹配路径统一重定向到工作台 */}
+        <Route path="*" element={<Navigate to="/workbench" replace />} />
       </Route>
     </Routes>
   )

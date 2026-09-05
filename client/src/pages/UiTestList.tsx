@@ -4,12 +4,13 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
 import type { UiTestCase } from '../api/types'
 
 export default function UiTestList() {
-  const { projectId } = useParams<{ projectId: string }>()
+  const { projectId } = useProject()
   const [tests, setTests] = useState<UiTestCase[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
@@ -83,7 +84,7 @@ export default function UiTestList() {
           <Button
             size="small"
             type="link"
-            onClick={() => navigate(`/projects/${projectId}/ui-tests/${record.id}`)}
+            onClick={() => navigate(`/ui-tests/${record.id}`)}
           >
             编排
           </Button>

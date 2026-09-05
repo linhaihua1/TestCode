@@ -9,6 +9,7 @@ import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, message } f
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
 import type { Project } from '../api/types'
 
 export default function ProjectList() {
@@ -18,6 +19,7 @@ export default function ProjectList() {
   const [editing, setEditing] = useState<Project | null>(null) // 正在编辑的项目（null 表示新建）
   const [form] = Form.useForm() // 弹窗表单实例
   const navigate = useNavigate() // 路由跳转
+  const { setProjectId } = useProject()
 
   // 加载项目列表
   const load = async () => {
@@ -77,8 +79,15 @@ export default function ProjectList() {
       title: '操作',
       render: (_, record) => (
         <Space>
-          {/* 进入项目下的接口管理页 */}
-          <Button size="small" type="link" onClick={() => navigate(`/projects/${record.id}/apis`)}>
+          {/* 进入该项目：设置全局项目并跳转到接口自动化工作台 */}
+          <Button
+            size="small"
+            type="link"
+            onClick={() => {
+              setProjectId(record.id)
+              navigate('/workbench')
+            }}
+          >
             进入
           </Button>
           {/* 编辑：回填表单并打开弹窗 */}

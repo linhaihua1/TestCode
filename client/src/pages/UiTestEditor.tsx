@@ -8,7 +8,6 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
 import { UI_ACTIONS, UI_LOCATORS, type UiReport, type UiStep } from '../api/types'
-
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
 /** 单个阶段的步骤编辑表格（前置/测试/后置共用） */
@@ -120,7 +119,7 @@ function StepTable(props: {
 }
 
 export default function UiTestEditor() {
-  const { projectId, testId } = useParams<{ projectId: string; testId: string }>()
+  const { testId } = useParams<{ testId: string }>()
   const navigate = useNavigate()
 
   const [testName, setTestName] = useState('')
@@ -226,7 +225,7 @@ export default function UiTestEditor() {
       title={`UI 测试用例编排：${testName || ''}`}
       extra={
         <Space>
-          <Button onClick={() => navigate(`/projects/${projectId}/ui-tests`)}>返回</Button>
+          <Button onClick={() => navigate('/ui-tests')}>返回</Button>
           <Button onClick={save}>保存步骤</Button>
           <Button type="primary" loading={running} onClick={run}>
             执行测试

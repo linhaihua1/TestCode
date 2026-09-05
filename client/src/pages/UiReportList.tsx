@@ -4,15 +4,15 @@
 import { useEffect, useState } from 'react'
 import { Alert, Card, Col, Row, Space, Statistic, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useParams } from 'react-router-dom'
-import { Pie, Line } from '@ant-design/plots'
 import { api, getErrorMessage } from '../api/client'
+import { useProject } from '../context/ProjectContext'
+import { Pie, Line } from '@ant-design/plots'
 import type { UiReport } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
 export default function UiReportList() {
-  const { projectId } = useParams<{ projectId: string }>()
+  const { projectId } = useProject()
   const [reports, setReports] = useState<UiReport[]>([])
   const [loading, setLoading] = useState(false)
 
