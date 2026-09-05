@@ -30,7 +30,7 @@ interface TaskBody {
 interface CaseRunDetail {
   caseId: string
   caseName: string
-  status: 'PASS' | 'FAIL' | 'ERROR'
+  status: 'PASS' | 'FAIL' | 'ERROR' | 'SKIP'
   duration: number
   retries: number
   error?: string
@@ -73,8 +73,11 @@ interface RunContext {
 /** 执行单个用例（按前置/测试/后置步骤顺序），返回本用例结果 */
 async function runOneCase(caseId: string, ctx: RunContext): Promise<CaseRunDetail> {
   const c = await prisma.caseInfo.findUnique({ where: { id: caseId } })
-  if (!c) {
-    return { caseId, caseName: caseId, status: 'ERROR', duration: 0, retries: 0, error: '用例不存在', stepResults: [] }
+  if (!c || c.deletedAt) {
+    return { caseId, caseName: c?.name ?? caseId, status: 'SKIP', duration: 0, retries: 0, error: '用例不存在或已删除，跳过', stepResults: [] }
+  }
+  if (c.status === 'deprecated') {
+    return { caseId, caseName: c.name, status: 'SKIP', duration: 0, retries: 0, error: '用例已废弃，跳过', stepResults: [] }
   }
   const merged = buildMergedContext(ctx.globalVars, ctx.envVars, {}, {})
   const steps = (c.steps as unknown as CaseStepDef[]) ?? []
@@ -109,18 +112,19 @@ async function runOneCaseWithRetry(caseId: string, ctx: RunContext, retryCount: 
   for (let attempt = 0; attempt <= Math.max(0, retryCount); attempt++) {
     last = await runOneCase(caseId, ctx)
     last.retries = attempt
-    if (last.status === 'PASS') break
+    if (last.status === 'PASS' || last.status === 'SKIP') break
   }
   return last!
 }
 
 /** 汇总报告结果 */
-function summarize(details: CaseRunDetail[]): { total: number; passed: number; failed: number; error: number; result: string } {
+function summarize(details: CaseRunDetail[]): { total: number; passed: number; failed: number; error: number; skipped: number; result: string } {
   const summary = {
     total: details.length,
     passed: details.filter((d) => d.status === 'PASS').length,
     failed: details.filter((d) => d.status === 'FAIL').length,
     error: details.filter((d) => d.status === 'ERROR').length,
+    skipped: details.filter((d) => d.status === 'SKIP').length,
   }
   const result = summary.error > 0 ? 'ERROR' : summary.failed > 0 ? 'FAIL' : 'PASS'
   return { ...summary, result }

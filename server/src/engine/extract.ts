@@ -61,6 +61,10 @@ export function applyExtracts(
       // 提取成功才写入上下文，避免覆盖已有变量为 undefined
       context[rule.name] = value
       extracted[rule.name] = value
+    } else if (rule.defaultValue !== undefined) {
+      // 提取失败：使用默认值
+      context[rule.name] = rule.defaultValue
+      extracted[rule.name] = rule.defaultValue
     }
   }
   return extracted

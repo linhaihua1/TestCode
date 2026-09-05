@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
+import { fail } from '../error-codes.js'
 
 interface VariableBody {
   name?: string
@@ -8,6 +9,31 @@ interface VariableBody {
   value?: string
   encrypted?: boolean
   description?: string
+}
+
+/** 查找引用该变量的位置（用例 / 接口 / 环境） */
+async function findVariableReferences(projectId: string, varName: string): Promise<string[]> {
+  const token = `\${${varName}}`
+  const refs: string[] = []
+
+  const cases = await prisma.caseInfo.findMany({ where: { projectId, deletedAt: null } })
+  for (const c of cases) {
+    const text = c.name + JSON.stringify(c.steps ?? []) + JSON.stringify(c.tags ?? [])
+    if (text.includes(token)) refs.push(`用例「${c.name}」`)
+  }
+
+  const apis = await prisma.apiDefinition.findMany({ where: { projectId } })
+  for (const a of apis) {
+    const text = a.path + (a.body ?? '') + JSON.stringify(a.headers ?? []) + JSON.stringify(a.query ?? [])
+    if (text.includes(token)) refs.push(`接口「${a.name}」`)
+  }
+
+  const envs = await prisma.environment.findMany({ where: { projectId } })
+  for (const e of envs) {
+    if (JSON.stringify(e.variables ?? []).includes(token)) refs.push(`环境「${e.name}」`)
+  }
+
+  return refs
 }
 
 export async function globalVariableRoutes(app: FastifyInstance) {
@@ -27,7 +53,7 @@ export async function globalVariableRoutes(app: FastifyInstance) {
     if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
     // 变量名校验：字母/数字/下划线，不能以数字开头
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(body.name)) {
-      return reply.code(400).send({ error: '变量名格式不正确（字母/数字/下划线，不能以数字开头）' })
+      return fail(reply, 'VAR_NAME_INVALID')
     }
     // 同名检查
     const exists = await prisma.globalVariable.findFirst({ where: { projectId, name: body.name } })
@@ -58,6 +84,11 @@ export async function globalVariableRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
     const v = await prisma.globalVariable.findUnique({ where: { id } })
     if (!v) return reply.code(404).send({ error: '变量不存在' })
+    // 被引用时禁止删除（2002），返回引用位置
+    const refs = await findVariableReferences(v.projectId, v.name)
+    if (refs.length > 0) {
+      return fail(reply, 'VAR_REFERENCED', `变量「${v.name}」被引用，无法删除：${refs.join('、')}`)
+    }
     await prisma.globalVariable.delete({ where: { id } })
     return { ok: true }
   })

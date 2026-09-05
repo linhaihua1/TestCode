@@ -176,8 +176,11 @@ async function execStep(step: CaseStepDef, context: VariableContext, baseUrl: st
         return await execController(step, context, baseUrl, depth, stopRef)
       }
       case 'script': {
-        const lang = step.scriptLang === 'python' ? 'Python' : 'JavaScript'
-        return { id: step.id, name: step.name, type: 'script', status: 'PASS', message: `脚本执行（${lang}，脚本引擎后续接入）` }
+        if (step.scriptLang === 'python') {
+          return { id: step.id, name: step.name, type: 'script', status: 'PASS', message: 'Python 脚本引擎未接入，脚本未执行' }
+        }
+        const { message } = runScript(step.script ?? '', context)
+        return { id: step.id, name: step.name, type: 'script', status: 'PASS', message }
       }
       default:
         return { id: step.id, name: step.name, type: step.type, status: 'ERROR', message: '未知步骤类型' }
@@ -185,6 +188,24 @@ async function execStep(step: CaseStepDef, context: VariableContext, baseUrl: st
   } catch (err) {
     return { id: step.id, name: step.name, type: step.type, status: 'ERROR', message: err instanceof Error ? err.message : String(err) }
   }
+}
+
+/** 执行 JS 脚本（沙箱：提供 context.get/set 与 console.log） */
+function runScript(script: string, context: VariableContext): { message: string } {
+  const logs: string[] = []
+  const sandbox = {
+    get: (key: string) => context[key],
+    set: (key: string, value: unknown) => {
+      context[key] = value === undefined || value === null ? '' : String(value)
+    },
+  }
+  const sandboxConsole = {
+    log: (...args: unknown[]) => logs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')),
+  }
+  // eslint-disable-next-line no-new-func
+  const fn = new Function('context', 'console', script)
+  fn(sandbox, sandboxConsole)
+  return { message: logs.length > 0 ? logs[logs.length - 1] : '脚本执行成功' }
 }
 
 /** 表达式求值：把 ${var} 替换后作为 JS 表达式计算（用于变量表达式赋值） */

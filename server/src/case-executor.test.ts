@@ -36,4 +36,26 @@ describe('case-executor 边界行为（第 7 部分）', () => {
     expect(results[0].status).toBe('ERROR')
     expect(results[0].message).toContain('2006')
   })
+
+  it('JS 脚本：context.get/set 操作变量', async () => {
+    const steps = [
+      step({ id: 'v', type: 'variable', phase: 'setup', varName: 'a', varValue: '1' }),
+      step({ id: 's', type: 'script', phase: 'setup', script: "context.set('b', context.get('a') + '2'); context.set('c', 5)" }),
+    ]
+    const { context } = await executeCaseSteps(steps, {})
+    expect(context.b).toBe('12')
+    expect(context.c).toBe('5')
+  })
+
+  it('提取失败使用默认值', async () => {
+    // 用 jsonPath 提取一个不存在的字段，应回退到 defaultValue（依赖 applyExtracts 逻辑）
+    const { applyExtracts } = await import('./engine/extract.js')
+    const ctx: Record<string, string> = {}
+    applyExtracts(
+      { status: 200, headers: {}, body: { a: 1 }, rawBody: '{"a":1}', duration: 0 },
+      [{ name: 'missing', type: 'jsonPath', expression: '$.nope', defaultValue: 'DEFAULT' }],
+      ctx,
+    )
+    expect(ctx.missing).toBe('DEFAULT')
+  })
 })

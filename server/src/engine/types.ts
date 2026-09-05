@@ -56,6 +56,8 @@ export interface ExtractRule {
   type: ExtractType
   /** 提取表达式（JSONPath / header 名 / 正则） */
   expression: string
+  /** 提取失败时使用的默认值 */
+  defaultValue?: string
 }
 
 /** 请求规格（变量已替换后的最终值） */

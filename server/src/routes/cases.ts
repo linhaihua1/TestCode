@@ -223,6 +223,20 @@ export async function caseRoutes(app: FastifyInstance) {
         ? 'error'
         : 'fail'
 
+    // 调试记录超过 1MB 时截断存储（第七部分边界条件）
+    const MAX_DEBUG_BYTES = 1024 * 1024
+    let stepResults: unknown = results
+    let extractedVars: unknown = context
+    let truncated = false
+    if (JSON.stringify(results).length > MAX_DEBUG_BYTES) {
+      stepResults = { truncated: true, message: '内容过大已截断' }
+      truncated = true
+    }
+    if (JSON.stringify(context).length > MAX_DEBUG_BYTES) {
+      extractedVars = { truncated: true, message: '内容过大已截断' }
+      truncated = true
+    }
+
     // 记录调试记录
     await prisma.debugRecord.create({
       data: {
@@ -232,12 +246,12 @@ export async function caseRoutes(app: FastifyInstance) {
         executeMode: 'server',
         result: overall,
         totalDuration: duration,
-        stepResults: results as unknown as Prisma.InputJsonValue,
-        extractedVariables: context as unknown as Prisma.InputJsonValue,
+        stepResults: stepResults as unknown as Prisma.InputJsonValue,
+        extractedVariables: extractedVars as unknown as Prisma.InputJsonValue,
       },
     })
 
-    return { status: overall, duration, results, variables: context }
+    return { status: overall, duration, results, variables: context, truncated }
   })
 
   // ---------- 回收站 ----------

@@ -111,7 +111,7 @@ describe('测试任务与报告（第 5 期）', () => {
     expect(runRes.statusCode).toBe(200)
     const run = runRes.json()
     expect(run.result).toBe('PASS')
-    expect(run.summary).toEqual({ total: 2, passed: 2, failed: 0, error: 0, result: 'PASS' })
+    expect(run.summary).toEqual({ total: 2, passed: 2, failed: 0, error: 0, skipped: 0, result: 'PASS' })
     expect(run.details).toHaveLength(2)
 
     // 报告列表与详情
