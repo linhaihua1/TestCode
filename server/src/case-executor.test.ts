@@ -47,6 +47,21 @@ describe('case-executor 边界行为（第 7 部分）', () => {
     expect(context.c).toBe('5')
   })
 
+  it('IF 自定义代码（JS）：脚本提取变量并返回判断结果', async () => {
+    const steps = [
+      step({ id: 'v', type: 'variable', phase: 'setup', varName: 'x', varValue: 'ok' }),
+      step({
+        id: 'if', type: 'controller', phase: 'test', controllerType: 'if', condMode: 'script', scriptLang: 'javascript',
+        script: "context.set('flag', 'yes'); context.set('__condition__', context.get('x') === 'ok' ? 'true' : 'false')",
+        children: [step({ id: 'then', type: 'variable', phase: 'test', varName: 'r', varValue: 'THEN' })],
+        elseChildren: [step({ id: 'else', type: 'variable', phase: 'test', varName: 'r', varValue: 'ELSE' })],
+      }),
+    ]
+    const { context } = await executeCaseSteps(steps, {})
+    expect(context.r).toBe('THEN')
+    expect(context.flag).toBe('yes')
+  })
+
   it('提取失败使用默认值', async () => {
     // 用 jsonPath 提取一个不存在的字段，应回退到 defaultValue（依赖 applyExtracts 逻辑）
     const { applyExtracts } = await import('./engine/extract.js')

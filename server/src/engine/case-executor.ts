@@ -7,6 +7,7 @@ import { executeRequest } from './request.js'
 import { applyExtracts } from './extract.js'
 import { evaluateAssertions } from './assert.js'
 import { resolveString, resolveTemplate } from './variables.js'
+import { runCustomScript, type ScriptLang } from './script-runner.js'
 import type { Assertion, AssertionResult, ExtractRule, RequestSpec, VariableContext } from './types.js'
 
 interface Kv {
@@ -31,7 +32,7 @@ export interface CaseStepDef {
   assertions?: Assertion[]
   extracts?: ExtractRule[]
   script?: string
-  scriptLang?: 'javascript' | 'python'
+  scriptLang?: ScriptLang
   waitMs?: number
   waitMode?: 'fixed' | 'condition'
   waitCondition?: string
@@ -41,6 +42,7 @@ export interface CaseStepDef {
   varValue?: string
   varMode?: 'direct' | 'expression'
   controllerType?: 'if' | 'for' | 'while'
+  condMode?: 'expression' | 'script'
   condition?: string
   children?: CaseStepDef[]
   elseChildren?: CaseStepDef[]
@@ -176,11 +178,16 @@ async function execStep(step: CaseStepDef, context: VariableContext, baseUrl: st
         return await execController(step, context, baseUrl, depth, stopRef)
       }
       case 'script': {
-        if (step.scriptLang === 'python') {
-          return { id: step.id, name: step.name, type: 'script', status: 'PASS', message: 'Python 脚本引擎未接入，脚本未执行' }
+        const result = await runCustomScript(step.script ?? '', step.scriptLang ?? 'javascript', context)
+        Object.assign(context, result.extracted)
+        return {
+          id: step.id,
+          name: step.name,
+          type: 'script',
+          status: result.status,
+          message: result.message,
+          extracted: result.extracted,
         }
-        const { message } = runScript(step.script ?? '', context)
-        return { id: step.id, name: step.name, type: 'script', status: 'PASS', message }
       }
       default:
         return { id: step.id, name: step.name, type: step.type, status: 'ERROR', message: '未知步骤类型' }
@@ -188,24 +195,6 @@ async function execStep(step: CaseStepDef, context: VariableContext, baseUrl: st
   } catch (err) {
     return { id: step.id, name: step.name, type: step.type, status: 'ERROR', message: err instanceof Error ? err.message : String(err) }
   }
-}
-
-/** 执行 JS 脚本（沙箱：提供 context.get/set 与 console.log） */
-function runScript(script: string, context: VariableContext): { message: string } {
-  const logs: string[] = []
-  const sandbox = {
-    get: (key: string) => context[key],
-    set: (key: string, value: unknown) => {
-      context[key] = value === undefined || value === null ? '' : String(value)
-    },
-  }
-  const sandboxConsole = {
-    log: (...args: unknown[]) => logs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')),
-  }
-  // eslint-disable-next-line no-new-func
-  const fn = new Function('context', 'console', script)
-  fn(sandbox, sandboxConsole)
-  return { message: logs.length > 0 ? logs[logs.length - 1] : '脚本执行成功' }
 }
 
 /** 表达式求值：把 ${var} 替换后作为 JS 表达式计算（用于变量表达式赋值） */
@@ -238,7 +227,20 @@ async function execController(step: CaseStepDef, context: VariableContext, baseU
   }
 
   if (step.controllerType === 'if') {
-    const ok = evaluateCondition(step.condition ?? '', context)
+    let ok = false
+    let extra = ''
+    if (step.condMode === 'script') {
+      // 自定义代码判断：脚本可提取变量，并通过 __condition__ 返回真假
+      const r = await runCustomScript(step.script ?? '', step.scriptLang ?? 'javascript', context)
+      if (r.status === 'ERROR') {
+        return { id: step.id, name: step.name, type: 'controller', status: 'ERROR', message: r.message, children: [] }
+      }
+      Object.assign(context, r.extracted)
+      ok = r.condition === true
+      extra = r.message ? `（${r.message}）` : ''
+    } else {
+      ok = evaluateCondition(step.condition ?? '', context)
+    }
     if (ok) await runChildren(children)
     else await runChildren(step.elseChildren ?? [])
     return {
@@ -246,7 +248,7 @@ async function execController(step: CaseStepDef, context: VariableContext, baseU
       name: step.name,
       type: 'controller',
       status: 'PASS',
-      message: `IF 条件${ok ? '满足，执行 THEN 分支' : '不满足，执行 ELSE 分支'}`,
+      message: `IF 条件${ok ? '满足，执行 THEN 分支' : '不满足，执行 ELSE 分支'}${extra}`,
       children: childResults,
     }
   }

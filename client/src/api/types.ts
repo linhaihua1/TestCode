@@ -400,7 +400,7 @@ export interface CaseStep {
   extracts?: ExtractRule[] // 提取
   // 脚本步骤
   script?: string // 脚本内容
-  scriptLang?: 'javascript' | 'python' // 脚本语言
+  scriptLang?: 'javascript' | 'python' | 'java' // 脚本语言
   // 等待步骤
   waitMs?: number // 等待毫秒（固定等待）
   waitMode?: 'fixed' | 'condition' // 等待方式
@@ -413,6 +413,7 @@ export interface CaseStep {
   varMode?: 'direct' | 'expression' // 赋值方式：直接赋值 / 表达式计算
   // 流程控制器步骤
   controllerType?: ControllerType // 控制器类型
+  condMode?: 'expression' | 'script' // IF 判断方式：表达式 / 自定义代码
   condition?: string // 条件表达式（if/while 用）
   children?: CaseStep[] // 控制器子步骤（THEN 区域，嵌套，支持递归）
   elseChildren?: CaseStep[] // IF 控制器 ELSE 区域子步骤

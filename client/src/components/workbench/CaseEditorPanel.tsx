@@ -58,14 +58,50 @@ const REVIEW_ACTION: Record<string, { label: string; color: string }> = {
 
 const JS_TEMPLATE = `// 脚本上下文：
 // context.get('变量名')  获取变量
-// context.set('变量名', 值)  设置变量
+// context.set('变量名', 值)  设置变量（作为提取参数提交到用例）
 const token = context.get('token') || ''
 console.log('token =', token)`
 
 const PY_TEMPLATE = `# context.get('变量名')  获取变量
-# context.set('变量名', 值)  设置变量
+# context.set('变量名', 值)  设置变量（作为提取参数提交到用例）
 token = context.get('token') or ''
 print('token =', token)`
+
+const JAVA_TEMPLATE = `// context.get("变量名")  获取变量
+// context.set("变量名", 值)  设置变量（作为提取参数提交到用例）
+// System.out.println(...)  输出日志
+String token = context.get("token");
+System.out.println("token = " + token);`
+
+const IF_JS_TEMPLATE = `// IF 自定义代码：通过 context.set('__condition__', 'true'/'false') 返回判断结果
+// 其它 context.set 也会作为提取参数提交到用例
+context.set('__condition__', 'true')`
+
+const IF_PY_TEMPLATE = `# IF 自定义代码：通过 context.set('__condition__', 'true'/'false') 返回判断结果
+# 其它 context.set 也会作为提取参数提交到用例
+context.set('__condition__', 'true')`
+
+const IF_JAVA_TEMPLATE = `// IF 自定义代码：通过 context.set("__condition__", "true"/"false") 返回判断结果
+// 其它 context.set 也会作为提取参数提交到用例
+context.set("__condition__", "true");`
+
+const SCRIPT_LANG_OPTIONS = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+]
+
+function scriptTemplate(lang: string | undefined): string {
+  if (lang === 'python') return PY_TEMPLATE
+  if (lang === 'java') return JAVA_TEMPLATE
+  return JS_TEMPLATE
+}
+
+function ifTemplate(lang: string | undefined): string {
+  if (lang === 'python') return IF_PY_TEMPLATE
+  if (lang === 'java') return IF_JAVA_TEMPLATE
+  return IF_JS_TEMPLATE
+}
 
 export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props) {
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
@@ -243,7 +279,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     })
   }
 
-  const addStep = (phase: CaseStep['phase'], type: CaseStepType) => {
+  const buildStep = (phase: CaseStep['phase'], type: CaseStepType): CaseStep => {
     const base: CaseStep = {
       id: `${phase}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type,
@@ -264,12 +300,39 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       base.varValue = ''
     } else if (type === 'script') {
       base.script = ''
+      base.scriptLang = 'javascript'
     } else if (type === 'controller') {
       base.controllerType = 'if'
+      base.condMode = 'expression'
       base.condition = ''
       base.children = []
     }
-    setSteps((prev) => [...prev, base])
+    return base
+  }
+
+  // 在指定阶段的指定位置插入步骤（index 省略则追加到末尾）
+  const addStepAt = (phase: CaseStep['phase'], type: CaseStepType, index?: number) => {
+    const base = buildStep(phase, type)
+    setSteps((prev) => {
+      const phaseList = prev.filter((s) => s.phase === phase)
+      const insertAt = index === undefined ? phaseList.length : Math.max(0, Math.min(index, phaseList.length))
+      phaseList.splice(insertAt, 0, base)
+      return [...prev.filter((s) => s.phase !== phase), ...phaseList]
+    })
+  }
+
+  const addStep = (phase: CaseStep['phase'], type: CaseStepType) => addStepAt(phase, type)
+
+  // 拖拽到某个步骤前面/后面插入
+  const insertStepRelative = (phase: CaseStep['phase'], type: CaseStepType, refId: string, before: boolean) => {
+    const base = buildStep(phase, type)
+    setSteps((prev) => {
+      const phaseList = prev.filter((s) => s.phase === phase)
+      const idx = phaseList.findIndex((s) => s.id === refId)
+      const insertAt = idx < 0 ? phaseList.length : before ? idx : idx + 1
+      phaseList.splice(insertAt, 0, base)
+      return [...prev.filter((s) => s.phase !== phase), ...phaseList]
+    })
   }
 
   // 从右侧接口管理拖拽接口到步骤区，生成一条接口请求步骤
@@ -408,17 +471,16 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
               label: '脚本',
               children: (
                 <div ref={scriptScrollRef} className="scrollbar-hidden" style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
-                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
-                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="前置步骤" color="#1890ff" phase="setup" steps={setupSteps} apis={apis} onAdd={addStep} onInsertRelative={insertStepRelative} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="测试步骤" color="#52c41a" phase="test" steps={testSteps} apis={apis} onAdd={addStep} onInsertRelative={insertStepRelative} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
+                  <StepSection title="后置步骤" color="#fa8c16" phase="teardown" steps={teardownSteps} apis={apis} onAdd={addStep} onInsertRelative={insertStepRelative} onUpdate={updateStep} onRemove={removeStep} onReorder={reorderStep} onDropApi={addApiStep} onCopy={copyStep} onPaste={pasteStep} hasCopied={!!copiedStep} />
 
-                  {/* 底部快捷添加 */}
+                  {/* 底部快捷添加：拖拽到任意阶段的任意位置 */}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
-                    <span style={{ color: '#999', fontSize: 12 }}>快捷添加（测试步骤）：</span>
-                    <Button size="small" onClick={() => addStep('test', 'request')}>接口请求</Button>
-                    <Button size="small" onClick={() => addStep('test', 'wait')}>等待时间</Button>
-                    <Button size="small" onClick={() => addStep('test', 'script')}>自定义代码</Button>
-                    <Button size="small" onClick={() => addStep('test', 'controller')}>IF 判断</Button>
+                    <span style={{ color: '#999', fontSize: 12 }}>拖拽添加步骤：</span>
+                    <QuickAddButton type="wait" label="等待时间" onAdd={addStep} />
+                    <QuickAddButton type="script" label="自定义代码" onAdd={addStep} />
+                    <QuickAddButton type="controller" label="IF 判断" onAdd={addStep} />
                   </div>
                 </div>
               ),
@@ -669,6 +731,25 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   )
 }
 
+/** 底部快捷添加按钮（可拖拽到任意阶段、任意步骤前/后） */
+function QuickAddButton(props: { type: CaseStepType; label: string; onAdd: (phase: CaseStep['phase'], type: CaseStepType) => void }) {
+  const { type, label, onAdd } = props
+  return (
+    <Button
+      size="small"
+      draggable
+      title={`拖拽到步骤区插入，或点击添加到测试步骤`}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/step-type', type)
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
+      onClick={() => onAdd('test', type)}
+    >
+      {label}
+    </Button>
+  )
+}
+
 /** 单个阶段的步骤列表（支持拖拽排序） */
 function StepSection(props: {
   title: string
@@ -677,6 +758,7 @@ function StepSection(props: {
   steps: CaseStep[]
   apis: ApiDefinition[]
   onAdd: (phase: CaseStep['phase'], type: CaseStepType) => void
+  onInsertRelative: (phase: CaseStep['phase'], type: CaseStepType, refId: string, before: boolean) => void
   onUpdate: (phase: CaseStep['phase'], index: number, patch: Partial<CaseStep>) => void
   onRemove: (phase: CaseStep['phase'], index: number) => void
   onReorder: (phase: CaseStep['phase'], reordered: CaseStep[]) => void
@@ -685,7 +767,7 @@ function StepSection(props: {
   onPaste: (phase: CaseStep['phase'], afterId: string) => void
   hasCopied: boolean
 }) {
-  const { title, color, phase, steps, apis, onAdd, onUpdate, onRemove, onReorder, onDropApi, onCopy, onPaste, hasCopied } = props
+  const { title, color, phase, steps, apis, onAdd, onInsertRelative, onUpdate, onRemove, onReorder, onDropApi, onCopy, onPaste, hasCopied } = props
   const [addType, setAddType] = useState<CaseStepType>('request')
   const [dragOver, setDragOver] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -712,7 +794,7 @@ function StepSection(props: {
         transition: 'all 0.2s',
       }}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('application/api-id')) {
+        if (e.dataTransfer.types.includes('application/api-id') || e.dataTransfer.types.includes('application/step-type')) {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'copy'
           setDragOver(true)
@@ -723,7 +805,12 @@ function StepSection(props: {
         e.preventDefault()
         setDragOver(false)
         const apiId = e.dataTransfer.getData('application/api-id')
-        if (apiId) onDropApi(phase, apiId)
+        if (apiId) {
+          onDropApi(phase, apiId)
+          return
+        }
+        const stepType = e.dataTransfer.getData('application/step-type')
+        if (stepType) onAdd(phase, stepType as CaseStepType)
       }}
     >
       <div
@@ -747,7 +834,7 @@ function StepSection(props: {
 
       {!collapsed && (
         <>
-          {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤，可从右侧接口管理拖拽接口到此处</div>}
+          {steps.length === 0 && <div style={{ color: '#bbb', textAlign: 'center', padding: 16 }}>暂无步骤，可从右侧接口管理拖拽接口、或拖拽底部步骤到此添加</div>}
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
@@ -761,6 +848,7 @@ function StepSection(props: {
                   onCopy={() => onCopy(s)}
                   onPaste={() => onPaste(phase, s.id)}
                   hasCopied={hasCopied}
+                  onInsertRelative={(type, before) => onInsertRelative(phase, type, s.id, before)}
                 />
               ))}
             </SortableContext>
@@ -771,7 +859,7 @@ function StepSection(props: {
   )
 }
 
-/** 单个步骤卡片（拖拽手柄排序） */
+/** 单个步骤卡片（拖拽手柄排序 + 拖入步骤前/后插入） */
 function StepCard(props: {
   step: CaseStep
   apis: ApiDefinition[]
@@ -780,9 +868,11 @@ function StepCard(props: {
   onCopy?: () => void
   onPaste?: () => void
   hasCopied?: boolean
+  onInsertRelative?: (type: CaseStepType, before: boolean) => void
 }) {
-  const { step, apis, onUpdate, onRemove, onCopy, onPaste, hasCopied = false } = props
+  const { step, apis, onUpdate, onRemove, onCopy, onPaste, hasCopied = false, onInsertRelative } = props
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
+  const [dropPos, setDropPos] = useState<'before' | 'after' | null>(null)
 
   const contextMenu: MenuProps = {
     items: [
@@ -797,27 +887,55 @@ function StepCard(props: {
 
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
-      <Dropdown menu={contextMenu} trigger={['contextMenu']}>
-        <Card
-          size="small"
-          style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
-          title={
-            <Space>
-              <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
-              <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} title="启用/禁用" />
-              <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
-              <span style={{ fontSize: 13 }}>{step.name}</span>
-            </Space>
-          }
-          extra={
-            <Space size={4}>
-              <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
-            </Space>
-          }
-        >
-          <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
-        </Card>
-      </Dropdown>
+      <div
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes('application/step-type')) return
+          e.preventDefault()
+          e.stopPropagation()
+          e.dataTransfer.dropEffect = 'copy'
+          const rect = e.currentTarget.getBoundingClientRect()
+          setDropPos(e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
+        }}
+        onDragLeave={() => setDropPos(null)}
+        onDrop={(e) => {
+          if (!e.dataTransfer.types.includes('application/step-type')) return
+          e.preventDefault()
+          e.stopPropagation()
+          const type = e.dataTransfer.getData('application/step-type') as CaseStepType
+          const rect = e.currentTarget.getBoundingClientRect()
+          const before = e.clientY < rect.top + rect.height / 2
+          setDropPos(null)
+          if (type && onInsertRelative) onInsertRelative(type, before)
+        }}
+        style={{
+          borderTop: dropPos === 'before' ? '2px solid #1677ff' : '2px solid transparent',
+          borderBottom: dropPos === 'after' ? '2px solid #1677ff' : '2px solid transparent',
+          borderRadius: 4,
+          transition: 'border-color 0.15s',
+        }}
+      >
+        <Dropdown menu={contextMenu} trigger={['contextMenu']}>
+          <Card
+            size="small"
+            style={{ marginBottom: 8, opacity: step.enabled ? 1 : 0.55 }}
+            title={
+              <Space>
+                <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#999', userSelect: 'none', touchAction: 'none', fontSize: 16 }} title="拖动排序">⠿</span>
+                <Switch size="small" checked={step.enabled} onChange={(v) => onUpdate({ enabled: v })} title="启用/禁用" />
+                <Tag color="blue">{STEP_TYPE_LABELS[step.type]}</Tag>
+                <span style={{ fontSize: 13 }}>{step.name}</span>
+              </Space>
+            }
+            extra={
+              <Space size={4}>
+                <Button size="small" type="text" danger onClick={onRemove}>删除</Button>
+              </Space>
+            }
+          >
+            <StepEditor step={step} apis={apis} onUpdate={onUpdate} />
+          </Card>
+        </Dropdown>
+      </div>
     </div>
   )
 }
@@ -907,23 +1025,17 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
               size="small"
               style={{ width: 130 }}
               value={step.scriptLang ?? 'javascript'}
-              options={[
-                { value: 'javascript', label: 'JavaScript' },
-                { value: 'python', label: 'Python' },
-              ]}
+              options={SCRIPT_LANG_OPTIONS}
               onChange={(v) => onUpdate({ scriptLang: v })}
             />
-            <Button
-              size="small"
-              onClick={() => onUpdate({ script: step.scriptLang === 'python' ? PY_TEMPLATE : JS_TEMPLATE })}
-            >
+            <Button size="small" onClick={() => onUpdate({ script: scriptTemplate(step.scriptLang) })}>
               插入模板
             </Button>
           </Space>
           <Input.TextArea
             rows={5}
             value={step.script}
-            placeholder={step.scriptLang === 'python' ? PY_TEMPLATE : JS_TEMPLATE}
+            placeholder={scriptTemplate(step.scriptLang)}
             onChange={(e) => onUpdate({ script: e.target.value })}
             style={{ fontFamily: 'monospace' }}
           />
@@ -944,8 +1056,8 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
           />
           {(step.waitMode ?? 'fixed') === 'fixed' ? (
             <Space>
-              <span>等待</span>
-              <InputNumber size="small" value={step.waitMs} onChange={(v) => onUpdate({ waitMs: v ?? 0 })} />
+              <span>等待时间</span>
+              <InputNumber size="small" min={0} value={step.waitMs} onChange={(v) => onUpdate({ waitMs: v ?? 0 })} />
               <span>毫秒</span>
             </Space>
           ) : (
@@ -995,7 +1107,42 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
           />
           {step.controllerType === 'if' && (
             <>
-              <Input size="small" value={step.condition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ condition: e.target.value })} />
+              <Space size={8} style={{ width: '100%' }}>
+                <span style={{ color: '#999', fontSize: 12 }}>判断方式：</span>
+                <Select
+                  size="small"
+                  style={{ width: 120 }}
+                  value={step.condMode ?? 'expression'}
+                  options={[
+                    { value: 'expression', label: '表达式' },
+                    { value: 'script', label: '自定义代码' },
+                  ]}
+                  onChange={(v) => onUpdate({ condMode: v })}
+                />
+              </Space>
+              {(step.condMode ?? 'expression') === 'expression' ? (
+                <Input size="small" value={step.condition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ condition: e.target.value })} />
+              ) : (
+                <>
+                  <Space size={8} style={{ width: '100%' }}>
+                    <Select
+                      size="small"
+                      style={{ width: 130 }}
+                      value={step.scriptLang ?? 'javascript'}
+                      options={SCRIPT_LANG_OPTIONS}
+                      onChange={(v) => onUpdate({ scriptLang: v })}
+                    />
+                    <Button size="small" onClick={() => onUpdate({ script: ifTemplate(step.scriptLang) })}>插入模板</Button>
+                  </Space>
+                  <Input.TextArea
+                    rows={4}
+                    value={step.script}
+                    placeholder={ifTemplate(step.scriptLang)}
+                    onChange={(e) => onUpdate({ script: e.target.value })}
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </>
+              )}
               <ChildList label="THEN 区域" phase={step.phase} children={step.children ?? []} apis={apis} onChange={(children) => onUpdate({ children })} />
               <ChildList label="ELSE 区域" phase={step.phase} children={step.elseChildren ?? []} apis={apis} onChange={(elseChildren) => onUpdate({ elseChildren })} />
             </>
