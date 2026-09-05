@@ -389,6 +389,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
         <Tabs
+          className="case-editor-tabs"
           style={{ height: '100%' }}
           tabBarStyle={{ margin: 0, padding: '0 12px' }}
           tabBarExtraContent={

@@ -8,7 +8,7 @@ export default function ScrollBar({ containerRef }: { containerRef: React.RefObj
   const barRef = useRef<HTMLDivElement>(null)
   const [thumbTop, setThumbTop] = useState(0)
   const [thumbH, setThumbH] = useState(30)
-  const [show, setShow] = useState(false)
+  const [hasOverflow, setHasOverflow] = useState(false)
   const drag = useRef<{ startY: number; startTop: number } | null>(null)
 
   useEffect(() => {
@@ -18,11 +18,9 @@ export default function ScrollBar({ containerRef }: { containerRef: React.RefObj
     const sync = () => {
       const barH = barRef.current?.clientHeight ?? 0
       const total = el.scrollHeight - el.clientHeight
-      if (total <= 0 || barH <= 0) {
-        setShow(false)
-        return
-      }
-      setShow(true)
+      const overflow = total > 0 && barH > 0
+      setHasOverflow(overflow)
+      if (!overflow) return
       const h = Math.max(30, (el.clientHeight / el.scrollHeight) * barH)
       setThumbH(h)
       setThumbTop((el.scrollTop / total) * (barH - h))
@@ -32,6 +30,7 @@ export default function ScrollBar({ containerRef }: { containerRef: React.RefObj
     el.addEventListener('scroll', sync)
     const ro = new ResizeObserver(sync)
     ro.observe(el)
+    if (barRef.current) ro.observe(barRef.current)
     return () => {
       el.removeEventListener('scroll', sync)
       ro.disconnect()
@@ -63,8 +62,7 @@ export default function ScrollBar({ containerRef }: { containerRef: React.RefObj
     window.addEventListener('mouseup', onUp)
   }
 
-  if (!show) return null
-
+  // 始终渲染拖拽条（便于测量自身高度），仅在有溢出时显示缩略块
   return (
     <div
       ref={barRef}
@@ -72,17 +70,19 @@ export default function ScrollBar({ containerRef }: { containerRef: React.RefObj
       style={{ width: 8, background: '#f0f0f0', position: 'relative', flexShrink: 0, cursor: 'pointer', borderRadius: 4 }}
       title="拖动滚动内容"
     >
-      <div
-        style={{
-          position: 'absolute',
-          top: thumbTop,
-          left: 1,
-          width: 6,
-          height: thumbH,
-          background: '#b8b8b8',
-          borderRadius: 3,
-        }}
-      />
+      {hasOverflow && (
+        <div
+          style={{
+            position: 'absolute',
+            top: thumbTop,
+            left: 1,
+            width: 6,
+            height: thumbH,
+            background: '#b8b8b8',
+            borderRadius: 3,
+          }}
+        />
+      )}
     </div>
   )
 }

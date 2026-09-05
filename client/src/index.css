@@ -50,3 +50,12 @@ body {
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
+
+/* 用例编辑器 Tabs：让内容区填满高度，内部步骤区可滚动 */
+.case-editor-tabs .ant-tabs-content-holder {
+  overflow: hidden;
+}
+.case-editor-tabs .ant-tabs-content,
+.case-editor-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
