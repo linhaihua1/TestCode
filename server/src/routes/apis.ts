@@ -29,6 +29,78 @@ interface CaseBody {
   stepDefs?: Prisma.InputJsonValue // 多步骤定义（可选，JSON）
 }
 
+/** 批量导入的单个接口条目（Swagger 导入与 Excel 导入共用） */
+interface ImportItem {
+  name: string
+  method: string
+  path: string
+  headers?: Prisma.InputJsonValue
+  query?: Prisma.InputJsonValue
+  body?: string | null
+  description?: string
+  module?: string // 模块/标签名
+  tags?: string[]
+  mockEnabled?: boolean
+  mockResponse?: string | null
+}
+
+/** 按名称查找或创建 api 类型模块，返回模块 ID */
+async function findOrCreateApiModule(projectId: string, tagName: string, cache: Map<string, string>): Promise<string | null> {
+  if (!tagName) return null
+  if (cache.has(tagName)) return cache.get(tagName)!
+  const mod = await prisma.module.findFirst({ where: { projectId, name: tagName, type: 'api' } })
+  if (mod) {
+    cache.set(tagName, mod.id)
+    return mod.id
+  }
+  const newMod = await prisma.module.create({ data: { projectId, name: tagName, type: 'api' } })
+  cache.set(tagName, newMod.id)
+  return newMod.id
+}
+
+/** 批量导入接口定义，按 (method, path) 去重，返回新增与跳过数量 */
+async function importApiItems(projectId: string, items: ImportItem[]): Promise<{ created: number; skipped: number }> {
+  const moduleCache = new Map<string, string>()
+  let created = 0
+  let skipped = 0
+  for (const it of items) {
+    const name = String(it?.name ?? '').trim()
+    const method = String(it?.method ?? '').trim().toUpperCase()
+    const path = String(it?.path ?? '').trim()
+    if (!name || !method || !path) {
+      skipped++
+      continue
+    }
+    const moduleName = String(it.module ?? '')
+    const moduleId = await findOrCreateApiModule(projectId, moduleName, moduleCache)
+    const tags = (it.tags ?? (moduleName ? [moduleName] : [])) as unknown as Prisma.InputJsonValue
+
+    const exists = await prisma.apiDefinition.findFirst({ where: { projectId, method, path } })
+    if (exists) {
+      skipped++
+      continue
+    }
+    await prisma.apiDefinition.create({
+      data: {
+        projectId,
+        name,
+        method,
+        path,
+        moduleId,
+        tags,
+        description: it.description ?? '',
+        headers: it.headers ?? [],
+        query: it.query ?? [],
+        body: it.body ?? null,
+        mockEnabled: it.mockEnabled ?? false,
+        mockResponse: it.mockResponse ?? null,
+      },
+    })
+    created++
+  }
+  return { created, skipped }
+}
+
 export async function apiRoutes(app: FastifyInstance) {
   // ---------- ApiDefinition ----------
   // 获取项目下的接口定义列表
@@ -167,12 +239,7 @@ export async function apiRoutes(app: FastifyInstance) {
 
     const paths = (doc.paths ?? {}) as Record<string, Record<string, unknown>>
     const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options']
-
-    let created = 0
-    let skipped = 0
-
-    // tag → 模块映射缓存
-    const moduleCache = new Map<string, string>()
+    const items: ImportItem[] = []
 
     for (const [path, pathItem] of Object.entries(paths)) {
       if (!pathItem || typeof pathItem !== 'object') continue
@@ -180,53 +247,30 @@ export async function apiRoutes(app: FastifyInstance) {
         const op = pathItem[m]
         if (!op || typeof op !== 'object') continue
         const opObj = op as Record<string, unknown>
-        const name = String(opObj.summary ?? opObj.operationId ?? `${m.toUpperCase()} ${path}`)
-        const method = m.toUpperCase()
         const tags = (opObj.tags as string[]) ?? []
-
-        // 按 tag 找/建模块
-        let moduleId: string | null = null
-        if (tags.length > 0) {
-          const tagName = tags[0]
-          if (moduleCache.has(tagName)) {
-            moduleId = moduleCache.get(tagName)!
-          } else {
-            const mod = await prisma.module.findFirst({ where: { projectId, name: tagName, type: 'api' } })
-            if (mod) {
-              moduleId = mod.id
-            } else {
-              const newMod = await prisma.module.create({ data: { projectId, name: tagName, type: 'api' } })
-              moduleId = newMod.id
-            }
-            moduleCache.set(tagName, moduleId)
-          }
-        }
-
-        // 检查同名同路径接口是否已存在
-        const exists = await prisma.apiDefinition.findFirst({ where: { projectId, method, path } })
-        if (exists) {
-          skipped++
-          continue
-        }
-
-        await prisma.apiDefinition.create({
-          data: {
-            projectId,
-            name,
-            method,
-            path,
-            moduleId,
-            tags: tags as unknown as Prisma.InputJsonValue,
-            description: String(opObj.description ?? ''),
-            headers: [],
-            query: [],
-          },
+        items.push({
+          name: String(opObj.summary ?? opObj.operationId ?? `${m.toUpperCase()} ${path}`),
+          method: m.toUpperCase(),
+          path,
+          tags,
+          module: tags[0] ?? '',
+          description: String(opObj.description ?? ''),
         })
-        created++
       }
     }
 
-    return { created, skipped }
+    return importApiItems(projectId, items)
+  })
+
+  // ---------- 批量导入（Excel 模板导入） ----------
+  app.post('/api/projects/:projectId/apis/import-batch', async (req, reply) => {
+    const { projectId } = req.params as { projectId: string }
+    const body = req.body as { items?: ImportItem[] }
+    const items = body?.items
+    if (!Array.isArray(items) || items.length === 0) {
+      return reply.code(400).send({ error: '未提供有效的导入数据' })
+    }
+    return importApiItems(projectId, items)
   })
 
   // ---------- Mock ----------

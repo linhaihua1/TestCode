@@ -10,6 +10,7 @@ import { clearAuth, getToken } from './auth'
 import type {
   ApiCase,
   ApiDefinition,
+  ApiImportItem,
   CaseInfo,
   DebugRecord,
   Environment,
@@ -94,6 +95,10 @@ export const api = {
   importSwagger: (projectId: string, content: Record<string, unknown>) =>
     http
       .post<{ created: number; skipped: number }>(`/projects/${projectId}/apis/import-swagger`, { content })
+      .then((r) => r.data),
+  importApis: (projectId: string, items: ApiImportItem[]) =>
+    http
+      .post<{ created: number; skipped: number }>(`/projects/${projectId}/apis/import-batch`, { items })
       .then((r) => r.data),
 
   // ---------- 接口用例（ApiCase） ----------

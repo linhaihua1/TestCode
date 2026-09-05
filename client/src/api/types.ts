@@ -52,6 +52,21 @@ export interface ApiDefinition {
   updatedAt: string // 更新时间
 }
 
+/** 批量导入的单个接口条目（Excel 模板导入 / Swagger 导入共用） */
+export interface ApiImportItem {
+  name: string
+  method: string
+  path: string
+  headers?: KeyValue[]
+  query?: KeyValue[]
+  body?: string | null
+  description?: string
+  module?: string // 模块/标签名
+  tags?: string[]
+  mockEnabled?: boolean
+  mockResponse?: string | null
+}
+
 /** 断言规则（用于校验响应是否符合预期） */
 export interface Assertion {
   type: 'statusCode' | 'jsonPath' | 'header' | 'regex' // 断言类型

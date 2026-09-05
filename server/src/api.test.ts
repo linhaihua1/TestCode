@@ -303,4 +303,60 @@ describe('接口管理（第 4 期）：Swagger 导入 + Mock', () => {
     const plainMockRes = await app.inject({ method: 'GET', url: `/mock/${plain.id}` })
     expect(plainMockRes.statusCode).toBe(404)
   })
+
+  it('批量导入（Excel 模板）：建模块、持久化请求头/查询参数/Mock、去重', async () => {
+    await clean()
+
+    const projRes = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: auth,
+      payload: { name: 'excel-project' },
+    })
+    const project = projRes.json()
+
+    const items = [
+      {
+        name: '登录', method: 'POST', path: '/login',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+        query: [], body: '{"username":"admin"}', description: '登录', module: '用户模块',
+      },
+      {
+        name: '查询用户', method: 'GET', path: '/users/${userId}',
+        headers: [], query: [{ key: 'page', value: '1' }],
+        module: '用户模块', mockEnabled: true, mockResponse: '{"code":0}',
+      },
+    ]
+
+    const importRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis/import-batch`,
+      headers: auth,
+      payload: { items },
+    })
+    expect(importRes.statusCode).toBe(200)
+    expect(importRes.json()).toEqual({ created: 2, skipped: 0 })
+
+    // 字段持久化
+    const apis = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/apis`, headers: auth })
+    const login = apis.json().find((a: { path: string }) => a.path === '/login')
+    const user = apis.json().find((a: { path: string }) => a.path === '/users/${userId}')
+    expect(login.headers).toEqual([{ key: 'Content-Type', value: 'application/json' }])
+    expect(login.tags).toEqual(['用户模块'])
+    expect(user.query).toEqual([{ key: 'page', value: '1' }])
+    expect(user.mockEnabled).toBe(true)
+
+    // 按模块名生成 api 类型模块
+    const mods = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/modules`, headers: auth })
+    expect(mods.json().filter((m: { type: string }) => m.type === 'api')).toHaveLength(1)
+
+    // 重复导入去重
+    const reimportRes = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/apis/import-batch`,
+      headers: auth,
+      payload: { items },
+    })
+    expect(reimportRes.json()).toEqual({ created: 0, skipped: 2 })
+  })
 })
