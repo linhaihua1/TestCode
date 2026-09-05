@@ -56,6 +56,10 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const [debugEnvId, setDebugEnvId] = useState<string | undefined>()
   const [debugResult, setDebugResult] = useState<{ status: string; duration: number; results: Array<{ id: string; name: string; type: string; status: string; message: string; request?: { method: string; url: string }; response?: { status: number; body: unknown; duration: number }; assertions?: Array<{ passed: boolean; message: string }>; extracted?: Record<string, string>; children?: Array<unknown> }>; variables: Record<string, string> } | null>(null)
   const [debugLoading, setDebugLoading] = useState(false)
+  // 状态/优先级/版本
+  const [status, setStatus] = useState('draft')
+  const [priority, setPriority] = useState('P2')
+  const [versionOpen, setVersionOpen] = useState(false)
 
   // 加载用例详情 + 项目接口列表
   useEffect(() => {
@@ -70,6 +74,8 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
       .then((c) => {
         setCaseInfo(c)
         setName(c.name)
+        setStatus(c.status)
+        setPriority(c.priority)
         setSteps((c.steps ?? []) as CaseStep[])
         return api.listApis(c.projectId)
       })
@@ -85,7 +91,7 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     if (!caseId) return
     setSaving(true)
     try {
-      await api.updateCase(caseId, { name, steps })
+      await api.updateCase(caseId, { name, steps, status, priority })
       message.success('已保存')
       const c = await api.getCase(caseId)
       setCaseInfo(c)
@@ -205,7 +211,27 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
         <Tooltip title="Ctrl+S">
           <Button size="small" type="primary" loading={saving} onClick={save}>保存</Button>
         </Tooltip>
-        <span style={{ color: '#999', fontSize: 12 }}>v{caseInfo.version}</span>
+        <Select
+          size="small"
+          style={{ width: 90 }}
+          value={status}
+          options={[
+            { value: 'draft', label: '草稿' },
+            { value: 'completed', label: '已完成' },
+            { value: 'deprecated', label: '已废弃' },
+          ]}
+          onChange={setStatus}
+        />
+        <Select
+          size="small"
+          style={{ width: 70 }}
+          value={priority}
+          options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))}
+          onChange={setPriority}
+        />
+        <Tooltip title="版本历史">
+          <Button size="small" type="text" onClick={() => setVersionOpen(true)}>v{caseInfo.version}</Button>
+        </Tooltip>
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -281,6 +307,38 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* 版本历史 */}
+      <Modal title="版本历史" open={versionOpen} onCancel={() => setVersionOpen(false)} footer={null} width={560}>
+        {(caseInfo.versions ?? []).map((v) => (
+          <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <span>
+              v{v.version} <span style={{ color: '#999', fontSize: 12 }}>{new Date(v.createdAt).toLocaleString()}</span>
+            </span>
+            <Button
+              size="small"
+              onClick={async () => {
+                try {
+                  await api.rollbackCase(caseId, v.id)
+                  message.success('已回退')
+                  setVersionOpen(false)
+                  const c = await api.getCase(caseId)
+                  setCaseInfo(c)
+                  setName(c.name)
+                  setStatus(c.status)
+                  setPriority(c.priority)
+                  setSteps((c.steps ?? []) as CaseStep[])
+                } catch (e) {
+                  message.error(getErrorMessage(e))
+                }
+              }}
+            >
+              回退
+            </Button>
+          </div>
+        ))}
+        {(caseInfo.versions ?? []).length === 0 && <div style={{ color: '#999', textAlign: 'center', padding: 16 }}>暂无版本</div>}
       </Modal>
     </div>
   )
