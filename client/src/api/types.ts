@@ -317,3 +317,35 @@ export interface DebugRecord {
   createdBy?: string | null
   createdAt: string
 }
+
+/** 用例步骤类型（PRD 第四章节） */
+export type CaseStepType = 'request' | 'script' | 'wait' | 'variable'
+
+/** 用例步骤阶段：前置 / 测试 / 后置 */
+export type CaseStepPhase = 'setup' | 'test' | 'teardown'
+
+/** 用例步骤定义 */
+export interface CaseStep {
+  id: string // 步骤唯一 ID
+  type: CaseStepType // 步骤类型
+  phase: CaseStepPhase // 所属阶段
+  name: string // 步骤名称
+  enabled: boolean // 是否启用
+  remark?: string // 步骤备注
+  // 接口请求步骤
+  apiId?: string // 引用的接口定义 ID
+  method?: string // 请求方法
+  url?: string // 请求 URL（支持 ${变量}）
+  headers?: KeyValue[] // 请求头
+  query?: KeyValue[] // Query 参数
+  body?: string // 请求体
+  assertions?: Assertion[] // 断言
+  extracts?: ExtractRule[] // 提取
+  // 脚本步骤
+  script?: string // 脚本内容
+  // 等待步骤
+  waitMs?: number // 等待毫秒
+  // 变量赋值步骤
+  varName?: string // 变量名
+  varValue?: string // 变量值
+}
