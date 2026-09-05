@@ -52,10 +52,16 @@ body {
 }
 
 /* 用例编辑器 Tabs：让内容区填满高度，内部步骤区可滚动 */
-.case-editor-tabs .ant-tabs-content-holder {
+.case-editor-tabs {
+  display: flex;
+  flex-direction: column;
+}
+.case-editor-tabs .ant-tabs-body-holder {
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
-.case-editor-tabs .ant-tabs-content,
-.case-editor-tabs .ant-tabs-tabpane {
+.case-editor-tabs .ant-tabs-body,
+.case-editor-tabs .ant-tabs-content {
   height: 100%;
 }
