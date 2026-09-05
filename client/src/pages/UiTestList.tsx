@@ -41,13 +41,11 @@ export default function UiTestList() {
       if (editing) {
         await api.updateUiTest(editing.id, {
           name: values.name,
-          baseUrl: values.baseUrl,
           description: values.description,
         })
       } else {
         await api.createUiTest(projectId!, {
           name: values.name,
-          baseUrl: values.baseUrl,
           description: values.description,
           steps: [],
         })
@@ -72,7 +70,6 @@ export default function UiTestList() {
 
   const columns: ColumnsType<UiTestCase> = [
     { title: '名称', dataIndex: 'name' },
-    { title: 'Base URL', dataIndex: 'baseUrl' },
     {
       title: '步骤数',
       dataIndex: 'steps',
@@ -137,9 +134,6 @@ export default function UiTestList() {
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input />
-          </Form.Item>
-          <Form.Item name="baseUrl" label="Base URL">
-            <Input placeholder="如 https://www.baidu.com" />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} />

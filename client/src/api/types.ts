@@ -171,18 +171,19 @@ export interface User {
   updatedAt: string // 更新时间
 }
 
-/** UI 自动化步骤动作类型（参考 Selenium） */
-export type UiAction =
-  | 'open' // 打开页面
-  | 'click' // 点击元素
-  | 'type' // 输入文本
-  | 'assertText' // 断言元素文本
-  | 'assertExists' // 断言元素存在
-  | 'assertTitle' // 断言页面标题
-  | 'wait' // 等待元素出现
+/** UI 自动化步骤动作（用户自定义输入，参考 Selenium） */
+export type UiAction = string
 
-/** UI 元素定位方式 */
-export type LocatorType = 'css' | 'xpath' | 'id' | 'name' | 'linkText'
+/** UI 元素定位方式（Selenium 常见 8 种） */
+export type LocatorType =
+  | 'id'
+  | 'name'
+  | 'className'
+  | 'tagName'
+  | 'linkText'
+  | 'partialLinkText'
+  | 'css'
+  | 'xpath'
 
 /** UI 测试步骤定义 */
 export interface UiStep {
@@ -246,8 +247,8 @@ export interface UiScenario {
   updatedAt: string
 }
 
-/** UI 步骤动作的可读中文名（用于下拉选择） */
-export const UI_ACTIONS: { value: UiAction; label: string }[] = [
+/** UI 步骤动作的参考提示（动作已改为自由输入） */
+export const UI_ACTIONS: { value: string; label: string }[] = [
   { value: 'open', label: '打开页面' },
   { value: 'click', label: '点击元素' },
   { value: 'type', label: '输入文本' },
@@ -257,13 +258,16 @@ export const UI_ACTIONS: { value: UiAction; label: string }[] = [
   { value: 'wait', label: '等待元素出现' },
 ]
 
-/** UI 元素定位方式的可读中文名 */
+/** UI 元素定位方式的可读中文名（8 种） */
 export const UI_LOCATORS: { value: LocatorType; label: string }[] = [
-  { value: 'css', label: 'CSS 选择器' },
-  { value: 'xpath', label: 'XPath' },
   { value: 'id', label: 'ID' },
   { value: 'name', label: 'Name' },
-  { value: 'linkText', label: '链接文本' },
+  { value: 'className', label: 'Class Name' },
+  { value: 'tagName', label: 'Tag Name' },
+  { value: 'linkText', label: '完整链接文本' },
+  { value: 'partialLinkText', label: '部分链接文本' },
+  { value: 'css', label: 'CSS 选择器' },
+  { value: 'xpath', label: 'XPath' },
 ]
 
 // 全局变量

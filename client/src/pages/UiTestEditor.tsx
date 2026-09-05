@@ -7,7 +7,7 @@ import { Alert, Button, Card, Collapse, Input, Select, Space, Spin, Table, Tag, 
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
-import { UI_ACTIONS, UI_LOCATORS, type UiReport, type UiStep } from '../api/types'
+import { UI_LOCATORS, type UiReport, type UiStep } from '../api/types'
 const STATUS_COLOR: Record<string, string> = { PASS: 'green', FAIL: 'red', ERROR: 'orange' }
 
 /** 单个阶段的步骤编辑表格（前置/测试/后置共用） */
@@ -26,13 +26,12 @@ function StepTable(props: {
     { title: '#', width: 50, render: (_, __, i) => i + 1 },
     {
       title: '动作',
-      width: 150,
+      width: 180,
       render: (_, record, i) => (
-        <Select
-          style={{ width: '100%' }}
+        <Input
           value={record.action}
-          options={UI_ACTIONS}
-          onChange={(v) => onUpdate(i, { action: v })}
+          placeholder="如 open / click / type / assertText / wait"
+          onChange={(e) => onUpdate(i, { action: e.target.value })}
         />
       ),
     },

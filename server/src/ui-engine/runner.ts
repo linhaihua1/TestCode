@@ -23,7 +23,7 @@ function resolveChromedriver(): string | undefined {
   return undefined
 }
 
-/** 根据定位方式构造 selenium 的 By 定位器 */
+/** 根据定位方式构造 selenium 的 By 定位器（8 种常见定位方式） */
 function buildLocator(step: UiStep): By {
   const target = step.target ?? ''
   switch (step.locatorType ?? 'css') {
@@ -31,10 +31,16 @@ function buildLocator(step: UiStep): By {
       return By.id(target)
     case 'name':
       return By.name(target)
-    case 'xpath':
-      return By.xpath(target)
+    case 'className':
+      return By.className(target)
+    case 'tagName':
+      return By.tagName(target)
     case 'linkText':
       return By.linkText(target)
+    case 'partialLinkText':
+      return By.partialLinkText(target)
+    case 'xpath':
+      return By.xpath(target)
     case 'css':
     default:
       return By.css(target)

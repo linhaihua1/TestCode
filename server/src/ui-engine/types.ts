@@ -1,15 +1,16 @@
-/** UI 自动化步骤的动作类型（参考 Selenium） */
-export type UiAction =
-  | 'open' // 打开页面（target 为 URL）
-  | 'click' // 点击元素
-  | 'type' // 输入文本
-  | 'assertText' // 断言元素文本
-  | 'assertExists' // 断言元素存在
-  | 'assertTitle' // 断言页面标题
-  | 'wait' // 等待元素出现
+/** UI 自动化步骤的动作（用户自定义输入，参考 Selenium） */
+export type UiAction = string
 
-/** 元素定位方式（参考 Selenium 的 By） */
-export type LocatorType = 'css' | 'xpath' | 'id' | 'name' | 'linkText'
+/** 元素定位方式（Selenium 常见 8 种） */
+export type LocatorType =
+  | 'id' // ID
+  | 'name' // Name
+  | 'className' // Class Name
+  | 'tagName' // Tag Name
+  | 'linkText' // 完整链接文本
+  | 'partialLinkText' // 部分链接文本
+  | 'css' // CSS 选择器
+  | 'xpath' // XPath
 
 /** UI 测试步骤定义 */
 export interface UiStep {
