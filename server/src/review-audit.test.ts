@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app.js'
 import { prisma } from './db.js'
-import { hashPassword } from './auth.js'
+import { hashPassword, signToken } from './auth.js'
 
 let app: FastifyInstance
 let auth: { authorization: string }
@@ -118,5 +118,22 @@ describe('第 6 期：评审 + 审计 + 权限', () => {
     // member 管理用户 403
     const memberUsers = await app.inject({ method: 'POST', url: '/api/users', headers: memberAuth, payload: { username: 'u2', password: '123456' } })
     expect(memberUsers.statusCode).toBe(403)
+  })
+
+  it('旧 token（无 role）的管理员仍能写操作（从 DB 回读角色）', async () => {
+    await clean()
+    const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
+    // 用不含 role 的旧版 token 模拟历史登录态
+    const staleToken = signToken({ userId: admin!.id, username: admin!.username })
+    const staleAuth = { authorization: `Bearer ${staleToken}` }
+
+    const project = await prisma.project.create({ data: { name: 'stale-admin' } })
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/modules`,
+      headers: staleAuth,
+      payload: { name: '模块A' },
+    })
+    expect(res.statusCode).toBe(200)
   })
 })

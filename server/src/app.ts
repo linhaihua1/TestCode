@@ -17,6 +17,7 @@ import { debugRecordRoutes } from './routes/debug-records.js'
 import { auditLogRoutes } from './routes/audit-logs.js'
 import { testTaskRoutes } from './routes/test-tasks.js'
 import { fail } from './error-codes.js'
+import { prisma } from './db.js'
 
 function isPublicPath(url: string): boolean {
   return (
@@ -42,7 +43,15 @@ export function buildApp(): FastifyInstance {
     let payload: { userId: string; username: string; role?: string }
     try {
       payload = verifyToken(token)
-      ;(req as unknown as { user: unknown }).user = payload
+      // 从 DB 读取当前用户与角色：修复旧 token 无 role 导致的误判，角色变更即时生效，并拒绝已删除用户
+      const dbUser = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { username: true, role: true },
+      })
+      if (!dbUser) return fail(reply, 'UNAUTHORIZED')
+      const currentRole = dbUser.role ?? 'viewer'
+      ;(req as unknown as { user: unknown }).user = { userId: payload.userId, username: dbUser.username, role: currentRole }
+      payload = { userId: payload.userId, username: dbUser.username, role: currentRole }
     } catch {
       return fail(reply, 'UNAUTHORIZED')
     }
@@ -56,6 +65,10 @@ export function buildApp(): FastifyInstance {
     }
     // 用户管理仅管理员可写
     if (req.url.startsWith('/api/users') && !readOnly && role !== 'admin') {
+      return fail(reply, 'FORBIDDEN')
+    }
+    // 审计日志仅管理员可查看
+    if (req.url.startsWith('/api/audit-logs') && role !== 'admin') {
       return fail(reply, 'FORBIDDEN')
     }
   })
