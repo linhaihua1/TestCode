@@ -17,9 +17,10 @@ export default function UiReportList() {
   const [loading, setLoading] = useState(false)
 
   const load = async () => {
+    if (!projectId) return
     setLoading(true)
     try {
-      setReports(await api.listUiReports(projectId!))
+      setReports(await api.listUiReports(projectId))
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
@@ -47,10 +48,10 @@ export default function UiReportList() {
     { type: '错误', value: errorCount },
   ].filter((d) => d.value > 0)
 
-  // 折线图数据：最近 10 次耗时趋势
+  // 折线图数据：最近 10 次（按时间先后排列）
   const trendData = [...reports]
     .reverse()
-    .slice(0, 10)
+    .slice(-10)
     .map((r, i) => ({ index: `第${i + 1}次`, duration: r.duration }))
 
   const columns: ColumnsType<UiReport> = [

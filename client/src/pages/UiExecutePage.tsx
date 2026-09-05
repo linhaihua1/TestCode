@@ -97,11 +97,12 @@ export default function UiExecutePage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const load = async () => {
+    if (!projectId) return
     setLoading(true)
     try {
       const [cases, scenarioList] = await Promise.all([
-        api.listUiTests(projectId!),
-        api.listUiScenarios(projectId!),
+        api.listUiTests(projectId),
+        api.listUiScenarios(projectId),
       ])
       setAllCases(cases)
       setPlans(scenarioList)

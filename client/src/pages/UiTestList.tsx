@@ -19,9 +19,10 @@ export default function UiTestList() {
   const navigate = useNavigate()
 
   const load = async () => {
+    if (!projectId) return
     setLoading(true)
     try {
-      setTests(await api.listUiTests(projectId!))
+      setTests(await api.listUiTests(projectId))
     } catch (e) {
       message.error(getErrorMessage(e))
     } finally {
