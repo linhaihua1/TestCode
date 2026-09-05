@@ -24,6 +24,19 @@ interface TaskBody {
   cronExpr?: string | null
   enabled?: boolean
   notifyUrl?: string | null
+  variables?: unknown
+  baseUrl?: string | null
+}
+
+/** 解析任务级执行变量（KeyValue[] → Record） */
+function parseTaskVars(v: unknown): Record<string, string> {
+  const vars: Record<string, string> = {}
+  if (Array.isArray(v)) {
+    for (const kv of v as { key?: string; value?: string }[]) {
+      if (kv?.key) vars[kv.key] = kv.value ?? ''
+    }
+  }
+  return vars
 }
 
 /** 单条用例在本次报告中的执行结果 */
@@ -67,6 +80,7 @@ interface RunContext {
   baseUrl: string
   globalVars: Record<string, string>
   envVars: Record<string, string>
+  taskVars: Record<string, string>
   timeout: number
 }
 
@@ -79,7 +93,7 @@ async function runOneCase(caseId: string, ctx: RunContext): Promise<CaseRunDetai
   if (c.status === 'deprecated') {
     return { caseId, caseName: c.name, status: 'SKIP', duration: 0, retries: 0, error: '用例已废弃，跳过', stepResults: [] }
   }
-  const merged = buildMergedContext(ctx.globalVars, ctx.envVars, {}, {})
+  const merged = buildMergedContext(ctx.globalVars, ctx.envVars, ctx.taskVars, {})
   const steps = (c.steps as unknown as CaseStepDef[]) ?? []
   const start = Date.now()
   try {
@@ -164,6 +178,8 @@ export async function testTaskRoutes(app: FastifyInstance) {
         cronExpr: body.cronExpr ?? null,
         enabled: body.enabled ?? true,
         notifyUrl: body.notifyUrl ?? null,
+        variables: (body.variables ?? []) as unknown as Prisma.InputJsonValue,
+        baseUrl: body.baseUrl ?? null,
       },
     })
     await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'task', entityId: created.id, after: { name: created.name } })
@@ -200,6 +216,8 @@ export async function testTaskRoutes(app: FastifyInstance) {
         cronExpr: body.cronExpr ?? task.cronExpr,
         enabled: body.enabled ?? task.enabled,
         notifyUrl: body.notifyUrl ?? task.notifyUrl,
+        variables: (body.variables !== undefined ? body.variables : task.variables) as unknown as Prisma.InputJsonValue,
+        baseUrl: body.baseUrl !== undefined ? body.baseUrl : task.baseUrl,
       },
     })
   })
@@ -224,9 +242,12 @@ export async function testTaskRoutes(app: FastifyInstance) {
     const caseIds = parseCaseIds(task.caseIds)
     if (caseIds.length === 0) return fail(reply, 'TASK_NO_CASES')
 
-    const { baseUrl, envVars } = await loadEnvContext(task.environmentId)
+    const { baseUrl: envBaseUrl, envVars } = await loadEnvContext(task.environmentId)
     const globalVars = await loadGlobalVariables(task.projectId)
-    const ctx: RunContext = { baseUrl, globalVars, envVars, timeout: task.timeout }
+    // 执行机地址（baseUrl）优先使用任务配置，否则回退到环境 baseUrl
+    const baseUrl = (task.baseUrl && task.baseUrl.trim()) ? task.baseUrl.trim() : envBaseUrl
+    const taskVars = parseTaskVars(task.variables)
+    const ctx: RunContext = { baseUrl, globalVars, envVars, taskVars, timeout: task.timeout }
 
     const start = Date.now()
     let details: CaseRunDetail[]

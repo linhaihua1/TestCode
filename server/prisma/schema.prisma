@@ -284,6 +284,8 @@ model TestTask {
   cronExpr String?
   enabled Boolean @default(true)
   notifyUrl String?
+  variables Json @default("[]")
+  baseUrl String?
   createdBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

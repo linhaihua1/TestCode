@@ -432,6 +432,8 @@ export interface TestTask {
   cronExpr?: string | null
   enabled: boolean
   notifyUrl?: string | null
+  variables: KeyValue[] // 任务级执行变量
+  baseUrl?: string | null // 执行机地址（覆盖环境 baseUrl）
   createdBy?: string | null
   createdAt: string
   updatedAt: string
