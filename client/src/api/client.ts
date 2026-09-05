@@ -251,6 +251,10 @@ export const api = {
         variables: Record<string, string>
       }>(`/case-info/${id}/debug`, data ?? {})
       .then((r) => r.data),
+  listRecycleCases: (projectId: string) =>
+    http.get<CaseInfo[]>(`/projects/${projectId}/cases/recycle`).then((r) => r.data),
+  restoreCase: (id: string) => http.post(`/case-info/${id}/restore`).then((r) => r.data),
+  permanentDeleteCase: (id: string) => http.delete(`/case-info/${id}/permanent`).then((r) => r.data),
 
   // ---------- 调试记录 ----------
   listDebugRecords: (projectId: string, params?: Record<string, string>) => {

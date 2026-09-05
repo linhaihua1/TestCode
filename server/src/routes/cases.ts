@@ -185,4 +185,32 @@ export async function caseRoutes(app: FastifyInstance) {
 
     return { status: overall, duration, results, variables: context }
   })
+
+  // ---------- 回收站 ----------
+  // 查询软删除的用例（回收站列表）
+  app.get('/api/projects/:projectId/cases/recycle', async (req) => {
+    const { projectId } = req.params as { projectId: string }
+    return prisma.caseInfo.findMany({
+      where: { projectId, deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+    })
+  })
+
+  // 还原用例（清除 deletedAt）
+  app.post('/api/case-info/:id/restore', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const c = await prisma.caseInfo.findUnique({ where: { id } })
+    if (!c) return reply.code(404).send({ error: '用例不存在' })
+    await prisma.caseInfo.update({ where: { id }, data: { deletedAt: null } })
+    return { ok: true }
+  })
+
+  // 永久删除用例（物理删除，连同版本与调试记录）
+  app.delete('/api/case-info/:id/permanent', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const c = await prisma.caseInfo.findUnique({ where: { id } })
+    if (!c) return reply.code(404).send({ error: '用例不存在' })
+    await prisma.caseInfo.delete({ where: { id } })
+    return { ok: true }
+  })
 }
