@@ -54,7 +54,8 @@ export default function AppLayout() {
     }
   }
 
-  // 侧边栏菜单：四个顶层入口
+  // 侧边栏菜单：业务入口 + 管理员专属入口
+  const isAdmin = user?.role === 'admin'
   const items: MenuProps['items'] = [
     {
       key: 'api-automation',
@@ -81,8 +82,13 @@ export default function AppLayout() {
       ],
     },
     { key: '/environments', label: '环境配置' },
-    { key: '/users', label: '用户管理' },
-    { key: '/audit-logs', label: '审计日志' },
+    // 系统管理入口仅管理员可见
+    ...(isAdmin
+      ? [
+          { key: '/users', label: '用户管理' },
+          { key: '/audit-logs', label: '审计日志' },
+        ]
+      : []),
   ]
 
   // 递归收集所有叶子路由 key（以 / 开头），用于最长前缀高亮
@@ -148,12 +154,14 @@ export default function AppLayout() {
             options={projects.map((p) => ({ value: p.id, label: p.name }))}
             onChange={(v) => setProjectId(v)}
           />
-          <span
-            style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer' }}
-            onClick={() => navigate('/projects')}
-          >
-            项目管理
-          </span>
+          {isAdmin && (
+            <span
+              style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer' }}
+              onClick={() => navigate('/projects')}
+            >
+              项目管理
+            </span>
+          )}
           <div style={{ flex: 1 }} />
           <Dropdown menu={{ items: userMenuItems, onClick: onUserMenuClick }}>
             <span style={{ cursor: 'pointer', color: '#333' }}>{user?.username ?? ''}</span>

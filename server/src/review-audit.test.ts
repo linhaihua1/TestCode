@@ -110,14 +110,23 @@ describe('第 6 期：评审 + 审计 + 权限', () => {
     // viewer 写 403
     const writeRes = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/cases`, headers: viewerAuth, payload: { name: 'x' } })
     expect(writeRes.statusCode).toBe(403)
+    // viewer 查看用户列表 403（系统管理仅管理员）
+    const viewerUsers = await app.inject({ method: 'GET', url: '/api/users', headers: viewerAuth })
+    expect(viewerUsers.statusCode).toBe(403)
 
-    // member 写 OK
+    // member 写业务 OK
     const memberWrite = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/cases`, headers: memberAuth, payload: { name: 'm' } })
     expect(memberWrite.statusCode).toBe(200)
+    // member 创建环境 OK（环境配置属业务）
+    const memberEnv = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/environments`, headers: memberAuth, payload: { name: 'dev' } })
+    expect(memberEnv.statusCode).toBe(200)
 
     // member 管理用户 403
     const memberUsers = await app.inject({ method: 'POST', url: '/api/users', headers: memberAuth, payload: { username: 'u2', password: '123456' } })
     expect(memberUsers.statusCode).toBe(403)
+    // member 新建项目 403（项目管理仅管理员）
+    const memberProject = await app.inject({ method: 'POST', url: '/api/projects', headers: memberAuth, payload: { name: 'p2' } })
+    expect(memberProject.statusCode).toBe(403)
   })
 
   it('旧 token（无 role）的管理员仍能写操作（从 DB 回读角色）', async () => {

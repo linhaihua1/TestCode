@@ -57,18 +57,21 @@ export function buildApp(): FastifyInstance {
     }
 
     // ---------- 权限（RBAC） ----------
+    // 角色：admin（管理员，全部权限）/ member（成员，接口+UI 自动化全部操作）/ viewer（查看者，只读）
     const role = payload.role ?? 'viewer'
     const readOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method)
-    // 只读用户禁止写操作（自服务改密码除外）
-    if (role === 'viewer' && !readOnly && !req.url.startsWith('/api/auth/')) {
+    const path = req.url.split('?')[0]
+
+    // 系统管理（用户管理 / 审计日志）仅管理员可访问（含查看）
+    if ((path.startsWith('/api/users') || path.startsWith('/api/audit-logs')) && role !== 'admin') {
       return fail(reply, 'FORBIDDEN')
     }
-    // 用户管理仅管理员可写
-    if (req.url.startsWith('/api/users') && !readOnly && role !== 'admin') {
+    // 项目管理（新建/编辑/删除项目）仅管理员；环境配置属业务，成员可操作
+    if (/^\/api\/projects(\/[^/]+)?$/.test(path) && !readOnly && role !== 'admin') {
       return fail(reply, 'FORBIDDEN')
     }
-    // 审计日志仅管理员可查看
-    if (req.url.startsWith('/api/audit-logs') && role !== 'admin') {
+    // 查看者只读：禁止业务写操作（自服务改密码除外）
+    if (role === 'viewer' && !readOnly && !path.startsWith('/api/auth/')) {
       return fail(reply, 'FORBIDDEN')
     }
   })
