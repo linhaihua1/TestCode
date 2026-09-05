@@ -231,6 +231,26 @@ export const api = {
   deleteCase: (id: string) => http.delete(`/case-info/${id}`).then((r) => r.data),
   rollbackCase: (id: string, versionId: string) =>
     http.post(`/case-info/${id}/rollback/${versionId}`).then((r) => r.data),
+  debugCaseInfo: (id: string, data?: { environmentId?: string; debugVars?: Record<string, string> }) =>
+    http
+      .post<{
+        status: string
+        duration: number
+        results: Array<{
+          id: string
+          name: string
+          type: string
+          status: string
+          message: string
+          request?: { method: string; url: string }
+          response?: { status: number; body: unknown; duration: number }
+          assertions?: Array<{ passed: boolean; message: string }>
+          extracted?: Record<string, string>
+          children?: Array<unknown>
+        }>
+        variables: Record<string, string>
+      }>(`/case-info/${id}/debug`, data ?? {})
+      .then((r) => r.data),
 
   // ---------- 调试记录 ----------
   listDebugRecords: (projectId: string, params?: Record<string, string>) => {

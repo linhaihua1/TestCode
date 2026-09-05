@@ -236,7 +236,7 @@ export default function Workbench() {
             </div>
           ) : (
             <div style={{ flex: 1, minWidth: MIN_MID }}>
-              <CaseEditorPanel caseId={selectedCaseId} onCollapse={toggleMid} />
+              <CaseEditorPanel projectId={projectId} caseId={selectedCaseId} onCollapse={toggleMid} />
             </div>
           )}
         </div>

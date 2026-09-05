@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
+import { executeCaseSteps, type CaseStepDef } from '../engine/case-executor.js'
+import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
 
 interface CaseBody {
   name?: string
@@ -132,5 +134,55 @@ export async function caseRoutes(app: FastifyInstance) {
       orderBy: { sortOrder: 'asc' },
       select: { id: true, name: true, parentId: true },
     })
+  })
+
+  // 调试执行用例（执行前置/测试/后置步骤，记录调试结果）
+  app.post('/api/case-info/:id/debug', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const body = req.body as { environmentId?: string; debugVars?: Record<string, string> }
+    const c = await prisma.caseInfo.findUnique({ where: { id } })
+    if (!c) return reply.code(404).send({ error: '用例不存在' })
+
+    // 加载环境变量 + 全局变量，构建变量上下文（四级优先级）
+    let envVars: Record<string, string> = {}
+    let baseUrl = ''
+    if (body?.environmentId) {
+      const env = await prisma.environment.findUnique({ where: { id: body.environmentId } })
+      if (env) {
+        baseUrl = env.baseUrl ?? ''
+        for (const kv of (env.variables as unknown as { key: string; value: string }[]) ?? []) {
+          envVars[kv.key] = kv.value
+        }
+      }
+    }
+    const globalVars = await loadGlobalVariables(c.projectId)
+    const merged = buildMergedContext(globalVars, envVars, {}, body?.debugVars ?? {})
+
+    const steps = (c.steps as unknown as CaseStepDef[]) ?? []
+    const start = Date.now()
+    const { results, context } = await executeCaseSteps(steps, { baseUrl, initialVars: merged.vars })
+    const duration = Date.now() - start
+
+    const overall = results.every((r) => r.status === 'PASS')
+      ? 'success'
+      : results.some((r) => r.status === 'ERROR')
+        ? 'error'
+        : 'fail'
+
+    // 记录调试记录
+    await prisma.debugRecord.create({
+      data: {
+        caseId: id,
+        caseNameSnapshot: c.name,
+        environmentId: body?.environmentId ?? null,
+        executeMode: 'server',
+        result: overall,
+        totalDuration: duration,
+        stepResults: results as unknown as Prisma.InputJsonValue,
+        extractedVariables: context as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    return { status: overall, duration, results, variables: context }
   })
 }

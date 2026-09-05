@@ -3,7 +3,7 @@
  * 步骤类型：接口请求（引用接口 + 断言 + 提取）、脚本、等待、变量赋值。
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, Input, InputNumber, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import { Alert, Button, Card, Input, InputNumber, Modal, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   DndContext,
   PointerSensor,
@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { api, getErrorMessage } from '../../api/client'
+import EnvironmentSelect from '../EnvironmentSelect'
 import {
   HTTP_METHODS,
   type ApiDefinition,
@@ -31,6 +32,7 @@ import {
 } from '../../api/types'
 
 interface Props {
+  projectId?: string
   caseId?: string
   onCollapse: () => void
 }
@@ -43,12 +45,17 @@ const STEP_TYPE_LABELS: Record<CaseStepType, string> = {
   controller: '流程控制器',
 }
 
-export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
+export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props) {
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [steps, setSteps] = useState<CaseStep[]>([])
   const [apis, setApis] = useState<ApiDefinition[]>([])
+  // 调试状态
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugEnvId, setDebugEnvId] = useState<string | undefined>()
+  const [debugResult, setDebugResult] = useState<{ status: string; duration: number; results: Array<{ id: string; name: string; type: string; status: string; message: string; request?: { method: string; url: string }; response?: { status: number; body: unknown; duration: number }; assertions?: Array<{ passed: boolean; message: string }>; extracted?: Record<string, string>; children?: Array<unknown> }>; variables: Record<string, string> } | null>(null)
+  const [debugLoading, setDebugLoading] = useState(false)
 
   // 加载用例详情 + 项目接口列表
   useEffect(() => {
@@ -91,10 +98,34 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
     }
   }
 
+  // 调试执行
+  const runDebug = async () => {
+    if (!caseId) return
+    await save() // 先保存
+    setDebugLoading(true)
+    setDebugResult(null)
+    try {
+      const r = await api.debugCaseInfo(caseId, { environmentId: debugEnvId })
+      setDebugResult(r)
+      message.success(r.status === 'success' ? '调试通过' : '调试完成，存在失败')
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    } finally {
+      setDebugLoading(false)
+    }
+  }
+
   useEffect(() => {
     const onSave = () => save()
+    const onDebug = () => {
+      setDebugOpen(true)
+    }
     window.addEventListener('workbench:save', onSave)
-    return () => window.removeEventListener('workbench:save', onSave)
+    window.addEventListener('workbench:debug', onDebug)
+    return () => {
+      window.removeEventListener('workbench:save', onSave)
+      window.removeEventListener('workbench:debug', onDebug)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId, name, steps])
 
@@ -168,6 +199,9 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
       <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid #f0f0f0' }}>
         <Button type="text" size="small" onClick={onCollapse}>»</Button>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="用例名称" variant="borderless" style={{ fontWeight: 600, fontSize: 15, flex: 1 }} />
+        <Tooltip title="Ctrl+Enter">
+          <Button size="small" onClick={() => setDebugOpen(true)}>调试</Button>
+        </Tooltip>
         <Tooltip title="Ctrl+S">
           <Button size="small" type="primary" loading={saving} onClick={save}>保存</Button>
         </Tooltip>
@@ -198,6 +232,56 @@ export default function CaseEditorPanel({ caseId, onCollapse }: Props) {
           ]}
         />
       </div>
+
+      {/* 调试弹窗 */}
+      <Modal
+        title={`调试：${name}`}
+        open={debugOpen}
+        onCancel={() => setDebugOpen(false)}
+        footer={null}
+        width={760}
+      >
+        <Space style={{ marginBottom: 16 }}>
+          <span>环境：</span>
+          <EnvironmentSelect projectId={projectId ?? ''} style={{ width: 220 }} value={debugEnvId} onChange={setDebugEnvId} />
+          <Button type="primary" loading={debugLoading} onClick={runDebug}>执行调试</Button>
+        </Space>
+
+        {debugResult && (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <Tag color={debugResult.status === 'success' ? 'green' : 'red'}>{debugResult.status}</Tag>
+              <span style={{ color: '#999' }}>耗时 {debugResult.duration}ms</span>
+            </div>
+            {debugResult.results.map((r, i) => (
+              <Card
+                key={i}
+                size="small"
+                title={
+                  <Space>
+                    <span>
+                      步骤 {i + 1}：{r.name}
+                    </span>
+                    <Tag color={r.status === 'PASS' ? 'green' : r.status === 'SKIP' ? 'default' : 'red'}>{r.status}</Tag>
+                  </Space>
+                }
+                style={{ marginBottom: 8 }}
+              >
+                <div style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>{r.message}</div>
+                {r.request && <div style={{ color: '#999', fontSize: 12 }}>{r.request.method} {r.request.url}</div>}
+                {(r.assertions ?? []).map((a, j) => (
+                  <Alert key={j} type={a.passed ? 'success' : 'error'} showIcon message={a.message} style={{ marginBottom: 4 }} />
+                ))}
+                {r.extracted && Object.keys(r.extracted).length > 0 && (
+                  <div style={{ fontSize: 12 }}>
+                    提取：{Object.entries(r.extracted).map(([k, v]) => `${k}=${v}`).join('，')}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
