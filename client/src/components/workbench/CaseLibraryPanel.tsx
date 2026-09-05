@@ -1,10 +1,11 @@
 /**
  * 左侧用例库面板（PRD 第 2 期）：目录树 + 用例管理。
- * 对接后端 modules + cases 路由，支持新建目录/用例、重命名、删除、搜索、点击加载用例。
+ * 目录/用例的新增、重命名、删除通过节点上的图标直接操作（无需右键）。
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Dropdown, Input, Modal, Tree, message } from 'antd'
+import { Button, Input, Modal, Space, Tree, message } from 'antd'
 import type { TreeDataNode } from 'antd'
+import { DeleteOutlined, EditOutlined, FileAddOutlined, FolderAddOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, getErrorMessage } from '../../api/client'
 import type { CaseInfo, Module } from '../../api/types'
 
@@ -26,8 +27,6 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
   const [modalTitle, setModalTitle] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [targetParentId, setTargetParentId] = useState<string | null>(null)
-  // 当前选中的目录，用于「新建用例/目录」默认挂到该目录下
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!projectId) return
@@ -37,11 +36,8 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         api.listCaseLibraryCases(projectId),
       ])
       // 用例库只展示「用例」类型的目录，接口导入产生的 api 类型目录由接口管理面板负责
-      const caseModules = modList.filter((m) => m.type !== 'api')
-      setModules(caseModules)
+      setModules(modList.filter((m) => m.type !== 'api'))
       setCases(caseList)
-      // 项目切换或目录删除后，清理失效的选中目录，避免新建时引用已不存在的父目录
-      setSelectedModuleId((prev) => (prev && caseModules.some((m) => m.id === prev) ? prev : null))
     } catch (e) {
       message.error(getErrorMessage(e))
     }
@@ -115,9 +111,7 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
     }
     try {
       if (modalType === 'module') {
-        const m = await api.createModule(projectId, { name: nameInput.trim(), parentId: targetParentId })
-        // 新建目录后自动选中，后续新建用例默认挂在其下
-        setSelectedModuleId(m.id)
+        await api.createModule(projectId, { name: nameInput.trim(), parentId: targetParentId })
       } else if (modalType === 'case') {
         await api.createCase(projectId, { name: nameInput.trim(), moduleId: targetParentId })
       } else if (modalType === 'rename') {
@@ -140,9 +134,7 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
   const deleteNode = async (key: string) => {
     try {
       if (key.startsWith('module:')) {
-        const id = key.slice(7)
-        await api.deleteModule(id)
-        if (selectedModuleId === id) setSelectedModuleId(null)
+        await api.deleteModule(key.slice(7))
       } else if (key.startsWith('case:')) {
         await api.deleteCase(key.slice(5))
       }
@@ -153,31 +145,16 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
     }
   }
 
-  // 右键菜单
-  const renderContextMenu = (key: string, isModule: boolean) => ({
-    items: [
-      isModule
-        ? { key: 'new-module', label: '新建子目录' }
-        : null,
-      isModule
-        ? { key: 'new-case', label: '新建用例' }
-        : null,
-      { key: 'rename', label: '重命名' },
-      { key: 'delete', label: '删除', danger: true },
-    ].filter(Boolean) as { key: string; label: string; danger?: boolean }[],
-    onClick: ({ key: action }: { key: string }) => {
-      if (action === 'new-module') openModal('module', '新建子目录', isModule ? key.slice(7) : null)
-      if (action === 'new-case') openModal('case', '新建用例', isModule ? key.slice(7) : null)
-      if (action === 'rename') openModal('rename', '重命名', key)
-      if (action === 'delete') {
-        Modal.confirm({
-          title: '确认删除？',
-          content: isModule ? '删除目录将同步删除其下用例' : '删除用例',
-          onOk: () => deleteNode(key),
-        })
-      }
-    },
-  })
+  // 删除确认
+  const confirmDelete = (key: string, isModule: boolean) => {
+    Modal.confirm({
+      title: '确认删除？',
+      content: isModule ? '删除目录将同步删除其下子目录与用例' : '删除用例',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      onOk: () => deleteNode(key),
+    })
+  }
 
   const treeData = buildTree()
 
@@ -188,11 +165,12 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
         <Button type="text" size="small" onClick={onCollapse}>«</Button>
       </div>
 
-      {/* 工具栏 */}
+      {/* 工具栏：搜索 + 新建目录（用例入口放到目录节点上） */}
       <div style={{ padding: 8, display: 'flex', gap: 4 }}>
         <Input placeholder="搜索用例" size="small" value={keyword} onChange={(e) => setKeyword(e.target.value)} allowClear style={{ flex: 1 }} />
-        <Button size="small" onClick={() => openModal('module', '新建目录', selectedModuleId)}>目录</Button>
-        <Button size="small" type="primary" onClick={() => openModal('case', '新建用例', selectedModuleId)}>用例</Button>
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => openModal('module', '新建目录', null)}>
+          新建目录
+        </Button>
       </div>
 
       {/* 目录树 */}
@@ -205,15 +183,27 @@ export default function CaseLibraryPanel({ projectId, selectedCaseId, onCollapse
           onSelect={(keys) => {
             const k = String(keys[0] ?? '')
             if (k.startsWith('case:')) onSelectCase(k.slice(5))
-            else if (k.startsWith('module:')) setSelectedModuleId(k.slice(7))
           }}
           titleRender={(node) => {
             const key = String(node.key)
             const isModule = key.startsWith('module:')
+            const id = isModule ? key.slice(7) : key.slice(5)
             return (
-              <Dropdown menu={renderContextMenu(key, isModule)} trigger={['contextMenu']}>
-                <span style={{ display: 'inline-block', width: '100%' }}>{String(node.title)}</span>
-              </Dropdown>
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%', paddingRight: 4 }}>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {String(node.title)}
+                </span>
+                <Space size={0} onClick={(e) => e.stopPropagation()}>
+                  {isModule && (
+                    <>
+                      <Button type="text" size="small" icon={<FolderAddOutlined />} title="新建子目录" onClick={() => openModal('module', '新建子目录', id)} />
+                      <Button type="text" size="small" icon={<FileAddOutlined />} title="新建用例" onClick={() => openModal('case', '新建用例', id)} />
+                    </>
+                  )}
+                  <Button type="text" size="small" icon={<EditOutlined />} title="重命名" onClick={() => openModal('rename', '重命名', key, String(node.title))} />
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" onClick={() => confirmDelete(key, isModule)} />
+                </Space>
+              </div>
             )
           }}
         />
