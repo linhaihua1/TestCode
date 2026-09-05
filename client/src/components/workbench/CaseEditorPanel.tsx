@@ -3,7 +3,7 @@
  * 步骤类型：接口请求（引用接口 + 断言 + 提取）、脚本、等待、变量赋值。
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Input, InputNumber, Modal, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import { Alert, Button, Card, Input, InputNumber, Modal, Radio, Select, Space, Switch, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   DndContext,
   PointerSensor,
@@ -52,6 +52,17 @@ const REVIEW_ACTION: Record<string, { label: string; color: string }> = {
   reject: { label: '驳回', color: 'red' },
 }
 
+const JS_TEMPLATE = `// 脚本上下文：
+// context.get('变量名')  获取变量
+// context.set('变量名', 值)  设置变量
+const token = context.get('token') || ''
+console.log('token =', token)`
+
+const PY_TEMPLATE = `# context.get('变量名')  获取变量
+# context.set('变量名', 值)  设置变量
+token = context.get('token') or ''
+print('token =', token)`
+
 export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props) {
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
   const [name, setName] = useState('')
@@ -63,6 +74,11 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
   const [debugEnvId, setDebugEnvId] = useState<string | undefined>()
   const [debugResult, setDebugResult] = useState<{ status: string; duration: number; results: Array<{ id: string; name: string; type: string; status: string; message: string; request?: { method: string; url: string }; response?: { status: number; body: unknown; duration: number }; assertions?: Array<{ passed: boolean; message: string }>; extracted?: Record<string, string>; children?: Array<unknown> }>; variables: Record<string, string> } | null>(null)
   const [debugLoading, setDebugLoading] = useState(false)
+  // 调试临时变量 + 执行方式/模式
+  const [debugVars, setDebugVars] = useState<Array<{ key: string; value: string }>>([])
+  const [debugVarsOpen, setDebugVarsOpen] = useState(false)
+  const [runMode, setRunMode] = useState<'full' | 'step' | 'breakpoint'>('full')
+  const [execMethod, setExecMethod] = useState<'server' | 'local'>('server')
   // 状态/优先级/版本
   const [status, setStatus] = useState('draft')
   const [priority, setPriority] = useState('P2')
@@ -153,7 +169,11 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
     setDebugLoading(true)
     setDebugResult(null)
     try {
-      const r = await api.debugCaseInfo(caseId, { environmentId: debugEnvId })
+      const debugVarsRecord: Record<string, string> = {}
+      for (const v of debugVars) {
+        if (v.key.trim()) debugVarsRecord[v.key.trim()] = v.value
+      }
+      const r = await api.debugCaseInfo(caseId, { environmentId: debugEnvId, debugVars: debugVarsRecord })
       setDebugResult(r)
       message.success(r.status === 'success' ? '调试通过' : '调试完成，存在失败')
     } catch (e) {
@@ -362,48 +382,123 @@ export default function CaseEditorPanel({ projectId, caseId, onCollapse }: Props
         open={debugOpen}
         onCancel={() => setDebugOpen(false)}
         footer={null}
-        width={760}
+        width={900}
       >
-        <Space style={{ marginBottom: 16 }}>
-          <span>环境：</span>
-          <EnvironmentSelect projectId={projectId ?? ''} style={{ width: 220 }} value={debugEnvId} onChange={setDebugEnvId} />
-          <Button type="primary" loading={debugLoading} onClick={runDebug}>执行调试</Button>
-        </Space>
+        {/* 顶部：环境 + 临时变量 + 执行方式 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+          <Space>
+            <span style={{ color: '#999' }}>环境：</span>
+            <EnvironmentSelect projectId={projectId ?? ''} style={{ width: 200 }} value={debugEnvId} onChange={setDebugEnvId} />
+          </Space>
+          <Button size="small" onClick={() => setDebugVarsOpen(true)}>临时变量（{debugVars.length}）</Button>
+          <Space>
+            <span style={{ color: '#999' }}>执行方式：</span>
+            <Select
+              size="small"
+              style={{ width: 110 }}
+              value={execMethod}
+              onChange={setExecMethod}
+              options={[
+                { value: 'server', label: '服务端' },
+                { value: 'local', label: '本地', disabled: true },
+              ]}
+            />
+          </Space>
+        </div>
 
-        {debugResult && (
-          <div>
-            <div style={{ marginBottom: 12 }}>
-              <Tag color={debugResult.status === 'success' ? 'green' : 'red'}>{debugResult.status}</Tag>
-              <span style={{ color: '#999' }}>耗时 {debugResult.duration}ms</span>
+        {/* 中部：变量预览 / 执行日志 */}
+        <Card size="small" title={debugResult ? '执行结果' : '变量预览'} style={{ marginBottom: 12 }}>
+          {debugResult ? (
+            <div style={{ maxHeight: 320, overflow: 'auto' }}>
+              <div style={{ marginBottom: 12 }}>
+                <Tag color={debugResult.status === 'success' ? 'green' : 'red'}>{debugResult.status}</Tag>
+                <span style={{ color: '#999' }}>耗时 {debugResult.duration}ms</span>
+              </div>
+              {debugResult.results.map((r, i) => (
+                <Card
+                  key={i}
+                  size="small"
+                  title={
+                    <Space>
+                      <span>步骤 {i + 1}：{r.name}</span>
+                      <Tag color={r.status === 'PASS' ? 'green' : r.status === 'SKIP' ? 'default' : 'red'}>{r.status}</Tag>
+                    </Space>
+                  }
+                  style={{ marginBottom: 8 }}
+                >
+                  <div style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>{r.message}</div>
+                  {r.request && <div style={{ color: '#999', fontSize: 12 }}>{r.request.method} {r.request.url}</div>}
+                  {(r.assertions ?? []).map((a, j) => (
+                    <Alert key={j} type={a.passed ? 'success' : 'error'} showIcon message={a.message} style={{ marginBottom: 4 }} />
+                  ))}
+                  {r.extracted && Object.keys(r.extracted).length > 0 && (
+                    <div style={{ fontSize: 12 }}>
+                      提取：{Object.entries(r.extracted).map(([k, v]) => `${k}=${v}`).join('，')}
+                    </div>
+                  )}
+                </Card>
+              ))}
             </div>
-            {debugResult.results.map((r, i) => (
-              <Card
-                key={i}
-                size="small"
-                title={
-                  <Space>
-                    <span>
-                      步骤 {i + 1}：{r.name}
-                    </span>
-                    <Tag color={r.status === 'PASS' ? 'green' : r.status === 'SKIP' ? 'default' : 'red'}>{r.status}</Tag>
-                  </Space>
-                }
-                style={{ marginBottom: 8 }}
-              >
-                <div style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>{r.message}</div>
-                {r.request && <div style={{ color: '#999', fontSize: 12 }}>{r.request.method} {r.request.url}</div>}
-                {(r.assertions ?? []).map((a, j) => (
-                  <Alert key={j} type={a.passed ? 'success' : 'error'} showIcon message={a.message} style={{ marginBottom: 4 }} />
-                ))}
-                {r.extracted && Object.keys(r.extracted).length > 0 && (
-                  <div style={{ fontSize: 12 }}>
-                    提取：{Object.entries(r.extracted).map(([k, v]) => `${k}=${v}`).join('，')}
+          ) : (
+            <div>
+              {debugVars.length === 0 ? (
+                <div style={{ color: '#999', padding: 12, textAlign: 'center' }}>
+                  环境变量与全局变量在运行时按优先级合并，临时变量优先级最高
+                </div>
+              ) : (
+                debugVars.map((v, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                    <Tag>{v.key || '(未命名)'}</Tag>
+                    <span style={{ fontFamily: 'monospace' }}>{v.value}</span>
                   </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        )}
+                ))
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* 底部：执行模式 + 开始 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Radio.Group value={runMode} onChange={(e) => setRunMode(e.target.value)} optionType="button" buttonStyle="solid">
+            <Radio.Button value="full">全速运行</Radio.Button>
+            <Radio.Button value="step" disabled>单步调试</Radio.Button>
+            <Radio.Button value="breakpoint" disabled>断点调试</Radio.Button>
+          </Radio.Group>
+          <div style={{ flex: 1 }} />
+          <Button type="primary" loading={debugLoading} onClick={runDebug}>开始</Button>
+        </div>
+      </Modal>
+
+      {/* 临时变量编辑 */}
+      <Modal
+        title="调试临时变量"
+        open={debugVarsOpen}
+        onCancel={() => setDebugVarsOpen(false)}
+        onOk={() => setDebugVarsOpen(false)}
+        width={480}
+      >
+        {debugVars.map((v, i) => (
+          <Space key={i} style={{ display: 'flex', marginBottom: 8 }}>
+            <Input
+              size="small"
+              style={{ width: 160 }}
+              placeholder="变量名"
+              value={v.key}
+              onChange={(e) => setDebugVars((prev) => prev.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))}
+            />
+            <Input
+              size="small"
+              style={{ width: 200 }}
+              placeholder="变量值"
+              value={v.value}
+              onChange={(e) => setDebugVars((prev) => prev.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+            />
+            <Button size="small" type="text" danger onClick={() => setDebugVars((prev) => prev.filter((_, j) => j !== i))}>删</Button>
+          </Space>
+        ))}
+        <Button size="small" type="dashed" block onClick={() => setDebugVars((prev) => [...prev, { key: '', value: '' }])}>
+          添加变量
+        </Button>
       </Modal>
 
       {/* 版本历史 */}
@@ -531,6 +626,47 @@ function StepCard(props: {
   )
 }
 
+/** 控制器子步骤区域（THEN/ELSE 复用） */
+function ChildList(props: {
+  label: string
+  phase: CaseStep['phase']
+  children: CaseStep[]
+  apis: ApiDefinition[]
+  onChange: (children: CaseStep[]) => void
+}) {
+  const { label, phase, children, apis, onChange } = props
+  const addChild = () => {
+    const child: CaseStep = {
+      id: `child-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'request',
+      phase,
+      name: '子步骤',
+      enabled: true,
+      method: 'GET',
+      headers: [],
+      query: [],
+      assertions: [],
+      extracts: [],
+    }
+    onChange([...children, child])
+  }
+  return (
+    <div style={{ borderLeft: '2px solid #e0e0e0', paddingLeft: 8, marginTop: 8 }}>
+      <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{label}（{children.length}）</div>
+      {children.map((child, ci) => (
+        <StepCard
+          key={child.id}
+          step={child}
+          apis={apis}
+          onUpdate={(patch) => onChange(children.map((x, j) => (j === ci ? { ...x, ...patch } : x)))}
+          onRemove={() => onChange(children.filter((_, j) => j !== ci))}
+        />
+      ))}
+      <Button size="small" type="dashed" block onClick={addChild}>添加子步骤</Button>
+    </div>
+  )
+}
+
 /** 步骤编辑表单（根据类型） */
 function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (patch: Partial<CaseStep>) => void }) {
   const { step, apis, onUpdate } = props
@@ -567,22 +703,82 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
       )}
 
       {step.type === 'script' && (
-        <Input.TextArea rows={4} value={step.script} placeholder="JS 脚本，支持 ${变量}" onChange={(e) => onUpdate({ script: e.target.value })} />
+        <>
+          <Space size={8} style={{ width: '100%' }}>
+            <Select
+              size="small"
+              style={{ width: 130 }}
+              value={step.scriptLang ?? 'javascript'}
+              options={[
+                { value: 'javascript', label: 'JavaScript' },
+                { value: 'python', label: 'Python' },
+              ]}
+              onChange={(v) => onUpdate({ scriptLang: v })}
+            />
+            <Button
+              size="small"
+              onClick={() => onUpdate({ script: step.scriptLang === 'python' ? PY_TEMPLATE : JS_TEMPLATE })}
+            >
+              插入模板
+            </Button>
+          </Space>
+          <Input.TextArea
+            rows={5}
+            value={step.script}
+            placeholder={step.scriptLang === 'python' ? PY_TEMPLATE : JS_TEMPLATE}
+            onChange={(e) => onUpdate({ script: e.target.value })}
+            style={{ fontFamily: 'monospace' }}
+          />
+        </>
       )}
 
       {step.type === 'wait' && (
-        <Space>
-          <span>等待</span>
-          <InputNumber size="small" value={step.waitMs} onChange={(v) => onUpdate({ waitMs: v ?? 0 })} />
-          <span>毫秒</span>
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Select
+            size="small"
+            style={{ width: 160 }}
+            value={step.waitMode ?? 'fixed'}
+            options={[
+              { value: 'fixed', label: '固定等待' },
+              { value: 'condition', label: '条件等待' },
+            ]}
+            onChange={(v) => onUpdate({ waitMode: v })}
+          />
+          {(step.waitMode ?? 'fixed') === 'fixed' ? (
+            <Space>
+              <span>等待</span>
+              <InputNumber size="small" value={step.waitMs} onChange={(v) => onUpdate({ waitMs: v ?? 0 })} />
+              <span>毫秒</span>
+            </Space>
+          ) : (
+            <Space wrap>
+              <Input size="small" style={{ width: 220 }} value={step.waitCondition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ waitCondition: e.target.value })} />
+              <span>最大等待</span>
+              <InputNumber size="small" value={step.waitTimeout ?? 10000} onChange={(v) => onUpdate({ waitTimeout: v ?? 10000 })} />
+              <span>ms</span>
+              <span>轮询间隔</span>
+              <InputNumber size="small" value={step.waitInterval ?? 100} onChange={(v) => onUpdate({ waitInterval: v ?? 100 })} />
+              <span>ms</span>
+            </Space>
+          )}
         </Space>
       )}
 
       {step.type === 'variable' && (
-        <Space>
+        <Space wrap>
           <Input size="small" style={{ width: 160 }} value={step.varName} placeholder="变量名" onChange={(e) => onUpdate({ varName: e.target.value })} />
           <span>=</span>
-          <Input size="small" style={{ width: 200 }} value={step.varValue} placeholder="变量值" onChange={(e) => onUpdate({ varValue: e.target.value })} />
+          <Input size="small" style={{ width: 200 }} value={step.varValue} placeholder="变量值（支持 ${变量}）" onChange={(e) => onUpdate({ varValue: e.target.value })} />
+          <Select
+            size="small"
+            style={{ width: 110 }}
+            value={step.varMode ?? 'direct'}
+            options={[
+              { value: 'direct', label: '直接赋值' },
+              { value: 'expression', label: '表达式计算' },
+            ]}
+            onChange={(v) => onUpdate({ varMode: v })}
+          />
         </Space>
       )}
 
@@ -590,7 +786,7 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
         <>
           <Select
             size="small"
-            style={{ width: 140 }}
+            style={{ width: 150 }}
             value={step.controllerType}
             options={[
               { value: 'if', label: 'IF-ELSE 条件' },
@@ -600,64 +796,33 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
             onChange={(v) => onUpdate({ controllerType: v })}
           />
           {step.controllerType === 'if' && (
-            <Input size="small" value={step.condition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ condition: e.target.value })} />
+            <>
+              <Input size="small" value={step.condition} placeholder='条件表达式，如 ${status} == "ok"' onChange={(e) => onUpdate({ condition: e.target.value })} />
+              <ChildList label="THEN 区域" phase={step.phase} children={step.children ?? []} apis={apis} onChange={(children) => onUpdate({ children })} />
+              <ChildList label="ELSE 区域" phase={step.phase} children={step.elseChildren ?? []} apis={apis} onChange={(elseChildren) => onUpdate({ elseChildren })} />
+            </>
           )}
           {step.controllerType === 'for' && (
-            <Space>
-              <span>循环变量</span>
-              <Input size="small" style={{ width: 100 }} value={step.loopVar} placeholder="如 i" onChange={(e) => onUpdate({ loopVar: e.target.value })} />
-              <span>次数</span>
-              <InputNumber size="small" value={step.loopCount} onChange={(v) => onUpdate({ loopCount: v ?? 1 })} />
-            </Space>
+            <>
+              <Space>
+                <span>循环变量</span>
+                <Input size="small" style={{ width: 100 }} value={step.loopVar} placeholder="如 i" onChange={(e) => onUpdate({ loopVar: e.target.value })} />
+                <span>次数</span>
+                <InputNumber size="small" value={step.loopCount} onChange={(v) => onUpdate({ loopCount: v ?? 1 })} />
+              </Space>
+              <ChildList label="循环体" phase={step.phase} children={step.children ?? []} apis={apis} onChange={(children) => onUpdate({ children })} />
+            </>
           )}
           {step.controllerType === 'while' && (
-            <Space>
-              <Input size="small" style={{ width: 200 }} value={step.condition} placeholder="条件表达式" onChange={(e) => onUpdate({ condition: e.target.value })} />
-              <span>最大循环</span>
-              <InputNumber size="small" value={step.maxLoops} onChange={(v) => onUpdate({ maxLoops: v ?? 100 })} />
-            </Space>
+            <>
+              <Space wrap>
+                <Input size="small" style={{ width: 200 }} value={step.condition} placeholder="条件表达式" onChange={(e) => onUpdate({ condition: e.target.value })} />
+                <span>最大循环（必填）</span>
+                <InputNumber size="small" value={step.maxLoops} onChange={(v) => onUpdate({ maxLoops: v ?? 100 })} />
+              </Space>
+              <ChildList label="循环体" phase={step.phase} children={step.children ?? []} apis={apis} onChange={(children) => onUpdate({ children })} />
+            </>
           )}
-          <div style={{ borderLeft: '2px solid #e0e0e0', paddingLeft: 8 }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>子步骤（{step.children?.length ?? 0}）</div>
-            {(step.children ?? []).map((child, ci) => (
-              <StepCard
-                key={child.id}
-                step={child}
-                apis={apis}
-                onUpdate={(patch) => {
-                  const children = [...(step.children ?? [])]
-                  children[ci] = { ...children[ci], ...patch }
-                  onUpdate({ children })
-                }}
-                onRemove={() => {
-                  const children = (step.children ?? []).filter((_, j) => j !== ci)
-                  onUpdate({ children })
-                }}
-              />
-            ))}
-            <Button
-              size="small"
-              type="dashed"
-              block
-              onClick={() => {
-                const child: CaseStep = {
-                  id: `child-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                  type: 'request',
-                  phase: step.phase,
-                  name: '子步骤',
-                  enabled: true,
-                  method: 'GET',
-                  headers: [],
-                  query: [],
-                  assertions: [],
-                  extracts: [],
-                }
-                onUpdate({ children: [...(step.children ?? []), child] })
-              }}
-            >
-              添加子步骤
-            </Button>
-          </div>
         </>
       )}
     </Space>
@@ -667,18 +832,26 @@ function StepEditor(props: { step: CaseStep; apis: ApiDefinition[]; onUpdate: (p
 /** 简化的断言编辑器（state 版） */
 function AssertionMiniEditor(props: { value: Assertion[]; onChange: (v: Assertion[]) => void }) {
   const { value, onChange } = props
+  const upd = (i: number, patch: Partial<Assertion>) => onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   return (
     <div>
       <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 4 }}>断言（{value.length}）</div>
       {value.map((a, i) => (
-        <Space key={i} size={4} style={{ marginBottom: 4, display: 'flex' }}>
-          <Select size="small" style={{ width: 110 }} value={a.type} options={[{ value: 'statusCode', label: '状态码' }, { value: 'jsonPath', label: 'JSONPath' }, { value: 'header', label: '响应头' }, { value: 'regex', label: '正则' }]} onChange={(v) => onChange(value.map((x, j) => (j === i ? { ...x, type: v as Assertion['type'] } : x)))} />
-          <Input size="small" style={{ width: 160 }} value={a.expression} placeholder="表达式" onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, expression: e.target.value } : x)))} />
-          <Input size="small" style={{ width: 120 }} value={a.expected} placeholder="期望值" onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, expected: e.target.value } : x)))} />
-          <Button size="small" type="text" danger onClick={() => onChange(value.filter((_, j) => j !== i))}>删</Button>
-        </Space>
+        <div key={i} style={{ border: '1px solid #f0f0f0', borderRadius: 4, padding: 8, marginBottom: 8 }}>
+          <Space size={4} wrap style={{ marginBottom: 4 }}>
+            <Select size="small" style={{ width: 100 }} value={a.type} options={[{ value: 'statusCode', label: '状态码' }, { value: 'jsonPath', label: 'JSONPath' }, { value: 'header', label: '响应头' }, { value: 'regex', label: '正则' }]} onChange={(v) => upd(i, { type: v as Assertion['type'] })} />
+            <Select size="small" style={{ width: 92 }} value={a.operator ?? 'eq'} options={[{ value: 'eq', label: '等于' }, { value: 'ne', label: '不等于' }, { value: 'contains', label: '包含' }, { value: 'notContains', label: '不包含' }, { value: 'regex', label: '正则匹配' }, { value: 'gt', label: '大于' }, { value: 'lt', label: '小于' }]} onChange={(v) => upd(i, { operator: v as Assertion['operator'] })} />
+            <Input size="small" style={{ width: 140 }} value={a.expression} placeholder="表达式" onChange={(e) => upd(i, { expression: e.target.value })} />
+            <Input size="small" style={{ width: 120 }} value={a.expected} placeholder="期望值" onChange={(e) => upd(i, { expected: e.target.value })} />
+            <Button size="small" type="text" danger onClick={() => onChange(value.filter((_, j) => j !== i))}>删</Button>
+          </Space>
+          <Space size={4} wrap>
+            <Input size="small" style={{ width: 200 }} value={a.failMessage} placeholder="失败提示（可选）" onChange={(e) => upd(i, { failMessage: e.target.value })} />
+            <Select size="small" style={{ width: 110 }} value={a.failStrategy ?? 'continue'} options={[{ value: 'continue', label: '失败继续' }, { value: 'stop', label: '停止用例' }]} onChange={(v) => upd(i, { failStrategy: v as Assertion['failStrategy'] })} />
+          </Space>
+        </div>
       ))}
-      <Button size="small" type="dashed" block onClick={() => onChange([...value, { type: 'statusCode', expression: '', expected: '200', operator: 'eq' }])}>添加断言</Button>
+      <Button size="small" type="dashed" block onClick={() => onChange([...value, { type: 'statusCode', expression: '', expected: '200', operator: 'eq', failStrategy: 'continue' }])}>添加断言</Button>
     </div>
   )
 }
@@ -686,14 +859,16 @@ function AssertionMiniEditor(props: { value: Assertion[]; onChange: (v: Assertio
 /** 简化的提取编辑器（state 版） */
 function ExtractMiniEditor(props: { value: ExtractRule[]; onChange: (v: ExtractRule[]) => void }) {
   const { value, onChange } = props
+  const upd = (i: number, patch: Partial<ExtractRule>) => onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   return (
     <div>
       <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 4 }}>提取（{value.length}）</div>
       {value.map((e, i) => (
-        <Space key={i} size={4} style={{ marginBottom: 4, display: 'flex' }}>
-          <Input size="small" style={{ width: 120 }} value={e.name} placeholder="变量名" onChange={(ev) => onChange(value.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} />
-          <Select size="small" style={{ width: 110 }} value={e.type} options={[{ value: 'jsonPath', label: 'JSONPath' }, { value: 'header', label: '响应头' }, { value: 'regex', label: '正则' }]} onChange={(v) => onChange(value.map((x, j) => (j === i ? { ...x, type: v as ExtractRule['type'] } : x)))} />
-          <Input size="small" style={{ width: 160 }} value={e.expression} placeholder="表达式" onChange={(ev) => onChange(value.map((x, j) => (j === i ? { ...x, expression: ev.target.value } : x)))} />
+        <Space key={i} size={4} wrap style={{ marginBottom: 4, display: 'flex' }}>
+          <Input size="small" style={{ width: 110 }} value={e.name} placeholder="变量名" onChange={(ev) => upd(i, { name: ev.target.value })} />
+          <Select size="small" style={{ width: 100 }} value={e.type} options={[{ value: 'jsonPath', label: 'JSONPath' }, { value: 'header', label: '响应头' }, { value: 'regex', label: '正则' }]} onChange={(v) => upd(i, { type: v as ExtractRule['type'] })} />
+          <Input size="small" style={{ width: 150 }} value={e.expression} placeholder="表达式" onChange={(ev) => upd(i, { expression: ev.target.value })} />
+          <Input size="small" style={{ width: 110 }} value={e.defaultValue} placeholder="默认值" onChange={(ev) => upd(i, { defaultValue: ev.target.value })} />
           <Button size="small" type="text" danger onClick={() => onChange(value.filter((_, j) => j !== i))}>删</Button>
         </Space>
       ))}

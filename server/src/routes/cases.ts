@@ -4,6 +4,7 @@ import { prisma } from '../db.js'
 import { executeCaseSteps, type CaseStepDef } from '../engine/case-executor.js'
 import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
 import { recordAudit } from '../audit.js'
+import { fail } from '../error-codes.js'
 
 interface CaseBody {
   name?: string
@@ -34,7 +35,7 @@ export async function caseRoutes(app: FastifyInstance) {
   app.post('/api/projects/:projectId/cases', async (req, reply) => {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as CaseBody
-    if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
+    if (!body?.name) return fail(reply, 'CASE_NAME_EMPTY')
     const created = await prisma.caseInfo.create({
       data: {
         projectId,

@@ -4,6 +4,7 @@ import { prisma } from '../db.js'
 import { executeCaseSteps, type CaseStepDef, type StepExecResult } from '../engine/case-executor.js'
 import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
 import { recordAudit } from '../audit.js'
+import { fail } from '../error-codes.js'
 
 /**
  * 测试任务与报告路由（PRD 第 5 期）。
@@ -145,7 +146,7 @@ export async function testTaskRoutes(app: FastifyInstance) {
   app.post('/api/projects/:projectId/test-tasks', async (req, reply) => {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as TaskBody
-    if (!body?.name) return reply.code(400).send({ error: 'name 必填' })
+    if (!body?.name) return fail(reply, 'TASK_NAME_EMPTY')
     const created = await prisma.testTask.create({
       data: {
         projectId,
@@ -217,7 +218,7 @@ export async function testTaskRoutes(app: FastifyInstance) {
     if (!task) return reply.code(404).send({ error: '任务不存在' })
 
     const caseIds = parseCaseIds(task.caseIds)
-    if (caseIds.length === 0) return reply.code(400).send({ error: '任务未选择用例' })
+    if (caseIds.length === 0) return fail(reply, 'TASK_NO_CASES')
 
     const { baseUrl, envVars } = await loadEnvContext(task.environmentId)
     const globalVars = await loadGlobalVariables(task.projectId)

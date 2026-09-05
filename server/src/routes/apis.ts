@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
 import { debugCase, runCase } from '../engine/runner.js'
 import { recordAudit } from '../audit.js'
+import { fail } from '../error-codes.js'
 
 /**
  * 接口定义与接口用例相关的 REST 路由：
@@ -118,13 +119,17 @@ export async function apiRoutes(app: FastifyInstance) {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as ApiBody
     if (!body?.name || !body?.method || !body?.path) {
-      return reply.code(400).send({ error: 'name/method/path 必填' }) // 名称/方法/路径必填校验
+      return fail(reply, 'PARAM_INVALID', 'name/method/path 必填')
+    }
+    const validMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
+    if (!validMethods.includes(body.method.toUpperCase())) {
+      return fail(reply, 'METHOD_INVALID')
     }
     const created = await prisma.apiDefinition.create({
       data: {
         projectId,
         name: body.name,
-        method: body.method,
+        method: body.method.toUpperCase(),
         path: body.path,
         headers: body.headers ?? [], // 请求头缺省为空数组
         query: body.query ?? [], // 查询参数缺省为空数组
@@ -241,7 +246,7 @@ export async function apiRoutes(app: FastifyInstance) {
     const { projectId } = req.params as { projectId: string }
     const body = req.body as { content?: Record<string, unknown> }
     const doc = body?.content
-    if (!doc || typeof doc !== 'object') return reply.code(400).send({ error: 'OpenAPI 文档内容无效' })
+    if (!doc || typeof doc !== 'object') return fail(reply, 'SWAGGER_PARSE_FAIL')
 
     const paths = (doc.paths ?? {}) as Record<string, Record<string, unknown>>
     const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options']
@@ -276,7 +281,7 @@ export async function apiRoutes(app: FastifyInstance) {
     const body = req.body as { items?: ImportItem[] }
     const items = body?.items
     if (!Array.isArray(items) || items.length === 0) {
-      return reply.code(400).send({ error: '未提供有效的导入数据' })
+      return fail(reply, 'EXCEL_IMPORT_INVALID')
     }
     const result = await importApiItems(projectId, items)
     await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'import:excel', entityType: 'api', after: { created: result.created, skipped: result.skipped } })

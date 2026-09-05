@@ -73,6 +73,8 @@ export interface Assertion {
   expression: string // 表达式（如 JSONPath、响应头名、正则）
   expected: string // 期望值
   operator?: 'eq' | 'ne' | 'contains' | 'notContains' | 'regex' | 'gt' | 'lt' // 比较运算符
+  failMessage?: string // 失败提示
+  failStrategy?: 'continue' | 'stop' // 失败策略
 }
 
 /** 提取规则（从响应中抽取变量供后续步骤引用） */
@@ -80,6 +82,7 @@ export interface ExtractRule {
   name: string // 提取后的变量名
   type: 'jsonPath' | 'header' | 'regex' // 提取类型
   expression: string // 提取表达式
+  defaultValue?: string // 提取失败时的默认值
 }
 
 /** 接口用例内的单个步骤定义（多步骤用例） */
@@ -392,15 +395,22 @@ export interface CaseStep {
   extracts?: ExtractRule[] // 提取
   // 脚本步骤
   script?: string // 脚本内容
+  scriptLang?: 'javascript' | 'python' // 脚本语言
   // 等待步骤
-  waitMs?: number // 等待毫秒
+  waitMs?: number // 等待毫秒（固定等待）
+  waitMode?: 'fixed' | 'condition' // 等待方式
+  waitCondition?: string // 条件等待表达式
+  waitTimeout?: number // 条件等待最大等待时间(ms)
+  waitInterval?: number // 条件等待轮询间隔(ms)
   // 变量赋值步骤
   varName?: string // 变量名
   varValue?: string // 变量值
+  varMode?: 'direct' | 'expression' // 赋值方式：直接赋值 / 表达式计算
   // 流程控制器步骤
   controllerType?: ControllerType // 控制器类型
   condition?: string // 条件表达式（if/while 用）
-  children?: CaseStep[] // 控制器子步骤（嵌套，支持递归）
+  children?: CaseStep[] // 控制器子步骤（THEN 区域，嵌套，支持递归）
+  elseChildren?: CaseStep[] // IF 控制器 ELSE 区域子步骤
   loopVar?: string // for 循环变量名
   loopCount?: number // for 循环次数
   maxLoops?: number // while 最大循环次数

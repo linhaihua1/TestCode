@@ -23,6 +23,10 @@ export interface Assertion {
   expected: string
   /** 比较操作符，缺省为 eq（等于） */
   operator?: AssertionOperator
+  /** 失败提示文案 */
+  failMessage?: string
+  /** 失败策略：continue（继续）/ stop（停止后续步骤） */
+  failStrategy?: 'continue' | 'stop'
 }
 
 /** 单条断言的判定结果 */

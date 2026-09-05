@@ -16,6 +16,7 @@ import { caseRoutes } from './routes/cases.js'
 import { debugRecordRoutes } from './routes/debug-records.js'
 import { auditLogRoutes } from './routes/audit-logs.js'
 import { testTaskRoutes } from './routes/test-tasks.js'
+import { fail } from './error-codes.js'
 
 function isPublicPath(url: string): boolean {
   return (
@@ -35,7 +36,7 @@ export function buildApp(): FastifyInstance {
     if (isPublicPath(req.url)) return
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
-      return reply.code(401).send({ error: '未登录' })
+      return fail(reply, 'UNAUTHORIZED')
     }
     const token = authHeader.slice('Bearer '.length)
     let payload: { userId: string; username: string; role?: string }
@@ -43,7 +44,7 @@ export function buildApp(): FastifyInstance {
       payload = verifyToken(token)
       ;(req as unknown as { user: unknown }).user = payload
     } catch {
-      return reply.code(401).send({ error: '登录已过期，请重新登录' })
+      return fail(reply, 'UNAUTHORIZED')
     }
 
     // ---------- 权限（RBAC） ----------
@@ -51,11 +52,11 @@ export function buildApp(): FastifyInstance {
     const readOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method)
     // 只读用户禁止写操作（自服务改密码除外）
     if (role === 'viewer' && !readOnly && !req.url.startsWith('/api/auth/')) {
-      return reply.code(403).send({ error: '只读用户无写权限' })
+      return fail(reply, 'FORBIDDEN')
     }
     // 用户管理仅管理员可写
     if (req.url.startsWith('/api/users') && !readOnly && role !== 'admin') {
-      return reply.code(403).send({ error: '仅管理员可管理用户' })
+      return fail(reply, 'FORBIDDEN')
     }
   })
 

@@ -59,8 +59,9 @@ http.interceptors.response.use(
 export function getErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     // 优先读取后端返回的 error 字段，否则使用 axios 自带错误信息
-    const data = err.response?.data as { error?: string } | undefined
-    return data?.error ?? err.message
+    const data = err.response?.data as { code?: number; error?: string } | undefined
+    if (data?.error) return data.code ? `[${data.code}] ${data.error}` : data.error
+    return err.message
   }
   // 非 axios 错误：Error 取 message，其余转字符串
   return err instanceof Error ? err.message : String(err)
