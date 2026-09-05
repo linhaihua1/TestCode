@@ -1,8 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db.js'
-import { executeCaseSteps, type CaseStepDef } from '../engine/case-executor.js'
-import { buildMergedContext, loadGlobalVariables } from '../engine/resolver.js'
+import { runCaseDebug } from '../engine/debug-runner.js'
 import { recordAudit } from '../audit.js'
 import { fail } from '../error-codes.js'
 
@@ -194,64 +193,12 @@ export async function caseRoutes(app: FastifyInstance) {
   app.post('/api/case-info/:id/debug', async (req, reply) => {
     const { id } = req.params as { id: string }
     const body = req.body as { environmentId?: string; debugVars?: Record<string, string> }
-    const c = await prisma.caseInfo.findUnique({ where: { id } })
-    if (!c) return reply.code(404).send({ error: '用例不存在' })
-
-    // 加载环境变量 + 全局变量，构建变量上下文（四级优先级）
-    let envVars: Record<string, string> = {}
-    let baseUrl = ''
-    if (body?.environmentId) {
-      const env = await prisma.environment.findUnique({ where: { id: body.environmentId } })
-      if (env) {
-        baseUrl = env.baseUrl ?? ''
-        for (const kv of (env.variables as unknown as { key: string; value: string }[]) ?? []) {
-          envVars[kv.key] = kv.value
-        }
-      }
+    try {
+      return await runCaseDebug(id, body ?? {})
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.code(404).send({ error: message })
     }
-    const globalVars = await loadGlobalVariables(c.projectId)
-    const merged = buildMergedContext(globalVars, envVars, {}, body?.debugVars ?? {})
-
-    const steps = (c.steps as unknown as CaseStepDef[]) ?? []
-    const start = Date.now()
-    const { results, context } = await executeCaseSteps(steps, { baseUrl, initialVars: merged.vars })
-    const duration = Date.now() - start
-
-    const overall = results.every((r) => r.status === 'PASS')
-      ? 'success'
-      : results.some((r) => r.status === 'ERROR')
-        ? 'error'
-        : 'fail'
-
-    // 调试记录超过 1MB 时截断存储（第七部分边界条件）
-    const MAX_DEBUG_BYTES = 1024 * 1024
-    let stepResults: unknown = results
-    let extractedVars: unknown = context
-    let truncated = false
-    if (JSON.stringify(results).length > MAX_DEBUG_BYTES) {
-      stepResults = { truncated: true, message: '内容过大已截断' }
-      truncated = true
-    }
-    if (JSON.stringify(context).length > MAX_DEBUG_BYTES) {
-      extractedVars = { truncated: true, message: '内容过大已截断' }
-      truncated = true
-    }
-
-    // 记录调试记录
-    await prisma.debugRecord.create({
-      data: {
-        caseId: id,
-        caseNameSnapshot: c.name,
-        environmentId: body?.environmentId ?? null,
-        executeMode: 'server',
-        result: overall,
-        totalDuration: duration,
-        stepResults: stepResults as unknown as Prisma.InputJsonValue,
-        extractedVariables: extractedVars as unknown as Prisma.InputJsonValue,
-      },
-    })
-
-    return { status: overall, duration, results, variables: context, truncated }
   })
 
   // ---------- 回收站 ----------

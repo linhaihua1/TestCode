@@ -103,6 +103,8 @@ export const api = {
     http
       .post<{ created: number; skipped: number }>(`/projects/${projectId}/apis/import-batch`, { items })
       .then((r) => r.data),
+  generateCaseFromApi: (apiId: string) =>
+    http.post<CaseInfo>(`/apis/${apiId}/generate-case`).then((r) => r.data),
 
   // ---------- 接口用例（ApiCase） ----------
   listCases: (apiId: string) => http.get<ApiCase[]>(`/apis/${apiId}/cases`).then((r) => r.data),
@@ -279,6 +281,27 @@ export const api = {
   deleteDebugRecord: (id: string) => http.delete(`/debug-records/${id}`).then((r) => r.data),
   cleanDebugRecords: (days?: number) =>
     http.delete('/debug-records/clean', { data: { days } }).then((r) => r.data),
+  replayDebugRecord: (id: string) =>
+    http
+      .post<{ status: string; duration: number; results: unknown[]; variables: Record<string, string>; truncated: boolean }>(`/debug-records/${id}/replay`)
+      .then((r) => r.data),
+  compareDebugRecords: (a: string, b: string) =>
+    http
+      .get<{
+        a: { id: string; result: string; totalDuration: number; createdAt: string }
+        b: { id: string; result: string; totalDuration: number; createdAt: string }
+        diff: {
+          resultChanged: boolean
+          durationDelta: number
+          stepDiffs: Array<{ name: string; statusA: string; statusB: string; changed: boolean }>
+          varDiffs: {
+            added: Array<{ name: string; value: string }>
+            removed: Array<{ name: string; value: string }>
+            changed: Array<{ name: string; a: string; b: string }>
+          }
+        }
+      }>('/debug-records/compare', { params: { a, b } })
+      .then((r) => r.data),
 
   // ---------- 审计日志 ----------
   listAuditLogs: (params?: Record<string, string>) => {

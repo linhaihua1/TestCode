@@ -302,4 +302,42 @@ export async function apiRoutes(app: FastifyInstance) {
       return reply.type('text/plain').send(api.mockResponse ?? '')
     }
   })
+
+  // ---------- 一键生成用例 ----------
+  // 由接口定义生成一条接口用例（单请求步骤 + 默认状态码断言）
+  app.post('/api/apis/:id/generate-case', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const api = await prisma.apiDefinition.findUnique({ where: { id } })
+    if (!api) return reply.code(404).send({ error: '接口不存在' })
+
+    const step = {
+      id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'request',
+      phase: 'test',
+      name: api.name,
+      enabled: true,
+      apiId: api.id,
+      method: api.method,
+      url: api.path,
+      headers: api.headers,
+      query: api.query,
+      body: api.body ?? '',
+      assertions: [{ type: 'statusCode', expression: '', expected: '200', operator: 'eq', failStrategy: 'continue' }],
+      extracts: [],
+    }
+
+    const created = await prisma.caseInfo.create({
+      data: {
+        projectId: api.projectId,
+        name: `${api.name}（自动生成）`,
+        description: api.description ?? null,
+        status: 'draft',
+        priority: 'P2',
+        tags: api.tags as unknown as Prisma.InputJsonValue,
+        steps: [step] as unknown as Prisma.InputJsonValue,
+      },
+    })
+    await recordAudit({ user: (req as unknown as { user: { userId: string } }).user, action: 'create', entityType: 'case', entityId: created.id, after: { name: created.name } })
+    return created
+  })
 }

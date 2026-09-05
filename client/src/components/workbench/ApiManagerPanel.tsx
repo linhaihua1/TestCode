@@ -190,6 +190,15 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
     }
   }
 
+  const generateCase = async (apiId: string) => {
+    try {
+      const c = await api.generateCaseFromApi(apiId)
+      message.success(`已生成用例「${c.name}」`)
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
+
   const importFromUrl = async () => {
     if (!importUrl.trim()) {
       message.warning('请输入 Swagger/OpenAPI 文档地址')
@@ -274,6 +283,7 @@ export default function ApiManagerPanel({ projectId, onCollapse }: Props) {
             <List.Item
               style={{ padding: '6px 8px' }}
               actions={[
+                <Button key="gen" size="small" type="link" onClick={() => generateCase(a.id)}>生成用例</Button>,
                 <Button key="edit" size="small" type="link" onClick={() => { setEditing(a); form.setFieldsValue({ ...a }); setDrawerOpen(true) }}>编辑</Button>,
                 <Popconfirm key="del" title="确认删除？" onConfirm={() => remove(a.id)}>
                   <Button size="small" type="link" danger>删除</Button>
