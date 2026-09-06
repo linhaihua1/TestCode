@@ -1,11 +1,12 @@
 /**
  * UI 自动化测试报告页：参考 Allure 的图表化概览（独立于接口测试报告）。
  */
-import { useEffect, useState } from 'react'
-import { Alert, Card, Col, Row, Space, Statistic, Table, Tag, message } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Card, Col, Row, Space, Statistic, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { api, getErrorMessage } from '../api/client'
 import { useProject } from '../context/ProjectContext'
+import { exportPdf } from '../utils/pdf'
 import { Pie, Line } from '@ant-design/plots'
 import type { UiReport, UiScenarioCaseResult, UiStepResult } from '../api/types'
 
@@ -42,6 +43,7 @@ export default function UiReportList() {
   const { projectId } = useProject()
   const [reports, setReports] = useState<UiReport[]>([])
   const [loading, setLoading] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
 
   const load = async () => {
     if (!projectId) return
@@ -97,7 +99,11 @@ export default function UiReportList() {
   ]
 
   return (
-    <div>
+    <Card
+      title="UI 测试报告"
+      extra={<Button onClick={() => exportPdf('UI 测试报告', printRef.current)}>导出 PDF</Button>}
+    >
+      <div ref={printRef}>
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={4}>
@@ -230,6 +236,7 @@ export default function UiReportList() {
           }}
         />
       </Card>
-    </div>
+      </div>
+    </Card>
   )
 }

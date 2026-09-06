@@ -4,7 +4,7 @@
  * 展示每次 JMeter 压测的结果：汇总指标（含 P90/P95/P99、TPS、错误率）、
  * 响应时间与 TPS 趋势、成功失败分布、分接口统计与错误 TOP。
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
   Button,
@@ -25,6 +25,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { Line, Pie } from '@ant-design/plots'
 import { api, getErrorMessage } from '../api/client'
 import { useProject } from '../context/ProjectContext'
+import { exportPdf } from '../utils/pdf'
 import type { PerfErrorItem, PerfLabelStat, PerfMetrics, PerfReport, PerfSeriesPoint } from '../api/types'
 
 const STATUS_TAG: Record<string, { color: string; text: string }> = {
@@ -65,6 +66,7 @@ export default function PerfReportPage() {
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<PerfReport | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const detailRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     if (!projectId) return
@@ -251,9 +253,14 @@ export default function PerfReportPage() {
         onClose={() => setDetail(null)}
         destroyOnHidden
         loading={detailLoading}
+        extra={
+          <Button disabled={!detail} onClick={() => exportPdf(`压测报告 - ${detail?.name ?? ''}`, detailRef.current)}>
+            导出 PDF
+          </Button>
+        }
       >
         {detail && (
-          <div>
+          <div ref={detailRef}>
             {detail.status === 'error' && (
               <Alert style={{ marginBottom: 16 }} type="error" showIcon message="压测执行失败" description={detail.message} />
             )}

@@ -2,13 +2,14 @@
  * 测试报告页（接口自动化二级菜单）。
  * 选择测试任务，查看各次执行报告；参照 UI 自动化报告：统计卡片 + 状态分布/耗时趋势图表 + 报告明细。
  */
-import { useEffect, useState } from 'react'
-import { Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, message } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { Button, Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useSearchParams } from 'react-router-dom'
 import { Pie, Line } from '@ant-design/plots'
 import { api, getErrorMessage } from '../api/client'
 import { useProject } from '../context/ProjectContext'
+import { exportPdf } from '../utils/pdf'
 import type { CaseRunDetail, TestTask, TestTaskRun } from '../api/types'
 
 const STATUS_COLOR: Record<string, string> = {
@@ -36,6 +37,8 @@ export default function TestReportPage() {
   const [runs, setRuns] = useState<TestTaskRun[]>([])
   const [activeRun, setActiveRun] = useState<TestTaskRun | null>(null)
   const [loading, setLoading] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
+  const taskName = tasks.find((t) => t.id === taskId)?.name ?? '接口测试'
 
   // 加载任务列表（用于任务选择器）
   useEffect(() => {
@@ -173,9 +176,11 @@ export default function TestReportPage() {
             options={tasks.map((t) => ({ value: t.id, label: t.name }))}
             onChange={onTaskChange}
           />
+          <Button onClick={() => exportPdf(`${taskName} · 测试报告`, printRef.current)}>导出 PDF</Button>
         </Space>
       }
     >
+      <div ref={printRef}>
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={4}>
@@ -298,6 +303,7 @@ export default function TestReportPage() {
       ) : (
         <Empty description="请选择任务查看报告" />
       )}
+      </div>
     </Card>
   )
 }
