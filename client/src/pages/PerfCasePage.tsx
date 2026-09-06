@@ -400,7 +400,7 @@ export default function PerfCasePage() {
             </Col>
           </Row>
 
-          <Divider titlePlacement="left" plain>
+          <Divider titlePlacement="left" orientationMargin={0} plain>
             压测配置（对应 JMeter 线程组）
           </Divider>
           <Row gutter={12}>
@@ -527,7 +527,7 @@ export default function PerfCasePage() {
             在下面的请求 URL / 请求头 / 请求体中可用 <code>{'${变量名}'}</code> 引用，替换由 JMeter 执行时完成。
           </div>
 
-          <Divider titlePlacement="left" plain>
+          <Divider titlePlacement="left" orientationMargin={0} plain>
             请求步骤（对应 JMeter HTTP 请求）
           </Divider>
           <Form.List name="steps">
