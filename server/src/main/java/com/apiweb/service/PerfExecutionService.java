@@ -1,6 +1,7 @@
 package com.apiweb.service;
 
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.JmeterBootstrapper;
 import com.apiweb.entity.PerfCaseEntity;
 import com.apiweb.entity.PerfReportEntity;
 import com.apiweb.mapper.PerfCaseMapper;
@@ -8,12 +9,16 @@ import com.apiweb.mapper.PerfReportMapper;
 import com.apiweb.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.jmeter.engine.StandardJMeterEngine;
+import org.apache.jmeter.reporters.ResultCollector;
+import org.apache.jmeter.save.SaveService;
+import org.apache.jmeter.samplers.SampleSaveConfiguration;
+import org.apache.jorphan.collections.HashTree;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,8 +26,18 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 性能测试执行服务：生成 .jmx -> 调用本机 JMeter 命令行执行 -> 解析 .jtl 汇总指标。
- * JMeter 运行时发现顺序：JMETER_HOME 环境变量 -> server/jmeter/ 目录。
+ * 性能测试执行服务（嵌入式 JMeter）。
+ *
+ * <p>执行流程：
+ * <ol>
+ *   <li>{@link JmxBuilder} 把 PerfCase 配置生成 .jmx（in-memory）</li>
+ *   <li>{@link SaveService#loadTree} 解析成 HashTree</li>
+ *   <li>挂上 {@link ResultCollector} 监听器，把结果落到 .jtl（CSV）</li>
+ *   <li>{@link StandardJMeterEngine#runTest} 在当前 JVM 内执行（自带线程池）</li>
+ *   <li>{@link JtlParser} 把 .jtl 解析成指标</li>
+ * </ol>
+ *
+ * <p>整个流程不依赖任何外部进程：JMeter 引擎以 jar 依赖的形式随项目启动。
  */
 @Slf4j
 @Service
@@ -32,6 +47,7 @@ public class PerfExecutionService {
     private final PerfCaseMapper perfCaseMapper;
     private final PerfReportMapper perfReportMapper;
     private final OssService ossService;
+    private final JmeterBootstrapper jmeterBootstrapper;
 
     @Async
     public void executeAsync(EngineDtos.TaskMessage message) {
@@ -46,35 +62,48 @@ public class PerfExecutionService {
             return;
         }
         long start = System.currentTimeMillis();
+        File jtlFile = null;
+        StandardJMeterEngine engine = null;
         try {
-            File jmeterHome = findJmeterHome();
-            if (jmeterHome == null) {
-                throw new IllegalStateException("未找到 JMeter 运行时（设置 JMETER_HOME 或解压到 server/jmeter/）");
+            if (!jmeterBootstrapper.isInitialized()) {
+                throw new IllegalStateException("嵌入式 JMeter 未初始化完成");
             }
             File workDir = Files.createTempDirectory("apiweb-perf-").toFile();
-            File jmxFile = new File(workDir, runId + ".jmx");
-            File jtlFile = new File(workDir, runId + ".jtl");
+            jtlFile = new File(workDir, runId + ".jtl");
 
-            // 生成 .jmx
+            // 1. 生成 .jmx 并加载为测试计划树
             String jmx = JmxBuilder.build(perfCase);
+            File jmxFile = new File(workDir, runId + ".jmx");
             Files.writeString(jmxFile.toPath(), jmx);
+            HashTree testPlanTree = SaveService.loadTree(jmxFile);
 
-            // 执行 JMeter（非 GUI 模式）
-            ProcessBuilder pb = new ProcessBuilder(
-                    new File(jmeterHome, "bin/jmeter").getAbsolutePath(),
-                    "-n", "-t", jmxFile.getAbsolutePath(),
-                    "-l", jtlFile.getAbsolutePath(),
-                    "-Jjmeter.save.saveservice.output_format=csv");
-            pb.environment().put("JMETER_HOME", jmeterHome.getAbsolutePath());
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            boolean finished = process.waitFor(2, TimeUnit.HOURS);
-            if (!finished) {
-                process.destroyForcibly();
-                throw new IllegalStateException("JMeter 执行超时（2 小时）");
+            // 2. 创建结果收集器（直接写 .jtl CSV 文件，保留与旧版本兼容的字段顺序）
+            ResultCollector collector = createResultCollector(jtlFile);
+            Object[] root = testPlanTree.getArray();
+            if (root.length == 0) {
+                throw new IllegalStateException("生成的 .jmx 缺少根节点（TestPlan）");
+            }
+            testPlanTree.add(root[0], collector);
+
+            // 3. 同步执行（StandardJMeterEngine 是单次执行的，非线程安全）
+            engine = new StandardJMeterEngine();
+            engine.configure(testPlanTree);
+            engine.runTest();
+
+            // 4. 等待执行结束（最大 2 小时）
+            long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(2);
+            while (engine.isActive()) {
+                if (System.currentTimeMillis() > deadline) {
+                    engine.stopTest(true);
+                    throw new IllegalStateException("JMeter 执行超时（2 小时）");
+                }
+                Thread.sleep(500);
             }
 
-            // 解析 .jtl 汇总
+            // 5. 解析 .jtl
+            if (!jtlFile.exists() || jtlFile.length() == 0) {
+                throw new IllegalStateException("JMeter 未生成结果文件，请检查用例配置（线程数/持续时间）");
+            }
             JtlSummary summary = JtlParser.parse(jtlFile);
             report.setStatus(summary.errorCount == 0 && summary.sampleCount > 0
                     ? "success" : "failed");
@@ -97,20 +126,48 @@ public class PerfExecutionService {
             report.setStatus("error");
             report.setMessage(e.getMessage());
             report.setDuration((int) (System.currentTimeMillis() - start));
+        } finally {
+            if (engine != null) {
+                try {
+                    engine.stopTest(true);
+                } catch (Exception ignored) {
+                }
+            }
         }
         perfReportMapper.updateById(report);
     }
 
-    private File findJmeterHome() {
-        String env = System.getenv("JMETER_HOME");
-        if (env != null && new File(env, "bin/ApacheJMeter.jar").exists()) {
-            return new File(env);
-        }
-        File local = new File("jmeter");
-        if (new File(local, "bin/ApacheJMeter.jar").exists()) {
-            return local;
-        }
-        return null;
+    /**
+     * 构造一个 CSV 格式的 ResultCollector，输出与旧 JtlParser 兼容的字段顺序。
+     */
+    private ResultCollector createResultCollector(File jtlFile) {
+        ResultCollector collector = new ResultCollector();
+        SampleSaveConfiguration saveConfig = new SampleSaveConfiguration();
+        saveConfig.setFormatter("csv");
+        saveConfig.setAsXml(false);
+        saveConfig.setTime(true);
+        saveConfig.setLabel(true);
+        saveConfig.setCode(true);                 // responseCode
+        saveConfig.setMessage(true);
+        saveConfig.setThreadName(true);
+        saveConfig.setDataType(true);
+        saveConfig.setSuccess(true);
+        saveConfig.setFailureMessage(true);
+        saveConfig.setBytes(true);
+        saveConfig.setSentBytes(true);
+        saveConfig.setGrpThreads(true);
+        saveConfig.setAllThreads(true);
+        saveConfig.setURL(true);
+        saveConfig.setLatency(true);
+        saveConfig.setConnectTime(true);
+        saveConfig.setEncoding(false);
+        saveConfig.setIdleTime(false);
+        saveConfig.setTimestampFormat("ms");
+        saveConfig.setPrintFieldNames(true);
+        collector.setSaveConfig(saveConfig);
+        collector.setFilename(jtlFile.getAbsolutePath());
+        collector.setErrorLogging(false);
+        return collector;
     }
 
     /** .jtl 汇总统计 */
@@ -135,16 +192,25 @@ public class PerfExecutionService {
             Map<String, List<Long>> byLabel = new LinkedHashMap<>();
             Map<String, Integer> errorByMsg = new LinkedHashMap<>();
             int errors = 0;
-            for (int i = 1; i < lines.size(); i++) {
-                String[] cols = lines.get(i).split(",", -1);
+            // 跳过表头（若含 print_field_names=true，第一行是字段名）
+            int start = 0;
+            if (!lines.isEmpty() && lines.get(0).startsWith("timeStamp,")) {
+                start = 1;
+            }
+            for (int i = start; i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (line.isBlank()) {
+                    continue;
+                }
+                String[] cols = line.split(",", -1);
                 if (cols.length < 4) {
                     continue;
                 }
-                long ts = Long.parseLong(cols[0]);
-                long elapsed = Long.parseLong(cols[1]);
+                long ts = Long.parseLong(cols[0].trim());
+                long elapsed = Long.parseLong(cols[1].trim());
                 String label = cols[2];
                 String responseCode = cols[3];
-                boolean success = cols.length > 7 && "true".equalsIgnoreCase(cols[7]);
+                boolean success = cols.length > 7 && "true".equalsIgnoreCase(cols[7].trim());
                 timeStamps.add(ts);
                 elapsedList.add(elapsed);
                 byLabel.computeIfAbsent(label, k -> new ArrayList<>()).add(elapsed);
@@ -162,7 +228,7 @@ public class PerfExecutionService {
             List<Long> sorted = new ArrayList<>(elapsedList);
             sorted.sort(Long::compareTo);
             long minTs = timeStamps.stream().min(Long::compareTo).orElse(0L);
-            long maxTs = timeStamps.stream().max(Long::compareTo).orElse(0L) ;
+            long maxTs = timeStamps.stream().max(Long::compareTo).orElse(0L);
             double durationSec = Math.max(0.001, (maxTs - minTs + sorted.get(n - 1)) / 1000.0);
             double avg = elapsedList.stream().mapToLong(Long::longValue).average().orElse(0);
 
@@ -227,6 +293,15 @@ public class PerfExecutionService {
             sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
             sb.append("<jmeterTestPlan version=\"1.2\" properties=\"5.0\" jmeter=\"5.6\">\n");
             sb.append("  <hashTree>\n");
+            sb.append("    <TestPlan guiclass=\"TestPlanGui\" testclass=\"TestPlan\" ");
+            sb.append("testname=\"").append(escape(c.getName())).append("\">\n");
+            sb.append("      <boolProp name=\"TestPlan.functional_mode\">false</boolProp>\n");
+            sb.append("      <boolProp name=\"TestPlan.serialize_threadgroups\">false</boolProp>\n");
+            sb.append("      <elementProp name=\"TestPlan.user_defined_variables\" elementType=\"Arguments\">\n");
+            sb.append("        <collectionProp name=\"Arguments.arguments\"/>\n");
+            sb.append("      </elementProp>\n");
+            sb.append("    </TestPlan>\n");
+            sb.append("    <hashTree>\n");
             sb.append("    <ThreadGroup guiclass=\"ThreadGroupGui\" testclass=\"ThreadGroup\" ");
             sb.append("testname=\"").append(escape(c.getName())).append("\">\n");
             sb.append("      <stringProp name=\"ThreadGroup.num_threads\">")

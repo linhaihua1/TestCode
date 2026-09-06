@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <!-- 业务包 INFO -->
+        <Logger name="com.apiweb" level="INFO"/>
+        <!-- Spring 容器 WARN -->
+        <Logger name="org.springframework" level="WARN"/>
+        <Logger name="org.apache.ibatis" level="WARN"/>
+        <Logger name="org.apache.jmeter" level="WARN"/>
+        <Logger name="org.apache.commons" level="WARN"/>
+        <Logger name="org.apache.http" level="WARN"/>
+        <Logger name="com.zaxxer.hikari" level="WARN"/>
+        <Logger name="com.baomidou.mybatisplus" level="WARN"/>
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

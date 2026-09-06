@@ -10,7 +10,7 @@
 |---|---|
 | **接口自动化** | 三栏工作台（用例库 / 编写用例 / 接口管理）、多步骤用例（HTTP / IF / FOR / WHILE / SCRIPT）、断言 / 提取 / 变量、Swagger / Excel 导入、Mock、测试任务执行与报告、版本快照与评审流 |
 | **UI 自动化** | 基于 Selenium 驱动真实 Chrome、步骤编排（8 种定位方式）、失败自动截图、执行计划与报告 |
-| **性能测试（JMeter）** | 结构化用例编辑、固定/阶梯加压线程组、`.jmx` 导入导出、异步执行、实时进度、P90/P95/P99/TPS 等多维报告 |
+| **性能测试（嵌入式 JMeter）** | 结构化用例编辑、固定/阶梯加压线程组、`.jmx` 导入导出、异步执行、实时进度、P90/P95/P99/TPS 等多维报告 |
 | **权限与审计** | 管理员 / 成员 / 查看者三角色 RBAC，操作审计日志 |
 | **执行机资源池** | 执行机通过心跳注册到资源池，按能力（api/ui/perf）自动派发 |
 
@@ -123,6 +123,13 @@ codex-apiweb/
 - 执行机通过 `POST /api/executors/heartbeat` 注册到资源池（Redis 60s TTL + MySQL 持久化）
 - 平台侧定时（30s）扫描心跳超时节点，从资源池剔除
 - 任务派发时按执行机能力（`api/ui/perf`）挑选
+
+### 1.5 嵌入式 JMeter
+
+- Apache JMeter 5.6.3 作为 Maven 依赖打入 jar（`ApacheJMeter_core` / `ApacheJMeter_http` / `ApacheJMeter_java` / `jorphan`）
+- 应用启动时 `JmeterBootstrapper` 解压 4 个配置（`jmeter.properties` / `saveservice.properties` / `upgrade.properties` / `log4j2.xml`）到临时目录并调用 `JMeterUtils` 初始化
+- `PerfExecutionService` 直接调用 `StandardJMeterEngine + SaveService.loadTree + ResultCollector` 在当前 JVM 内同步执行压测，**不再依赖外部 `bin/jmeter` 命令或 `JMETER_HOME` 环境变量**
+- Spring Boot 默认 logback 替换为 log4j2（`spring-boot-starter-log4j2`），与 JMeter 内部日志体系打通
 
 ### 2. 大对象存储
 
