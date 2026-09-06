@@ -1,19 +1,44 @@
-import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers'
+import { fileURLToPath, URL } from 'node:url'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    vue(),
+    AutoImport({ resolvers: [AntDesignVueResolver()] }),
+    Components({ resolvers: [AntDesignVueResolver()] })
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
   server: {
-    // 忽略编辑器临时文件，避免文件监视器 EBUSY 崩溃
-    watch: {
-      ignored: ['**/*.tmpdir/**', '**/*.tmp'],
-    },
+    port: 5173,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:4000',
-        changeOrigin: true,
-      },
-    },
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   },
+  build: {
+    target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'monaco-editor': ['monaco-editor'],
+          'echarts': ['echarts', 'vue-echarts'],
+          'ant-design-vue': ['ant-design-vue']
+        }
+      }
+    }
+  },
+  optimizeDeps: {
+    include: ['monaco-editor/esm/vs/editor/editor.api']
+  }
 })

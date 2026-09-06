@@ -1,0 +1,98 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: api-web-server
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:api_web}?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${MYSQL_USER:apiweb}
+    password: ${MYSQL_PASSWORD:apiweb123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:apiweb}
+    password: ${RABBITMQ_PASSWORD:apiweb123}
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+        retry:
+          enabled: true
+          max-attempts: 3
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+    properties:
+      org.quartz.scheduler.instanceName: api-web-scheduler
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+      org.quartz.jobStore.isClustered: true
+      org.quartz.jobStore.clusterCheckinInterval: 10000
+      org.quartz.jobStore.tablePrefix: QRTZ_
+      org.quartz.threadPool.threadCount: 10
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: assign_uuid
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+
+# MinIO（超 1MB 的调试记录/报告请求体、响应体存这里，数据库只存引用路径）
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:apiweb}
+  secret-key: ${MINIO_SECRET_KEY:apiweb123}
+  bucket: ${MINIO_BUCKET:api-web}
+
+apiweb:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-0123456789abcdef}
+    expire-hours: 24
+  security:
+    # 免认证路径
+    permit-paths:
+      - /api/auth/login
+      - /api/auth/register
+      - /actuator/health
+  executor:
+    # 执行机心跳超时（秒），超时视为离线，从资源池剔除
+    heartbeat-timeout: 60
+  oss:
+    # 请求/响应体超过该大小（字节）时转存 MinIO
+    large-body-threshold: 1048576
+
+logging:
+  level:
+    com.apiweb: info
+    org.quartz: warn
