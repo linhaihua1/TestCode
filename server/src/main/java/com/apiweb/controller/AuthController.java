@@ -16,7 +16,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * 认证：登录 / 注册 / 当前用户信息。
+ * 认证相关接口。
+ *
+ * <p>提供登录、注册、改密、当前用户信息 4 个端点。
+ * 全部接口无需 token（白名单，由 {@code WebConfig} 排除 AuthInterceptor）。
+ *
+ * <h3>密码安全</h3>
+ * <ul>
+ *   <li>密码用 BCrypt 哈希存储（{@code BCryptPasswordEncoder}），不存明文</li>
+ *   <li>登录比对：{@code matches(rawPassword, hashedPassword)}</li>
+ *   <li>注册/改密：{@code encode(rawPassword)}</li>
+ * </ul>
+ *
+ * <h3>错误码约定</h3>
+ * <ul>
+ *   <li>用户名/密码错误 → 401 BizException</li>
+ *   <li>用户名已存在 → 400 BizException</li>
+ *   <li>原密码错误 → 400 BizException</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -28,20 +45,30 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
+    /**
+     * 登录请求体：用户名 + 密码。
+     */
     @Data
     public static class LoginRequest {
-        @NotBlank
+        @NotBlank(message = "用户名不能为空")
         private String username;
-        @NotBlank
+        @NotBlank(message = "密码不能为空")
         private String password;
     }
 
+    /**
+     * 登录接口。
+     *
+     * @param req 登录请求（用户名 + 密码）
+     * @return 成功返回 token + 用户基本信息；失败抛 BizException(401)
+     */
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@RequestBody @Validated LoginRequest req) {
         UserEntity user = userMapper.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserEntity>()
                         .eq(UserEntity::getUsername, req.getUsername()));
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
+            // 故意不区分"用户不存在"与"密码错"，避免账号枚举攻击
             throw BizException.unauthorized("用户名或密码错误");
         }
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
@@ -53,6 +80,11 @@ public class AuthController {
                         "role", user.getRole())));
     }
 
+    /**
+     * 用户注册（开放注册，生产环境可禁用或加权限）。
+     *
+     * <p>新用户默认角色为 {@code member}（普通成员），无管理权限。</p>
+     */
     @PostMapping("/register")
     public Result<Void> register(@RequestBody @Validated LoginRequest req) {
         Long exists = userMapper.selectCount(
@@ -69,6 +101,12 @@ public class AuthController {
         return Result.ok();
     }
 
+    /**
+     * 修改当前用户密码。
+     *
+     * @param body 含 {@code oldPassword} / {@code newPassword} 两个字段
+     *             newPassword 至少 6 位
+     */
     @PostMapping("/change-password")
     public Result<Void> changePassword(@RequestBody Map<String, String> body) {
         String oldPassword = body.get("oldPassword");
@@ -85,6 +123,9 @@ public class AuthController {
         return Result.ok();
     }
 
+    /**
+     * 获取当前登录用户信息（前端刷新页面时验证 token 有效性）。
+     */
     @GetMapping("/me")
     public Result<Map<String, Object>> me() {
         var u = UserContext.get();

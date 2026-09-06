@@ -26,8 +26,28 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 任务消费者：消费接口自动化任务，执行用例并落 TestTaskRun。
- * 手动 ack：执行成功 ack；失败也 ack（结果已记录在 run 表，避免无限重投）。
+ * 接口自动化任务消费者。
+ *
+ * <p>消费 RabbitMQ 队列 {@code apiweb.task.api.queue} 中的任务消息，调用 {@code CaseRunner} 执行用例，
+ * 结果写入 {@code t_test_task_run}。
+ *
+ * <h3>消息流</h3>
+ * <ol>
+ *   <li>Controller 调用 {@link TaskProducer} 投递 {@link EngineDtos.TaskMessage}</li>
+ *   <li>本消费者从队列取出，更新 run 状态为 "running"</li>
+ *   <li>组装变量（任务级 + 环境级 + 全局级），执行用例</li>
+ *   <li>支持任务级重试（{@code retryCount}）</li>
+ *   <li>把结果写到 run 详情（含详细执行步骤）</li>
+ *   <li>如有回调 URL，POST 执行结果给调用方</li>
+ *   <li>无论成败都 ack（结果已落库，避免无限重投）</li>
+ * </ol>
+ *
+ * <h3>为什么用手动 ack？</h3>
+ * <ul>
+ *   <li>执行结果已持久化到 MySQL，重投没有意义（会重复写 run 详情）</li>
+ *   <li>失败信息记录到 run.details.message，前端可显示</li>
+ *   <li>如果需要重试，应由用户在 UI 上重新触发，而非 RabbitMQ 自动重投</li>
+ * </ul>
  */
 @Slf4j
 @Component
@@ -39,6 +59,13 @@ public class ApiTaskConsumer {
     private final CaseMapper caseMapper;
     private final ExecutionSupportService executionSupport;
 
+    /**
+     * RabbitMQ 消息处理入口。
+     *
+     * @param message     反序列化后的任务消息
+     * @param channel     RabbitMQ Channel（用于手动 ack）
+     * @param deliveryTag 消息投递标签
+     */
     @RabbitListener(queues = RabbitMQConfig.API_TASK_QUEUE)
     public void onMessage(@Payload EngineDtos.TaskMessage message, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws Exception {
@@ -46,16 +73,21 @@ public class ApiTaskConsumer {
             process(message);
             channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
+            // 业务异常也 ack（结果已落库），避免 RabbitMQ 无限重投
             log.error("API 任务消费失败: runId={}", message.getRunId(), e);
             markError(message.getRunId(), e.getMessage());
             channel.basicAck(deliveryTag, false);
         }
     }
 
+    /**
+     * 业务逻辑：执行用例 + 写结果。
+     */
     private void process(EngineDtos.TaskMessage message) {
         String runId = message.getRunId();
         TestTaskRunEntity run = testTaskRunMapper.selectById(runId);
         if (run == null) {
+            // runId 可能已被清理，跳过即可
             log.warn("Run 不存在，忽略: {}", runId);
             return;
         }
@@ -70,7 +102,7 @@ public class ApiTaskConsumer {
             return;
         }
 
-        // 组装变量：任务变量 + 环境变量 + 全局变量
+        // 变量按优先级组装：任务级 > 环境级 > 全局级
         Map<String, String> vars = new LinkedHashMap<>();
         if (task != null) {
             vars.putAll(executionSupport.kvToMap(task.getVariables()));
@@ -81,11 +113,13 @@ public class ApiTaskConsumer {
 
         EngineDtos.ExecutionResult result = executionSupport.caseRunner()
                 .run(caseEntity.getSteps(), new VariablesResolver(vars));
+        // 任务级 baseUrl 覆盖环境变量（优先级最高）
         if (task != null && task.getBaseUrl() != null && !task.getBaseUrl().isBlank()) {
             vars.put("baseUrl", task.getBaseUrl());
         }
 
-        // 失败重试
+        // 失败重试（仅当 result != success 且 retryCount > 0 时触发）
+        // 注意：重试用全新变量池，避免上一次的提取变量污染
         int retry = task == null ? 0 : task.getRetryCount();
         int attempts = 0;
         while (!"success".equals(result.getResult()) && attempts < retry) {
@@ -94,13 +128,14 @@ public class ApiTaskConsumer {
                     .run(caseEntity.getSteps(), new VariablesResolver(new HashMap<>(vars)));
         }
 
+        // 写回结果
         run.setResult(result.getResult());
         run.setDuration((int) (System.currentTimeMillis() - start));
         run.setEndedAt(Instant.now());
         run.setDetails(executionSupport.offloadDetails(runId, JsonUtils.toJson(result)));
         testTaskRunMapper.updateById(run);
 
-        // 任务回调通知
+        // 异步通知（不阻塞消费流程）
         if (task != null && task.getNotifyUrl() != null && !task.getNotifyUrl().isBlank()) {
             executionSupport.notifyCallback(task.getNotifyUrl(), JsonUtils.toJson(Map.of(
                     "runId", runId, "taskId", task.getId(),
@@ -108,6 +143,9 @@ public class ApiTaskConsumer {
         }
     }
 
+    /**
+     * 异常情况兜底：把 run 标记为 error 并记录原因。
+     */
     private void markError(String runId, String message) {
         TestTaskRunEntity run = testTaskRunMapper.selectById(runId);
         if (run != null) {
