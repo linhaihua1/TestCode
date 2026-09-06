@@ -18,11 +18,13 @@
 tar -xzf api-web-<版本>-linux.tar.gz -C /opt
 cd /opt/api-web
 
-# 2) 一键安装（依赖 + 迁移 + 构建；AUTO_SEED=1 免交互写演示数据）
-bash deploy/install.sh
-
-# 3) 启动（后端 API 4000 + 前端 8080 一体，无需 Nginx）
+# 2) 一键安装并启动（首次自动装依赖→迁移→构建→启动；之后直接秒启动）
 bash deploy/start.sh
+
+#    可选参数：
+#      AUTO_SEED=1 bash deploy/start.sh   安装时免交互写演示数据
+#      bash deploy/start.sh --install     强制重装（依赖+构建）
+#      bash deploy/start.sh --install-only  只安装、不启动（同 bash deploy/install.sh）
 ```
 
 浏览器访问 `http://<服务器IP>:8080`，默认账号 `admin / admin@123`（若已写入演示数据）。
