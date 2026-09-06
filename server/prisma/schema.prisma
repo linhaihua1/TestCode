@@ -24,6 +24,8 @@ model Project {
   modules         Module[]
   cases           CaseInfo[]
   testTasks       TestTask[]
+  perfCases       PerfCase[]
+  perfReports     PerfReport[]
 }
 
 model Environment {
@@ -313,4 +315,45 @@ model AuditLog {
   after Json?
   ip String?
   createdAt DateTime @default(now())
+}
+
+// ---------- 性能测试（基于 JMeter） ----------
+// 用例：压测全局参数（线程/Ramp-Up/循环/时长/思考时间）+ HTTP 请求步骤
+// 保存时由 jmx-builder 转换为标准 .jmx，执行时交给 JMeter
+model PerfCase {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  threads       Int      @default(1) // 并发线程数
+  rampUp        Int      @default(1) // Ramp-Up（秒）
+  loops         Int      @default(1) // 循环次数（duration=0 时生效）
+  duration      Int      @default(0) // 持续时长（秒，>0 时按时间压测）
+  thinkTime     Int      @default(0) // 思考时间（毫秒）
+  onSampleError String   @default("continue") // 出错处理：continue/startnext/stopthread/stoptest
+  variables     Json     @default("[]") // 用户自定义变量（对应 JMeter User Defined Variables）
+  steps         Json     @default("[]") // HTTP 请求步骤
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  reports       PerfReport[]
+}
+
+// 报告：一次压测的结果（汇总指标 + 时序 + 分接口 + 错误 TOP）
+model PerfReport {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  caseId    String?
+  perfCase  PerfCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  name      String
+  status    String // success / failed / error
+  duration  Int       @default(0)
+  startedAt DateTime  @default(now())
+  summary   Json      @default("{}")
+  series    Json      @default("[]")
+  labels    Json      @default("[]")
+  errors    Json      @default("[]")
+  message   String?
 }

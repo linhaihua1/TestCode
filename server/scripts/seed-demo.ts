@@ -120,12 +120,48 @@ async function main() {
     },
   })
 
+  // 7. 性能测试用例（演示 JMeter 压测：结构化用例 → .jmx → 真实执行 → 报告）
+  const perfSteps = [
+    {
+      id: 's1',
+      name: '健康检查',
+      method: 'GET',
+      url: '${baseUrl}/api/health',
+      assertions: [{ type: 'responseCode', operator: 'equals', expected: '200' }],
+      enabled: true,
+    },
+    {
+      id: 's2',
+      name: '演示页面',
+      method: 'GET',
+      url: '${baseUrl}/demo/page',
+      assertions: [{ type: 'responseText', operator: 'contains', expected: 'Demo Page' }],
+      enabled: true,
+    },
+  ]
+  const perfCase = await prisma.perfCase.create({
+    data: {
+      projectId: project.id,
+      name: '演示压测：健康检查 + 演示页面',
+      description: '20 并发 × 5 循环；可导出 .jmx 用 JMeter GUI 打开，也可导入外部 JMeter 计划',
+      threads: 20,
+      rampUp: 2,
+      loops: 5,
+      duration: 0,
+      thinkTime: 0,
+      onSampleError: 'continue',
+      variables: [{ key: 'baseUrl', value: 'http://127.0.0.1:4000', enabled: true }],
+      steps: perfSteps as object[],
+    },
+  })
+
   console.log('✅ 演示数据创建成功：')
   console.log('  项目：', project.name)
   console.log('  环境：', env.name, '→', env.baseUrl)
   console.log('  场景：', scenario.name, '（2 步：登录 → 查询用户）')
   console.log('  UI 测试：', uiTest.name, '（5 步：打开 → 断言标题 → 断言元素 → 点击 → 断言文本）')
-  console.log('  执行方式：进入「场景自动化」或「UI 自动化」→ 编排 → 执行')
+  console.log('  压测用例：', perfCase.name, `（${perfCase.threads} 并发 × ${perfCase.loops} 循环，${perfSteps.length} 个请求）`)
+  console.log('  执行方式：进入「场景自动化」/「UI 自动化」/「性能测试」→ 编排 → 执行')
 }
 
 main()

@@ -5,4 +5,8 @@ dev.db-journal
 test.db
 test.db-journal
 .env
-bin/
+# 驱动与压测运行时：随项目存在但不提交。
+# 必须用 / 前缀锚定到 server/ 根，否则会连带忽略 src/engine/jmeter/ 等源码目录
+/bin/
+# 内置 JMeter 压测运行时（与 bin/chromedriver 同策略）
+/jmeter/

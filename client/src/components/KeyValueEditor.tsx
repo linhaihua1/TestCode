@@ -5,10 +5,11 @@
  * 复用为变量、请求头、Query 参数等的通用编辑控件。
  */
 import { Button, Form, Input, Space } from 'antd'
+import type { NamePath } from 'antd/es/form/interface'
 
 interface Props {
-  /** 表单字段名，对应 KeyValue[] 结构 */
-  name: string
+  /** 表单字段名，对应 KeyValue[] 结构；支持嵌套路径以便在 Form.List 内复用 */
+  name: NamePath
   label: string
   keyPlaceholder?: string // 键输入框占位提示
   valuePlaceholder?: string // 值输入框占位提示

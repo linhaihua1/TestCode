@@ -18,6 +18,10 @@ import type {
   Environment,
   GlobalVariable,
   Module,
+  PerfCase,
+  PerfEnvStatus,
+  PerfImportResult,
+  PerfReport,
   Project,
   Report,
   Scenario,
@@ -65,6 +69,50 @@ export function getErrorMessage(err: unknown): string {
   }
   // 非 axios 错误：Error 取 message，其余转字符串
   return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * 解析 Content-Disposition 中的下载文件名。
+ * 优先 RFC 5987 的 filename*（可携带中文），回退 filename=，最后用调用方给的兜底名。
+ */
+export function filenameFromDisposition(header: unknown, fallback: string): string {
+  const raw = Array.isArray(header) ? String(header[0] ?? '') : typeof header === 'string' ? header : ''
+  const extended = /filename\*=(?:UTF-8|utf-8)''([^;]+)/.exec(raw)
+  if (extended?.[1]) {
+    try {
+      return decodeURIComponent(extended[1].trim())
+    } catch {
+      /* 继续尝试普通形式 */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/.exec(raw)
+  return plain?.[1] ? plain[1].trim() : fallback
+}
+
+/** 触发浏览器下载 */
+function saveAsFile(content: Blob, filename: string): void {
+  const href = URL.createObjectURL(content)
+  const a = document.createElement('a')
+  a.href = href
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(href)
+}
+
+/** 文件下载类接口的响应体是文本，错误体同样是文本，需手工解出后端的 error 字段 */
+function downloadErrorMessage(err: unknown): Error {
+  const data = (err as { response?: { data?: unknown } })?.response?.data
+  if (typeof data === 'string' && data.trim()) {
+    try {
+      const parsed = JSON.parse(data) as { code?: number; error?: string }
+      if (parsed?.error) return new Error(parsed.code ? `[${parsed.code}] ${parsed.error}` : parsed.error)
+    } catch {
+      /* 非 JSON，按原始信息处理 */
+    }
+  }
+  return new Error(getErrorMessage(err))
 }
 
 // 后端调用集合，按业务域分组
@@ -328,4 +376,63 @@ export const api = {
   runTestTask: (id: string) => http.post<TestTaskRun>(`/test-tasks/${id}/run`).then((r) => r.data),
   listTestTaskRuns: (id: string) => http.get<TestTaskRun[]>(`/test-tasks/${id}/runs`).then((r) => r.data),
   getTestTaskRun: (id: string) => http.get<TestTaskRun>(`/test-task-runs/${id}`).then((r) => r.data),
+
+  // ---------- 性能测试（JMeter） ----------
+  /** JMeter 运行时是否就绪（内置 / JMETER_HOME / PATH） */
+  getPerfEnv: () => http.get<PerfEnvStatus>('/perf-env').then((r) => r.data),
+
+  listPerfCases: (projectId: string) =>
+    http.get<PerfCase[]>(`/projects/${projectId}/perf-cases`).then((r) => r.data),
+  createPerfCase: (projectId: string, data: Partial<PerfCase>) =>
+    http.post<PerfCase>(`/projects/${projectId}/perf-cases`, data).then((r) => r.data),
+  getPerfCase: (id: string) => http.get<PerfCase>(`/perf-cases/${id}`).then((r) => r.data),
+  updatePerfCase: (id: string, data: Partial<PerfCase>) =>
+    http.put<PerfCase>(`/perf-cases/${id}`, data).then((r) => r.data),
+  deletePerfCase: (id: string) => http.delete(`/perf-cases/${id}`).then((r) => r.data),
+  /** 执行压测（同步等待 JMeter 跑完，耗时等于压测时长） */
+  runPerfCase: (id: string, timeoutMs?: number) =>
+    http
+      .post<PerfReport>(`/perf-cases/${id}/run`, timeoutMs ? { timeoutMs } : {}, { timeout: 0 })
+      .then((r) => r.data),
+
+  /** 导入 JMeter 测试计划（可一次多个文件） */
+  importJmeter: (projectId: string, files: Array<{ filename: string; content: string }>) =>
+    http
+      .post<PerfImportResult>(`/projects/${projectId}/perf-cases/import`, { files })
+      .then((r) => r.data),
+
+  /** 导出单个用例为 .jmx 并触发下载 */
+  exportJmx: async (id: string, fallbackName: string) => {
+    try {
+      const res = await http.get(`/perf-cases/${id}/export`, { responseType: 'text' })
+      saveAsFile(
+        new Blob([String(res.data ?? '')], { type: 'application/octet-stream' }),
+        filenameFromDisposition(res.headers?.['content-disposition'], `${fallbackName}.jmx`),
+      )
+    } catch (e) {
+      throw downloadErrorMessage(e)
+    }
+  },
+
+  /** 批量导出：多个用例合并为一个 .jmx（每个用例一个线程组） */
+  exportJmxBundle: async (projectId: string, ids: string[], planName: string) => {
+    try {
+      const res = await http.post(
+        `/projects/${projectId}/perf-cases/export`,
+        { ids, planName },
+        { responseType: 'text' },
+      )
+      saveAsFile(
+        new Blob([String(res.data ?? '')], { type: 'application/octet-stream' }),
+        filenameFromDisposition(res.headers?.['content-disposition'], `${planName}.jmx`),
+      )
+    } catch (e) {
+      throw downloadErrorMessage(e)
+    }
+  },
+
+  listPerfReports: (projectId: string) =>
+    http.get<PerfReport[]>(`/projects/${projectId}/perf-reports`).then((r) => r.data),
+  getPerfReport: (id: string) => http.get<PerfReport>(`/perf-reports/${id}`).then((r) => r.data),
+  deletePerfReport: (id: string) => http.delete(`/perf-reports/${id}`).then((r) => r.data),
 }

@@ -81,6 +81,14 @@ export default function AppLayout() {
         { key: '/ui-reports', label: 'UI 测试报告' },
       ],
     },
+    {
+      key: 'performance',
+      label: '性能测试',
+      children: [
+        { key: '/perf-cases', label: '创建用例' },
+        { key: '/perf-reports', label: '测试报告' },
+      ],
+    },
     { key: '/environments', label: '环境配置' },
     // 系统管理入口仅管理员可见
     ...(isAdmin
@@ -124,7 +132,7 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          defaultOpenKeys={['api-automation', 'api-case', 'ui-automation']}
+          defaultOpenKeys={['api-automation', 'api-case', 'ui-automation', 'performance']}
           selectedKeys={selectedKey ? [selectedKey] : []}
           items={items}
           onClick={({ key }) => {

@@ -16,6 +16,7 @@ import { caseRoutes } from './routes/cases.js'
 import { debugRecordRoutes } from './routes/debug-records.js'
 import { auditLogRoutes } from './routes/audit-logs.js'
 import { testTaskRoutes } from './routes/test-tasks.js'
+import { perfRoutes } from './routes/perf-tests.js'
 import { fail } from './error-codes.js'
 import { prisma } from './db.js'
 
@@ -91,6 +92,7 @@ export function buildApp(): FastifyInstance {
   app.register(debugRecordRoutes)
   app.register(auditLogRoutes)
   app.register(testTaskRoutes)
+  app.register(perfRoutes)
 
   return app
 }

@@ -498,3 +498,121 @@ export interface TestTaskRun {
   details: CaseRunDetail[]
   summary?: RunSummary
 }
+
+// ==================== 性能测试（基于 JMeter） ====================
+
+/** 压测键值对（请求头 / Query / 自定义变量） */
+export interface PerfKeyValue {
+  key: string
+  value: string
+  enabled?: boolean
+}
+
+/** 压测断言：响应码 / 响应文本，等于 / 包含 */
+export interface PerfAssertion {
+  type: 'responseCode' | 'responseText'
+  operator: 'equals' | 'contains'
+  expected: string
+}
+
+/** 压测请求步骤（对应 JMeter HTTP Request 采样器） */
+export interface PerfStep {
+  id: string
+  name: string
+  method: string
+  url: string // 支持 JMeter ${变量}
+  headers?: PerfKeyValue[]
+  query?: PerfKeyValue[]
+  body?: string
+  assertions?: PerfAssertion[]
+  enabled?: boolean
+}
+
+/** 出错处理方式 */
+export type PerfOnError = 'continue' | 'startnext' | 'stopthread' | 'stoptest'
+
+/** 压测用例 */
+export interface PerfCase {
+  id: string
+  projectId: string
+  name: string
+  description?: string | null
+  threads: number // 并发线程数
+  rampUp: number // Ramp-Up（秒）
+  loops: number // 循环次数
+  duration: number // 持续时长（秒，0 表示按循环次数）
+  thinkTime: number // 思考时间（毫秒）
+  onSampleError: PerfOnError
+  variables: PerfKeyValue[] // 对应 JMeter 用户自定义变量
+  steps: PerfStep[]
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string | null
+}
+
+/** 压测汇总指标 */
+export interface PerfMetrics {
+  samples: number
+  errors: number
+  errorRate: number // 百分比
+  avg: number
+  min: number
+  max: number
+  median: number
+  p90: number
+  p95: number
+  p99: number
+  throughput: number // 每秒请求数
+}
+
+/** 时序采样点 */
+export interface PerfSeriesPoint {
+  t: number // 相对开始秒数
+  samples: number
+  errors: number
+  avg: number
+  max: number
+}
+
+/** 分接口统计 */
+export interface PerfLabelStat extends PerfMetrics {
+  label: string
+}
+
+/** 错误 TOP 项 */
+export interface PerfErrorItem {
+  code: string
+  message: string
+  count: number
+}
+
+/** 压测报告（列表接口不返回 series） */
+export interface PerfReport {
+  id: string
+  projectId: string
+  caseId?: string | null
+  name: string
+  status: 'success' | 'failed' | 'error'
+  duration: number
+  startedAt: string
+  summary: PerfMetrics
+  series?: PerfSeriesPoint[]
+  labels: PerfLabelStat[]
+  errors: PerfErrorItem[]
+  message?: string | null
+  perfCase?: { id: string; name: string; deletedAt?: string | null } | null
+}
+
+/** JMeter 导入结果 */
+export interface PerfImportResult {
+  created: Array<{ id: string; name: string }>
+  failed: Array<{ filename: string; reason: string }>
+}
+
+/** JMeter 运行时状态 */
+export interface PerfEnvStatus {
+  available: boolean
+  source: 'embedded' | 'env' | 'path' | null
+  home: string | null
+  javaHome: string | null
+}

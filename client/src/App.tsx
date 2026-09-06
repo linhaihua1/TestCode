@@ -21,6 +21,8 @@ import UiExecutePage from './pages/UiExecutePage'
 import EnvironmentConfigPage from './pages/EnvironmentConfigPage'
 import TestExecutionPage from './pages/TestExecutionPage'
 import TestReportPage from './pages/TestReportPage'
+import PerfCasePage from './pages/PerfCasePage'
+import PerfReportPage from './pages/PerfReportPage'
 import AuditLogPage from './pages/AuditLogPage'
 
 /** 应用根组件：定义路由表 */
@@ -55,6 +57,9 @@ export default function App() {
           <Route path="/ui-tests/:testId" element={<UiTestEditor />} />
           <Route path="/ui-scenarios" element={<UiExecutePage />} />
           <Route path="/ui-reports" element={<UiReportList />} />
+          {/* 性能测试（JMeter） */}
+          <Route path="/perf-cases" element={<PerfCasePage />} />
+          <Route path="/perf-reports" element={<PerfReportPage />} />
           {/* 环境配置 */}
           <Route path="/environments" element={<EnvironmentConfigPage />} />
           {/* 用户管理 */}
