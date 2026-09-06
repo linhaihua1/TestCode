@@ -489,8 +489,8 @@ export default function PerfCasePage() {
               </Form.Item>
             </Col>
             <Col span={5}>
-              <Form.Item name="rampUp" label="Ramp-Up（秒）" tooltip="多少秒内把线程全部拉起">
-                <InputNumber min={1} max={3600} style={{ width: '100%' }} />
+              <Form.Item name="rampUp" label="Ramp-Up" tooltip="多少秒内把线程全部拉起">
+                <InputNumber min={1} max={3600} addonAfter="秒" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={5}>
@@ -498,14 +498,14 @@ export default function PerfCasePage() {
                 <InputNumber min={1} max={100000} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col span={5}>
-              <Form.Item name="duration" label="持续时长（秒）" tooltip="填 0 表示按循环次数；> 0 表示在时长内循环压测">
-                <InputNumber min={0} max={86400} style={{ width: '100%' }} />
+            <Col span={4}>
+              <Form.Item name="duration" label="持续时长" tooltip="填 0 表示按循环次数；> 0 表示在时长内循环压测（单位：秒）">
+                <InputNumber min={0} max={86400} addonAfter="秒" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col span={4}>
-              <Form.Item name="thinkTime" label="思考时间（毫秒）" tooltip="每个请求后的停顿">
-                <InputNumber min={0} max={600000} step={100} style={{ width: '100%' }} />
+            <Col span={5}>
+              <Form.Item name="thinkTime" label="思考时间" tooltip="每个请求后的停顿（单位：毫秒）">
+                <InputNumber min={0} max={600000} step={100} addonAfter="毫秒" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
