@@ -25,3 +25,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Linux 部署安装包（打包产物，不提交）
+*.tar.gz

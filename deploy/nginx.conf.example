@@ -1,0 +1,35 @@
+# Api-Web Nginx 站点配置示例
+# 将本文件复制到 /etc/nginx/conf.d/api-web.conf，并按实际路径/域名修改。
+
+server {
+    listen 80;
+    server_name _;
+
+    # 前端静态资源（安装后 npm run build 已生成 client/dist）
+    root /opt/api-web/client/dist;
+    index index.html;
+
+    # SPA 前端路由回退
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API 反向代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # 压测执行耗时可能较长
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        client_max_body_size 50m;
+    }
+
+    # Mock 接口反向代理
+    location /mock/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_set_header Host $host;
+    }
+}
