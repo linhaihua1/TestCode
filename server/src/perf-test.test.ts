@@ -7,6 +7,7 @@ import { prisma } from './db.js'
 import { hashPassword } from './auth.js'
 import { locateJmeter } from './engine/jmeter/runner.js'
 import { parseJmx } from './engine/jmeter/jmx-parser.js'
+import { reapOrphanPerfRuns } from './routes/perf-tests.js'
 
 let app: FastifyInstance
 let auth: { authorization: string }
@@ -25,6 +26,18 @@ async function login(username: string, password: string, role: string) {
 async function newProject(name: string) {
   const res = await app.inject({ method: 'POST', url: '/api/projects', headers: auth, payload: { name } })
   return res.json() as { id: string }
+}
+
+/** 轮询报告直到离开 running 状态（异步执行的测试辅助） */
+async function waitForReport(id: string, timeoutMs = 120000): Promise<Record<string, any>> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const res = await app.inject({ method: 'GET', url: `/api/perf-reports/${id}`, headers: auth })
+    const r = res.json()
+    if (r.status !== 'running') return r
+    await new Promise((r) => setTimeout(r, 300))
+  }
+  throw new Error(`报告 ${id} 超时未完成`)
 }
 
 const casePayload = (name: string, url: string) => ({
@@ -361,13 +374,18 @@ describe('性能测试执行与报告', () => {
           headers: auth,
           payload: { timeoutMs: 60000 },
         })
-        expect(runRes.statusCode).toBe(200)
-        const report = runRes.json()
+        expect(runRes.statusCode).toBe(202)
+        const started = runRes.json()
+        expect(started.status).toBe('running')
+        expect(started.id).toBeTruthy()
+
+        const report = await waitForReport(started.id)
         expect(report.status).toBe('success')
         expect(report.summary.samples).toBe(4)
         expect(report.summary.errors).toBe(0)
         expect(report.summary.throughput).toBeGreaterThan(0)
         expect(report.series.length).toBeGreaterThan(0)
+        expect(report.series[0].threads).toBeGreaterThan(0) // 时序含活跃线程数
         expect(report.labels[0].label).toBe('健康检查')
 
         const listRes = await app.inject({
@@ -398,7 +416,7 @@ describe('性能测试执行与报告', () => {
     expect(res.statusCode).toBe(404)
   })
 
-  it('无请求步骤的用例执行后生成 error 报告且错误可见', async () => {
+  it('无请求步骤的用例执行前被拒（400），不产生垃圾报告', async () => {
     const project = await newProject('perf-empty-steps')
     const created = (
       await app.inject({
@@ -409,12 +427,10 @@ describe('性能测试执行与报告', () => {
       })
     ).json()
     const runRes = await app.inject({ method: 'POST', url: `/api/perf-cases/${created.id}/run`, headers: auth })
-    expect(runRes.statusCode).toBe(200)
-    const report = runRes.json()
-    expect(report.status).toBe('error')
-    expect(report.message).toBeTruthy()
-    expect(report.summary.samples).toBe(0)
-    expect(report.series).toEqual([])
+    expect(runRes.statusCode).toBe(400)
+    expect(runRes.json().error).toContain('没有')
+    const listRes = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/perf-reports`, headers: auth })
+    expect(listRes.json()).toHaveLength(0)
   })
 
   it('删除用例后历史报告仍可查看', async () => {
@@ -443,4 +459,148 @@ describe('性能测试执行与报告', () => {
     expect(detail.statusCode).toBe(200)
     expect(detail.json().summary.samples).toBe(10)
   })
+
+  it('/api/perf-plugins 探测第三方插件目录', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/perf-plugins', headers: auth })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.available).toBe(Boolean(jmeter))
+    expect(body.plugins.length).toBeGreaterThan(8)
+    const byId = Object.fromEntries(body.plugins.map((p: { id: string }) => [p.id, p]))
+    expect(byId['html-dashboard']).toBeTruthy()
+    expect(byId['graph-basic']).toBeTruthy()
+    expect(['installed', 'partial', 'missing']).toContain(byId['perfmon'].state)
+  })
+
+  it('加压方式（阶梯/目标并发）导出→解析→导入往返一致', async () => {
+    const project = await newProject('perf-profile')
+    const stepping = (
+      await app.inject({
+        method: 'POST',
+        url: `/api/projects/${project.id}/perf-cases`,
+        headers: auth,
+        payload: {
+          name: '阶梯加压',
+          threads: 8,
+          rampUp: 1,
+          loops: 2,
+          loadProfile: 'stepping',
+          stepping: { initialDelay: 3, batchThreads: 2, batchInterval: 2, flightTime: 4 },
+          steps: [{ name: 'h', method: 'GET', url: 'http://x/h' }],
+        },
+      })
+    ).json()
+
+    const xml = (await app.inject({ method: 'GET', url: `/api/perf-cases/${stepping.id}/export`, headers: auth })).body
+    expect(xml).toContain('kg.apc.jmeter.threads.SteppingThreadGroup')
+    expect(xml).toContain('Start users count')
+    const parsed = parseJmx(xml)
+    expect(parsed.loadProfile).toBe('stepping')
+    expect(parsed.stepping?.batchThreads).toBe(2)
+    expect(parsed.stepping?.initialDelay).toBe(3)
+
+    const imported = (
+      await app.inject({
+        method: 'POST',
+        url: `/api/projects/${project.id}/perf-cases/import`,
+        headers: auth,
+        payload: { filename: '阶梯.jmx', content: xml },
+      })
+    ).json()
+    const detail = (await app.inject({ method: 'GET', url: `/api/perf-cases/${imported.created[0].id}`, headers: auth })).json()
+    expect(detail.profile.loadProfile).toBe('stepping')
+    expect(detail.profile.stepping.batchThreads).toBe(2)
+
+    // 目标并发
+    const conc = (
+      await app.inject({
+        method: 'POST',
+        url: `/api/projects/${project.id}/perf-cases`,
+        headers: auth,
+        payload: {
+          name: '目标并发',
+          threads: 8,
+          loadProfile: 'concurrency',
+          concurrency: { steps: 4, holdTarget: 6, unit: 'S' },
+          steps: [{ name: 'h', method: 'GET', url: 'http://x/h' }],
+        },
+      })
+    ).json()
+    const cx = (await app.inject({ method: 'GET', url: `/api/perf-cases/${conc.id}/export`, headers: auth })).body
+    expect(cx).toContain('ConcurrencyThreadGroup')
+    expect(cx).toContain('TargetLevel')
+    const cp = parseJmx(cx)
+    expect(cp.loadProfile).toBe('concurrency')
+    expect(cp.concurrency?.holdTarget).toBe(6)
+    expect(cp.concurrency?.unit).toBe('S')
+  })
+
+  it('服务重启后回收孤儿 running 报告', async () => {
+    const project = await newProject('perf-orphan')
+    const report = await prisma.perfReport.create({
+      data: {
+        projectId: project.id,
+        name: '孤儿运行中',
+        status: 'running',
+        duration: 0,
+        summary: { samples: 0 },
+      },
+    })
+    const n = await reapOrphanPerfRuns()
+    expect(n).toBeGreaterThanOrEqual(1)
+    const detail = await prisma.perfReport.findUnique({ where: { id: report.id } })
+    expect(detail?.status).toBe('error')
+    expect(detail?.message).toContain('重启')
+  })
+
+  it.skipIf(!jmeter)(
+    '运行中可停止；同一用例重复执行返回 409；停止非运行报告返回 409',
+    async () => {
+      const server = createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: true }))
+      })
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+      const port = (server.address() as AddressInfo).port
+
+      try {
+        const project = await newProject('perf-stop')
+        const created = (
+          await app.inject({
+            method: 'POST',
+            url: `/api/projects/${project.id}/perf-cases`,
+            headers: auth,
+            payload: {
+              name: '可停止压测',
+              threads: 2,
+              duration: 60,
+              loops: 1,
+              steps: [{ name: 'h', method: 'GET', url: `http://127.0.0.1:${port}/h` }],
+            },
+          })
+        ).json()
+
+        const runRes = await app.inject({ method: 'POST', url: `/api/perf-cases/${created.id}/run`, headers: auth })
+        expect(runRes.statusCode).toBe(202)
+        const reportId = runRes.json().id
+
+        // 同一用例重复执行 → 409
+        const dup = await app.inject({ method: 'POST', url: `/api/perf-cases/${created.id}/run`, headers: auth })
+        expect(dup.statusCode).toBe(409)
+
+        const stopRes = await app.inject({ method: 'POST', url: `/api/perf-reports/${reportId}/stop`, headers: auth })
+        expect(stopRes.statusCode).toBe(200)
+
+        const report = await waitForReport(reportId)
+        expect(report.status).toBe('stopped')
+
+        // 已停止后再停 → 409
+        const again = await app.inject({ method: 'POST', url: `/api/perf-reports/${reportId}/stop`, headers: auth })
+        expect(again.statusCode).toBe(409)
+      } finally {
+        server.close()
+      }
+    },
+    120000,
+  )
 })

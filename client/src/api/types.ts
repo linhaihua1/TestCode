@@ -531,13 +531,31 @@ export interface PerfStep {
 /** 出错处理方式 */
 export type PerfOnError = 'continue' | 'startnext' | 'stopthread' | 'stoptest'
 
+/** 加压方式 */
+export type PerfLoadProfile = 'constant' | 'stepping' | 'concurrency'
+
+export interface PerfStepping {
+  initialDelay?: number
+  batchThreads?: number
+  batchInterval?: number
+  flightTime?: number
+  burstThreads?: number
+  burstInterval?: number
+}
+
+export interface PerfConcurrency {
+  steps?: number
+  holdTarget?: number
+  unit?: 'S' | 'M' | 'H' | 'D'
+}
+
 /** 压测用例 */
 export interface PerfCase {
   id: string
   projectId: string
   name: string
   description?: string | null
-  threads: number // 并发线程数
+  threads: number // 并发线程数（各加压方式下的目标并发）
   rampUp: number // Ramp-Up（秒）
   loops: number // 循环次数
   duration: number // 持续时长（秒，0 表示按循环次数）
@@ -545,6 +563,8 @@ export interface PerfCase {
   onSampleError: PerfOnError
   variables: PerfKeyValue[] // 对应 JMeter 用户自定义变量
   steps: PerfStep[]
+  /** 加压方式配置（后端存入 profile 字段） */
+  profile?: { loadProfile: PerfLoadProfile; stepping?: PerfStepping; concurrency?: PerfConcurrency }
   createdAt: string
   updatedAt: string
   deletedAt?: string | null
@@ -572,6 +592,18 @@ export interface PerfSeriesPoint {
   errors: number
   avg: number
   max: number
+  /** 活跃线程数（对应 Active Threads Over Time 监听器） */
+  threads: number
+  /** 该时刻各响应码出现次数 */
+  codes: Record<string, number>
+}
+
+/** 响应码分布（等价于 Response Codes per Second 汇总） */
+export interface PerfCodeStat {
+  code: string
+  count: number
+  avg: number
+  failed: boolean
 }
 
 /** 分接口统计 */
@@ -592,7 +624,7 @@ export interface PerfReport {
   projectId: string
   caseId?: string | null
   name: string
-  status: 'success' | 'failed' | 'error'
+  status: 'success' | 'failed' | 'error' | 'running' | 'stopped'
   duration: number
   startedAt: string
   summary: PerfMetrics
@@ -601,6 +633,12 @@ export interface PerfReport {
   errors: PerfErrorItem[]
   message?: string | null
   perfCase?: { id: string; name: string; deletedAt?: string | null } | null
+  /** 运行中叠加的实时信息 */
+  live?: boolean
+  elapsedMs?: number
+  expectedDurationMs?: number
+  liveSummary?: PerfMetrics
+  running?: boolean
 }
 
 /** JMeter 导入结果 */
@@ -615,4 +653,24 @@ export interface PerfEnvStatus {
   source: 'embedded' | 'env' | 'path' | null
   home: string | null
   javaHome: string | null
+}
+
+/** JMeter 第三方插件状态 */
+export interface PerfPluginStatus {
+  id: string
+  name: string
+  category: 'load' | 'monitor' | 'protocol' | 'data' | 'tool'
+  state: 'installed' | 'partial' | 'missing'
+  jars: string[]
+  capabilities: string[]
+  guiOnly?: boolean
+  note: string
+}
+
+export interface PerfPluginReport {
+  available: boolean
+  home?: string
+  source?: 'embedded' | 'env' | 'path'
+  plugins: PerfPluginStatus[]
+  counts: { installed: number; partial: number; missing: number }
 }

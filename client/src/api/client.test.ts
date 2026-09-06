@@ -137,12 +137,26 @@ describe('perf api（性能测试）', () => {
     expect(mocks.delete).toHaveBeenCalledWith('/perf-cases/c1')
   })
 
-  it('runPerfCase → POST /perf-cases/:id/run（不限时）', async () => {
-    mocks.post.mockResolvedValue({ data: { id: 'r1', status: 'success' } })
+  it('runPerfCase → POST /perf-cases/:id/run（异步，立即返回 running）', async () => {
+    mocks.post.mockResolvedValue({ data: { id: 'r1', status: 'running', startedAt: '2026-01-01' } })
     await api.runPerfCase('c1')
-    expect(mocks.post).toHaveBeenCalledWith('/perf-cases/c1/run', {}, { timeout: 0 })
+    expect(mocks.post).toHaveBeenCalledWith('/perf-cases/c1/run', {})
     await api.runPerfCase('c1', 60000)
-    expect(mocks.post).toHaveBeenLastCalledWith('/perf-cases/c1/run', { timeoutMs: 60000 }, { timeout: 0 })
+    expect(mocks.post).toHaveBeenLastCalledWith('/perf-cases/c1/run', { timeoutMs: 60000 })
+  })
+
+  it('stopPerfReport → POST /perf-reports/:id/stop', async () => {
+    mocks.post.mockResolvedValue({ data: { ok: true, status: 'stopping' } })
+    const r = await api.stopPerfReport('r1')
+    expect(mocks.post).toHaveBeenCalledWith('/perf-reports/r1/stop')
+    expect(r.status).toBe('stopping')
+  })
+
+  it('getPerfPlugins → GET /perf-plugins', async () => {
+    mocks.get.mockResolvedValue({ data: { available: true, plugins: [], counts: { installed: 0, partial: 0, missing: 0 } } })
+    const r = await api.getPerfPlugins()
+    expect(mocks.get).toHaveBeenCalledWith('/perf-plugins')
+    expect(r.available).toBe(true)
   })
 
   it('importJmeter → POST 多文件', async () => {

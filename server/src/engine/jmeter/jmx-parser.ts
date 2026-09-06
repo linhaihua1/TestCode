@@ -112,16 +112,51 @@ export function parseJmx(xml: string): PerfCaseModel {
   const variables = plan ? readArguments(plan, 'Argument.name', 'Argument.value') : []
 
   // 线程组参数（取第一个；没有线程组的计划无法压测）
-  const tg = findAll(root, 'ThreadGroup')[0]
+  // 支持 JMeter 原生 ThreadGroup 与常见插件线程组（阶梯加压 / 目标并发）
+  const TG_NAMES = [
+    'ThreadGroup',
+    'kg.apc.jmeter.threads.SteppingThreadGroup',
+    'com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup',
+    'com.blazemeter.jmeter.threads.arrivals.ArrivalsThreadGroup',
+  ]
+  let tg: XmlNode | undefined
+  for (const n of TG_NAMES) {
+    tg = findAll(root, n)[0]
+    if (tg) break
+  }
   if (!tg) throw new Error('该 JMeter 计划中没有线程组（Thread Group），无法导入为压测用例')
-  const threads = Number(getProp(tg, 'ThreadGroup.num_threads') ?? 1) || 1
-  const rampUp = Number(getProp(tg, 'ThreadGroup.ramp_time') ?? 1) || 1
+
+  const threads = Number(getProp(tg, 'ThreadGroup.num_threads') ?? getProp(tg, 'TargetLevel') ?? 1) || 1
+  const rampUp = Number(getProp(tg, 'ThreadGroup.ramp_time') ?? getProp(tg, 'RampUp') ?? 1) || 1
   const scheduler = (getProp(tg, 'ThreadGroup.scheduler') ?? 'false') === 'true'
   const duration = scheduler ? Number(getProp(tg, 'ThreadGroup.duration') ?? 0) || 0 : 0
   const controller = getElementProp(tg, 'ThreadGroup.main_controller')
   let loops = Number(controller ? getProp(controller, 'LoopController.loops') : 1) || 1
   if (loops < 0) loops = 1 // 按时间压测时循环为无限
   const onSampleError = (getProp(tg, 'ThreadGroup.on_sample_error') ?? 'continue') as PerfCaseModel['onSampleError']
+
+  // 加压方式：识别插件线程组并回读其参数
+  let loadProfile: PerfCaseModel['loadProfile'] = 'constant'
+  let stepping: PerfCaseModel['stepping']
+  let concurrency: PerfCaseModel['concurrency']
+  if (tg.name === 'kg.apc.jmeter.threads.SteppingThreadGroup') {
+    loadProfile = 'stepping'
+    stepping = {
+      initialDelay: Number(getProp(tg, 'Threads initial delay') ?? 0) || 0,
+      batchThreads: Number(getProp(tg, 'Start users count') ?? 1) || 1,
+      batchInterval: Number(getProp(tg, 'Start users period') ?? 1) || 1,
+      flightTime: Number(getProp(tg, 'flightTime') ?? 0) || 0,
+      burstThreads: Number(getProp(tg, 'Start users count burst') ?? 0) || 0,
+      burstInterval: Number(getProp(tg, 'Stop users period') ?? 0) || 0,
+    }
+  } else if (tg.name === 'com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup') {
+    loadProfile = 'concurrency'
+    concurrency = {
+      steps: Number(getProp(tg, 'Steps') ?? 1) || 1,
+      holdTarget: Number(getProp(tg, 'Hold') ?? 0) || 0,
+      unit: ((getProp(tg, 'Unit') ?? 'S') as 'S' | 'M' | 'H' | 'D') || 'S',
+    }
+  }
 
   // 仅取该线程组子树内的元素：多线程组计划导入时不会混入其它线程组的请求
   const scope = descendantsOf(tg, childMap)
@@ -158,5 +193,18 @@ export function parseJmx(xml: string): PerfCaseModel {
     }
   })
 
-  return { name, threads, rampUp, loops, duration, thinkTime, onSampleError, variables, steps }
+  return {
+    name,
+    threads,
+    rampUp,
+    loops,
+    duration,
+    thinkTime,
+    onSampleError,
+    variables,
+    steps,
+    loadProfile,
+    ...(loadProfile === 'stepping' ? { stepping } : {}),
+    ...(loadProfile === 'concurrency' ? { concurrency } : {}),
+  }
 }

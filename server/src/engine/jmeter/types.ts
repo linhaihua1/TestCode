@@ -39,10 +39,35 @@ export interface PerfStep {
 /** 出错处理方式（对应 JMeter ThreadGroup.on_sample_error） */
 export type PerfOnError = 'continue' | 'startnext' | 'stopthread' | 'stoptest'
 
+/**
+ * 加压方式（对应不同的线程组元件）：
+ * - constant     固定并发：JMeter 原生 ThreadGroup，rampUp 内拉起 threads 后按循环/时长压
+ * - stepping     阶梯加压：Stepping Thread Group（插件），按批次递增到目标并发并保持
+ * - concurrency  目标并发：Concurrency Thread Group（插件），阶梯逼近目标并发
+ */
+export type PerfLoadProfile = 'constant' | 'stepping' | 'concurrency'
+
+/** 阶梯加压参数 */
+export interface PerfStepping {
+  initialDelay?: number // 初始等待（秒）
+  batchThreads?: number // 每批递增线程数
+  batchInterval?: number // 每批间隔（秒）
+  flightTime?: number // 到达目标后保持（秒）
+  burstThreads?: number // 突增量
+  burstInterval?: number // 突增间隔（秒）
+}
+
+/** 目标并发参数 */
+export interface PerfConcurrency {
+  steps?: number // 阶梯数
+  holdTarget?: number // 达标后保持时长（按 unit）
+  unit?: 'S' | 'M' | 'H' | 'D'
+}
+
 /** 性能测试用例模型 */
 export interface PerfCaseModel {
   name: string
-  threads: number // 并发线程数
+  threads: number // 并发线程数（各加压方式下的目标并发）
   rampUp: number // Ramp-Up 秒
   loops: number // 循环次数（duration=0 时生效）
   duration: number // 持续时长秒（>0 时启用调度器，按时间压测）
@@ -50,4 +75,8 @@ export interface PerfCaseModel {
   onSampleError: PerfOnError
   variables: PerfKeyValue[] // 用户自定义变量
   steps: PerfStep[]
+  /** 加压方式，缺等价于 constant */
+  loadProfile?: PerfLoadProfile
+  stepping?: PerfStepping
+  concurrency?: PerfConcurrency
 }

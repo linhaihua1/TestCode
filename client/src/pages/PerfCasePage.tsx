@@ -13,7 +13,6 @@ import {
   Card,
   Checkbox,
   Col,
-  Descriptions,
   Divider,
   Drawer,
   Form,
@@ -119,6 +118,9 @@ export default function PerfCasePage() {
         duration: record.duration,
         thinkTime: record.thinkTime,
         onSampleError: record.onSampleError,
+        loadProfile: record.profile?.loadProfile ?? 'constant',
+        stepping: record.profile?.stepping ?? {},
+        concurrency: record.profile?.concurrency ?? {},
         variables: record.variables ?? [],
         steps: (record.steps ?? []).map((s) => ({ ...s, headers: s.headers ?? [], query: s.query ?? [], assertions: s.assertions ?? [] })),
       })
@@ -161,7 +163,8 @@ export default function PerfCasePage() {
       message.warning('该用例没有请求步骤，请先编辑添加')
       return
     }
-    if (record.duration > 0) {
+    const isTimed = record.duration > 0
+    if (isTimed) {
       const ok = await new Promise<boolean>((resolve) =>
         Modal.confirm({
           title: '确认开始压测？',
@@ -173,36 +176,11 @@ export default function PerfCasePage() {
       if (!ok) return
     }
     setRunningId(record.id)
-    const hide = message.loading(`正在压测「${record.name}」，请稍候…`, 0)
     try {
-      const report = await api.runPerfCase(record.id)
-      hide()
-      const s = report.summary
-      Modal.confirm({
-        title: report.status === 'success' ? '压测完成' : report.status === 'failed' ? '压测完成（存在失败请求）' : '压测执行失败',
-        width: 560,
-        content: (
-          <div>
-            {report.status === 'error' ? (
-              <Alert type="error" showIcon message="未能获得压测结果" description={report.message} />
-            ) : (
-              <Descriptions size="small" column={2} bordered items={[
-                { key: '1', label: '请求总数', children: s.samples },
-                { key: '2', label: '失败数', children: `${s.errors}（${s.errorRate}%）` },
-                { key: '3', label: '平均响应', children: `${s.avg} ms` },
-                { key: '4', label: 'TPS', children: s.throughput },
-                { key: '5', label: 'P90 / P95 / P99', children: `${s.p90} / ${s.p95} / ${s.p99} ms` },
-                { key: '6', label: '耗时', children: `${Math.round(report.duration / 1000)} s` },
-              ]} />
-            )}
-          </div>
-        ),
-        okText: '查看报告',
-        cancelText: '留在本页',
-        onOk: () => navigate('/perf-reports'),
-      })
+      await api.runPerfCase(record.id)
+      message.success(`压测「${record.name}」已启动，可在测试报告页查看实时进度`)
+      navigate('/perf-reports')
     } catch (e) {
-      hide()
       message.error('执行失败：' + getErrorMessage(e))
     } finally {
       setRunningId(null)
@@ -404,6 +382,7 @@ export default function PerfCasePage() {
             duration: 0,
             thinkTime: 0,
             onSampleError: 'continue',
+            loadProfile: 'constant',
             variables: [],
             steps: [],
           }}
@@ -424,6 +403,85 @@ export default function PerfCasePage() {
           <Divider titlePlacement="left" plain>
             压测配置（对应 JMeter 线程组）
           </Divider>
+          <Row gutter={12}>
+            <Col span={6}>
+              <Form.Item
+                name="loadProfile"
+                label="加压方式"
+                tooltip="固定并发：原生线程组；阶梯加压/目标并发：JMeter 插件线程组（需运行时已装对应插件）"
+              >
+                <Select
+                  options={[
+                    { value: 'constant', label: '固定并发' },
+                    { value: 'stepping', label: '阶梯加压' },
+                    { value: 'concurrency', label: '目标并发' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={18}>
+              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.loadProfile !== cur.loadProfile}>
+                {({ getFieldValue }) => {
+                  const lp = getFieldValue('loadProfile') ?? 'constant'
+                  if (lp === 'stepping') {
+                    return (
+                      <Row gutter={12}>
+                        <Col span={6}>
+                          <Form.Item name={['stepping', 'initialDelay']} label="初始延迟(s)">
+                            <InputNumber min={0} max={3600} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item name={['stepping', 'batchThreads']} label="每批+线程">
+                            <InputNumber min={1} max={2000} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item name={['stepping', 'batchInterval']} label="每批间隔(s)">
+                            <InputNumber min={1} max={3600} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item name={['stepping', 'flightTime']} label="峰值保持(s)">
+                            <InputNumber min={0} max={86400} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    )
+                  }
+                  if (lp === 'concurrency') {
+                    return (
+                      <Row gutter={12}>
+                        <Col span={8}>
+                          <Form.Item name={['concurrency', 'steps']} label="阶梯数">
+                            <InputNumber min={1} max={1000} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name={['concurrency', 'holdTarget']} label="达标保持">
+                            <InputNumber min={0} max={86400} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name={['concurrency', 'unit']} label="单位">
+                            <Select
+                              options={[
+                                { value: 'S', label: '秒' },
+                                { value: 'M', label: '分' },
+                                { value: 'H', label: '时' },
+                                { value: 'D', label: '天' },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    )
+                  }
+                  return null
+                }}
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={12}>
             <Col span={5}>
               <Form.Item name="threads" label="并发线程数" rules={[{ required: true, message: '必填' }]}>

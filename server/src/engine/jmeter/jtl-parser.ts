@@ -27,6 +27,20 @@ export interface PerfSeriesPoint {
   errors: number
   avg: number
   max: number
+  /** 该时刻活跃线程数（取自 JTL 的 allThreads/grpThreads 列） */
+  threads: number
+  /** 该时刻各响应码出现次数 */
+  codes: Record<string, number>
+}
+
+/** 响应码分布（等价于 Response Codes per Second 监听器的汇总） */
+export interface PerfCodeStat {
+  code: string
+  count: number
+  /** 该响应码的平均响应时间（毫秒） */
+  avg: number
+  /** 是否算作失败 */
+  failed: boolean
 }
 
 export interface PerfLabelStat extends PerfMetrics {
@@ -44,6 +58,7 @@ export interface PerfJtlResult {
   series: PerfSeriesPoint[]
   labels: PerfLabelStat[]
   errors: PerfErrorItem[]
+  codes: PerfCodeStat[]
   maxThreads: number
   startTime: number
   endTime: number
@@ -151,6 +166,7 @@ export function parseJtl(csv: string): PerfJtlResult {
       series: [],
       labels: [],
       errors: [],
+      codes: [],
       maxThreads: 0,
       startTime: 0,
       endTime: 0,
@@ -192,7 +208,7 @@ export function parseJtl(csv: string): PerfJtlResult {
   }
 
   if (rows.length === 0) {
-    return { summary: EMPTY_METRICS(), series: [], labels: [], errors: [], maxThreads: 0, startTime: 0, endTime: 0 }
+    return { summary: EMPTY_METRICS(), series: [], labels: [], errors: [], codes: [], maxThreads: 0, startTime: 0, endTime: 0 }
   }
 
   const startTime = Math.min(...rows.map((r) => r.ts))
@@ -216,8 +232,40 @@ export function parseJtl(csv: string): PerfJtlResult {
     .sort((a, b) => a[0] - b[0])
     .map(([b, list]) => {
       const m = computeMetrics(list, bucketMs)
-      return { t: round(b * (bucketMs / 1000)), samples: m.samples, errors: m.errors, avg: m.avg, max: m.max }
+      const codes: Record<string, number> = {}
+      let threads = 0
+      for (const r of list) {
+        const key = r.code || 'unknown'
+        codes[key] = (codes[key] ?? 0) + 1
+        if (r.threads > threads) threads = r.threads
+      }
+      return {
+        t: round(b * (bucketMs / 1000)),
+        samples: m.samples,
+        errors: m.errors,
+        avg: m.avg,
+        max: m.max,
+        threads,
+        codes,
+      }
     })
+
+  // 响应码分布汇总
+  const codeMap = new Map<string, { count: number; sum: number; failed: boolean }>()
+  for (const r of rows) {
+    const key = r.code || 'unknown'
+    const hit = codeMap.get(key)
+    if (hit) {
+      hit.count++
+      hit.sum += r.elapsed
+      hit.failed = hit.failed || !r.success
+    } else {
+      codeMap.set(key, { count: 1, sum: r.elapsed, failed: !r.success })
+    }
+  }
+  const codes: PerfCodeStat[] = [...codeMap.entries()]
+    .map(([code, v]) => ({ code, count: v.count, avg: round(v.sum / v.count), failed: v.failed }))
+    .sort((a, b) => b.count - a.count)
 
   // 分接口（按 label 聚合）
   const byLabel = new Map<string, Row[]>()
@@ -242,5 +290,5 @@ export function parseJtl(csv: string): PerfJtlResult {
   }
   const errors = [...errMap.values()].sort((a, b) => b.count - a.count).slice(0, 10)
 
-  return { summary, series, labels, errors, maxThreads, startTime, endTime }
+  return { summary, series, labels, errors, codes, maxThreads, startTime, endTime }
 }

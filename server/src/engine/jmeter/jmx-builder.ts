@@ -152,15 +152,83 @@ function buildSampler(step: PerfStep, level: number): string {
   return lines.join('\n')
 }
 
-/** 生成一个线程组（含其子元素：采样器、定时器） */
-function buildThreadGroupBlock(model: PerfCaseModel, level: number): string {
+/** 循环控制器（AbstractThreadGroup 必需的子属性；循环数 -1 表示由线程组自身调度决定） */
+function loopController(level: number, loops: number): string[] {
+  return [
+    `${IND(level)}<elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="循环控制器" enabled="true">`,
+    `${IND(level + 1)}<boolProp name="Controller.master">true</boolProp>`,
+    `${IND(level + 1)}<boolProp name="LoopController.continue_forever">false</boolProp>`,
+    `${IND(level + 1)}<stringProp name="LoopController.loops">${loops}</stringProp>`,
+    `${IND(level)}</elementProp>`,
+  ]
+}
+
+/** 生成线程组元素本体（按加压方式选用不同元件，插件元件需运行时已装对应插件） */
+function buildThreadGroupElement(model: PerfCaseModel, level: number): string[] {
   const threads = Math.max(1, Math.floor(model.threads || 1))
   const rampUp = Math.max(1, Math.floor(model.rampUp || 1))
   const duration = Math.max(0, Math.floor(model.duration || 0))
+  const onSampleError = model.onSampleError || 'continue'
+  const name = escapeXml(model.name || '线程组')
+
+  if (model.loadProfile === 'stepping') {
+    const s = model.stepping ?? {}
+    // Stepping Thread Group（kg.apc）：按批次递增到目标并发后保持，键名为其显示名常量
+    return [
+      `${IND(level)}<kg.apc.jmeter.threads.SteppingThreadGroup guiclass="SteppingThreadGroupGui" testclass="kg.apc.jmeter.threads.SteppingThreadGroup" testname="${name}" enabled="true">`,
+      `${IND(level + 1)}<stringProp name="ThreadGroup.on_sample_error">${onSampleError}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="ThreadGroup.num_threads">${threads}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="ThreadGroup.ramp_time">${rampUp}</stringProp>`,
+      ...loopController(level + 1, -1),
+      `${IND(level + 1)}<stringProp name="Threads initial delay">${Math.max(0, Math.floor(s.initialDelay ?? 0))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Start users count">${Math.max(1, Math.floor(s.batchThreads ?? 1))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Start users count burst">${Math.max(0, Math.floor(s.burstThreads ?? 0))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Start users period">${Math.max(1, Math.floor(s.batchInterval ?? 1))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Stop users count">0</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Stop users period">1</stringProp>`,
+      `${IND(level + 1)}<stringProp name="flightTime">${Math.max(0, Math.floor(s.flightTime ?? 0))}</stringProp>`,
+      `${IND(level)}</kg.apc.jmeter.threads.SteppingThreadGroup>`,
+    ]
+  }
+
+  if (model.loadProfile === 'concurrency') {
+    const c = model.concurrency ?? {}
+    // Concurrency Thread Group（blazemeter）：按阶梯逼近目标并发并保持，键名为首字母大写常量
+    return [
+      `${IND(level)}<com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup guiclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroupGui" testclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup" testname="${name}" enabled="true">`,
+      `${IND(level + 1)}<stringProp name="ThreadGroup.on_sample_error">${onSampleError}</stringProp>`,
+      ...loopController(level + 1, -1),
+      `${IND(level + 1)}<stringProp name="TargetLevel">${threads}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="RampUp">${rampUp}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Steps">${Math.max(1, Math.floor(c.steps ?? 1))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Hold">${Math.max(0, Math.floor(c.holdTarget ?? 0))}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="Unit">${c.unit ?? 'S'}</stringProp>`,
+      `${IND(level + 1)}<stringProp name="IterationsLimit"></stringProp>`,
+      `${IND(level + 1)}<stringProp name="LogFilename"></stringProp>`,
+      `${IND(level)}</com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup>`,
+    ]
+  }
+
+  // 默认：固定并发（JMeter 原生 ThreadGroup）
   const useScheduler = duration > 0
   const loops = useScheduler ? -1 : Math.max(1, Math.floor(model.loops || 1))
+  return [
+    `${IND(level)}<ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="${name}" enabled="true">`,
+    `${IND(level + 1)}<stringProp name="ThreadGroup.on_sample_error">${onSampleError}</stringProp>`,
+    ...loopController(level + 1, loops),
+    `${IND(level + 1)}<stringProp name="ThreadGroup.num_threads">${threads}</stringProp>`,
+    `${IND(level + 1)}<stringProp name="ThreadGroup.ramp_time">${rampUp}</stringProp>`,
+    `${IND(level + 1)}<boolProp name="ThreadGroup.scheduler">${useScheduler ? 'true' : 'false'}</boolProp>`,
+    `${IND(level + 1)}<stringProp name="ThreadGroup.duration">${useScheduler ? duration : ''}</stringProp>`,
+    `${IND(level + 1)}<stringProp name="ThreadGroup.delay"></stringProp>`,
+    `${IND(level + 1)}<boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>`,
+    `${IND(level)}</ThreadGroup>`,
+  ]
+}
+
+/** 生成一个线程组（含其子元素：采样器、定时器） */
+function buildThreadGroupBlock(model: PerfCaseModel, level: number): string {
   const thinkTime = Math.max(0, Math.floor(model.thinkTime || 0))
-  const onSampleError = model.onSampleError || 'continue'
   const steps = (model.steps ?? []).filter((s) => s && s.url !== undefined)
 
   const samplerBlocks = steps.map((s) => buildSampler(s, level + 1))
@@ -179,20 +247,7 @@ function buildThreadGroupBlock(model: PerfCaseModel, level: number): string {
     : ''
 
   return [
-    `${IND(level)}<ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="${escapeXml(model.name || '线程组')}" enabled="true">`,
-    `${IND(level + 1)}<stringProp name="ThreadGroup.on_sample_error">${escapeXml(onSampleError)}</stringProp>`,
-    `${IND(level + 1)}<elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="循环控制器" enabled="true">`,
-    `${IND(level + 2)}<boolProp name="Controller.master">true</boolProp>`,
-    `${IND(level + 2)}<boolProp name="LoopController.continue_forever">false</boolProp>`,
-    `${IND(level + 2)}<stringProp name="LoopController.loops">${loops}</stringProp>`,
-    `${IND(level + 1)}</elementProp>`,
-    `${IND(level + 1)}<stringProp name="ThreadGroup.num_threads">${threads}</stringProp>`,
-    `${IND(level + 1)}<stringProp name="ThreadGroup.ramp_time">${rampUp}</stringProp>`,
-    `${IND(level + 1)}<boolProp name="ThreadGroup.scheduler">${useScheduler ? 'true' : 'false'}</boolProp>`,
-    `${IND(level + 1)}<stringProp name="ThreadGroup.duration">${useScheduler ? duration : ''}</stringProp>`,
-    `${IND(level + 1)}<stringProp name="ThreadGroup.delay"></stringProp>`,
-    `${IND(level + 1)}<boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>`,
-    `${IND(level)}</ThreadGroup>`,
+    ...buildThreadGroupElement(model, level),
     threadGroupChildren
       ? `${IND(level)}<hashTree>${threadGroupChildren}</hashTree>`
       : `${IND(level)}<hashTree />`,

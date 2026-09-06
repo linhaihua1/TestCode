@@ -21,6 +21,7 @@ import type {
   PerfCase,
   PerfEnvStatus,
   PerfImportResult,
+  PerfPluginReport,
   PerfReport,
   Project,
   Report,
@@ -389,11 +390,17 @@ export const api = {
   updatePerfCase: (id: string, data: Partial<PerfCase>) =>
     http.put<PerfCase>(`/perf-cases/${id}`, data).then((r) => r.data),
   deletePerfCase: (id: string) => http.delete(`/perf-cases/${id}`).then((r) => r.data),
-  /** 执行压测（同步等待 JMeter 跑完，耗时等于压测时长） */
+  /** 执行压测（异步：立即返回 running 报告 id，进度见报告页） */
   runPerfCase: (id: string, timeoutMs?: number) =>
     http
-      .post<PerfReport>(`/perf-cases/${id}/run`, timeoutMs ? { timeoutMs } : {}, { timeout: 0 })
+      .post<{ id: string; status: 'running'; startedAt: string }>(`/perf-cases/${id}/run`, timeoutMs ? { timeoutMs } : {})
       .then((r) => r.data),
+  /** 停止运行中的压测 */
+  stopPerfReport: (id: string) => http.post<{ ok: boolean; status: string }>(`/perf-reports/${id}/stop`).then((r) => r.data),
+  /** 探测第三方插件目录 */
+  getPerfPlugins: () => http.get<PerfPluginReport>('/perf-plugins').then((r) => r.data),
+  /** 官方 HTML 报告的访问地址（用于 iframe） */
+  perfDashboardUrl: (id: string) => `/perf-reports/${id}/dashboard`,
 
   /** 导入 JMeter 测试计划（可一次多个文件） */
   importJmeter: (projectId: string, files: Array<{ filename: string; content: string }>) =>

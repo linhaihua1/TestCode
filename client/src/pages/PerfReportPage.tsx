@@ -31,6 +31,8 @@ const STATUS_TAG: Record<string, { color: string; text: string }> = {
   success: { color: 'green', text: '通过' },
   failed: { color: 'orange', text: '有失败' },
   error: { color: 'red', text: '执行失败' },
+  running: { color: 'blue', text: '执行中' },
+  stopped: { color: 'default', text: '已停止' },
 }
 
 const METRIC_ZERO: PerfMetrics = {
@@ -79,6 +81,28 @@ export default function PerfReportPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // 存在运行中的压测时，每 2 秒刷新列表与已打开的详情
+  const hasRunning = reports.some((r) => r.status === 'running')
+  useEffect(() => {
+    if (!hasRunning) return
+    const t = setInterval(() => {
+      load()
+      if (detail?.status === 'running') openDetail(detail.id)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 2000)
+    return () => clearInterval(t)
+  }, [hasRunning, detail?.id])
+
+  const handleStop = async (id: string) => {
+    try {
+      await api.stopPerfReport(id)
+      message.success('已请求停止压测')
+      load()
+    } catch (e) {
+      message.error(getErrorMessage(e))
+    }
+  }
 
   const openDetail = async (id: string) => {
     setDetailLoading(true)
@@ -138,17 +162,25 @@ export default function PerfReportPage() {
     { title: '开始时间', dataIndex: 'startedAt', width: 180, render: formatTime },
     {
       title: '操作',
-      width: 130,
+      width: 170,
       render: (_, record) => (
         <Space size={0}>
           <Button size="small" type="link" onClick={() => openDetail(record.id)}>
             详情
           </Button>
-          <Popconfirm title="确认删除该报告？" onConfirm={() => handleDelete(record.id)}>
-            <Button size="small" type="link" danger>
-              删除
-            </Button>
-          </Popconfirm>
+          {record.status === 'running' ? (
+            <Popconfirm title="确认停止该压测？" onConfirm={() => handleStop(record.id)}>
+              <Button size="small" type="link" danger>
+                停止
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm title="确认删除该报告？" onConfirm={() => handleDelete(record.id)}>
+              <Button size="small" type="link" danger>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -165,6 +197,16 @@ export default function PerfReportPage() {
         { type: '失败', value: detailSummary.errors },
       ].filter((d) => d.value > 0)
     : []
+  const threadsData = series.map((p) => ({ t: p.t, value: p.threads }))
+  const codeAgg = (() => {
+    const m = new Map<string, number>()
+    for (const p of series) for (const [k, v] of Object.entries(p.codes ?? {})) m.set(k, (m.get(k) ?? 0) + v)
+    return [...m.entries()].map(([code, value]) => ({ code, value })).sort((a, b) => b.value - a.value)
+  })()
+  const livePct = (() => {
+    if (!detail?.live || !detail.expectedDurationMs) return null
+    return Math.min(100, Math.round(((detail.elapsedMs ?? 0) / detail.expectedDurationMs) * 100))
+  })()
 
   const labelColumns: ColumnsType<PerfLabelStat> = [
     { title: '接口（请求名称）', dataIndex: 'label' },
@@ -217,6 +259,18 @@ export default function PerfReportPage() {
             )}
             {detail.status === 'failed' && (
               <Alert style={{ marginBottom: 16 }} type="warning" showIcon message={detail.message ?? '存在失败请求'} />
+            )}
+            {detail.status === 'running' && (
+              <Alert
+                style={{ marginBottom: 16 }}
+                type="info"
+                showIcon
+                message="压测执行中，报告实时刷新"
+                description={`已运行 ${Math.round((detail.elapsedMs ?? 0) / 1000)}s${livePct !== null ? `（进度 ${livePct}%）` : ''}`}
+              />
+            )}
+            {detail.status === 'stopped' && (
+              <Alert style={{ marginBottom: 16 }} type="warning" showIcon message="压测已被手动停止" description={detail.message} />
             )}
 
             <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -305,6 +359,41 @@ export default function PerfReportPage() {
                     />
                   ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无时序数据" style={{ padding: '60px 0' }} />
+                  )}
+                </Card>
+              </Col>
+            </Row>
+
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={12}>
+                <Card title="活跃线程数趋势（Active Threads Over Time）" size="small">
+                  {threadsData.length ? (
+                    <Line
+                      data={threadsData}
+                      xField="t"
+                      yField="value"
+                      height={220}
+                      style={{ lineWidth: 2 }}
+                      axis={{ x: { title: '秒' }, y: { title: '线程数' } }}
+                    />
+                  ) : (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无时序数据" style={{ padding: '60px 0' }} />
+                  )}
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="响应码分布（Response Codes）" size="small">
+                  {codeAgg.length ? (
+                    <Pie
+                      data={codeAgg.map((c) => ({ type: c.code, value: c.value }))}
+                      angleField="value"
+                      colorField="type"
+                      height={220}
+                      label={{ text: 'value', position: 'outside' }}
+                      legend={{ color: { position: 'bottom' } }}
+                    />
+                  ) : (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无数据" style={{ padding: '60px 0' }} />
                   )}
                 </Card>
               </Col>

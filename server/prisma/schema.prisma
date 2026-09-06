@@ -334,6 +334,7 @@ model PerfCase {
   onSampleError String   @default("continue") // 出错处理：continue/startnext/stopthread/stoptest
   variables     Json     @default("[]") // 用户自定义变量（对应 JMeter User Defined Variables）
   steps         Json     @default("[]") // HTTP 请求步骤
+  profile       Json     @default("{}") // 加压方式：{ loadProfile, stepping?, concurrency? }
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
