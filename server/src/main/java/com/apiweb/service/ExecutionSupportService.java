@@ -1,10 +1,13 @@
 package com.apiweb.service;
 
 import com.apiweb.engine.CaseRunner;
+import com.apiweb.engine.VariablesResolver;
+import com.apiweb.engine.variable.VariableMerger;
 import com.apiweb.entity.EnvironmentEntity;
 import com.apiweb.entity.GlobalVariableEntity;
 import com.apiweb.mapper.EnvironmentMapper;
 import com.apiweb.mapper.GlobalVariableMapper;
+import com.apiweb.security.AesGcm;
 import com.apiweb.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +34,7 @@ public class ExecutionSupportService {
     private final GlobalVariableMapper globalVariableMapper;
     private final OssService ossService;
     private final CaseRunner caseRunnerBean;
+    private final VariableMerger variableMerger;
 
     /** 供消费者复用的用例执行器（Spring 管理的 Bean） */
     public CaseRunner caseRunner() {
@@ -57,22 +61,16 @@ public class ExecutionSupportService {
      */
     public Map<String, String> buildEnvironmentVariables(String environmentId) {
         Map<String, String> map = new LinkedHashMap<>();
-        if (environmentId == null) {
-            return map;
-        }
+        if (environmentId == null) return map;
         EnvironmentEntity env = environmentMapper.selectById(environmentId);
-        if (env == null) {
-            return map;
-        }
-        if (env.getBaseUrl() != null) {
-            map.put("baseUrl", env.getBaseUrl());
-        }
+        if (env == null) return map;
+        if (env.getBaseUrl() != null) map.put("baseUrl", env.getBaseUrl());
         map.putAll(kvToMap(env.getVariables()));
         return map;
     }
 
     /**
-     * 组装项目全局变量。
+     * 组装项目全局变量（SECRET 自动解密）。
      */
     public Map<String, String> buildGlobalVariables(String projectId) {
         Map<String, String> map = new LinkedHashMap<>();
@@ -80,9 +78,33 @@ public class ExecutionSupportService {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GlobalVariableEntity>()
                         .eq(GlobalVariableEntity::getProjectId, projectId));
         for (GlobalVariableEntity g : globals) {
-            map.put(g.getName(), g.getValue() == null ? "" : g.getValue());
+            String value = g.getValue() == null ? "" : g.getValue();
+            if ("SECRET".equalsIgnoreCase(g.getType())) {
+                try {
+                    value = AesGcm.decrypt(value);
+                } catch (Exception e) {
+                    log.warn("全局变量 [{}] 解密失败: {}", g.getName(), e.getMessage());
+                    value = "";
+                }
+            }
+            map.put(g.getName(), value);
         }
         return map;
+    }
+
+    /**
+     * 按 §2 优先级合并多来源变量（提取 > 用例 > 环境 > 全局）。
+     *
+     * <p>调试执行时使用,生成的 VariablesResolver 自动处理 {{var}} 占位符 + SECRET 解密。
+     */
+    public VariablesResolver buildMergedResolver(String projectId, String environmentId,
+                                                  List<VariableMerger.CaseVariable> caseVars,
+                                                  Map<String, String> extracts) {
+        List<GlobalVariableEntity> globals = globalVariableMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GlobalVariableEntity>()
+                        .eq(GlobalVariableEntity::getProjectId, projectId));
+        EnvironmentEntity env = environmentId == null ? null : environmentMapper.selectById(environmentId);
+        return variableMerger.buildResolver(globals, env, caseVars, extracts);
     }
 
     /**

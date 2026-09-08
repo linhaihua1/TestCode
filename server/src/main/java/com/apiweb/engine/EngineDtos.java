@@ -47,53 +47,69 @@ public final class EngineDtos {
     /**
      * 断言定义：执行完成后对响应做规则校验。
      *
-     * <p>支持 5 种数据源 + 9 种运算符的组合，详见各字段注释。
+     * <p>支持 10 种类型 + 多种运算符的组合,详见各字段注释。
      */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Assertion {
         /**
-         * 数据源：
-         * <ul>
-         *   <li>status：响应状态码（property 留空）</li>
-         *   <li>header：响应 Header（property = header 名）</li>
-         *   <li>body：响应原始 body（property 留空）</li>
-         *   <li>jsonpath：JSONPath 表达式取出的值（property = JSONPath 路径，如 $.data.id）</li>
-         *   <li>responsetime：响应耗时 ms（property 留空）</li>
-         * </ul>
+         * 断言类型（推荐）：STATUS / HEADER / BODY_CONTAINS / JSONPATH / XPATH / REGEX /
+         * NUMERIC / EMPTY / RESPONSE_TIME / SCRIPT。
+         * <p>与 {@link #source} 互斥,优先取 {@code type}。
+         */
+        private String type;
+        /**
+         * 数据源（兼容字段,可视为 type 的别名）：
+         * status / header / body / jsonpath / xpath / regex / numeric / response_time / script / empty
          */
         private String source;
-        /** 字段名 / JSONPath / Header 名（按 source 类型决定） */
+        /** 字段名 / JSONPath / XPath / Header 名（按 type 决定） */
         private String property;
         /**
          * 比较运算符：
          * <ul>
          *   <li>equals / not_equals：相等 / 不等</li>
          *   <li>contains / not_contains：包含 / 不包含</li>
-         *   <li>regex：正则匹配</li>
-         *   <li>gt / lt / gte / lte：数值比较</li>
+         *   <li>regex / not_match：正则匹配 / 不匹配</li>
+         *   <li>gt / lt / gte / lte / range：数值比较</li>
          *   <li>empty / not_empty：判空</li>
+         *   <li>in_range：状态码范围（如 200-299）</li>
          * </ul>
          */
         private String operator;
-        /** 期望值（字符串；gt/lt 等时会被解析为 double） */
+        /** 期望值（字符串;gt/lt 等时会被解析为 double;SCRIPT 时为脚本内容） */
         private String expected;
+        /** 自定义失败提示（覆盖默认 message） */
+        private String message;
     }
 
     /**
      * 提取定义：把响应中的某个值保存为变量供后续步骤使用。
+     *
+     * <p>支持 5 种类型（{@code type}）：
+     * <ul>
+     *   <li>HEADER：按响应头名</li>
+     *   <li>COOKIE：从 Set-Cookie 头中按 cookie 名</li>
+     *   <li>JSONPATH：JSONPath 路径</li>
+     *   <li>REGEX：正则表达式</li>
+     *   <li>XPATH：XPath 节点值</li>
+     * </ul>
      */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Extract {
-        /** 提取方式：jsonpath（JSONPath） / regex（正则） / header（按 Header 名） */
+        /** 提取类型（HEADER/COOKIE/JSONPATH/REGEX/XPATH） */
         private String type;
-        /** 表达式（JSONPath 路径或正则表达式） */
+        /** 表达式（Header 名 / Cookie 名 / JSONPath / 正则 / XPath） */
         private String expression;
-        /** 保存到的变量名，后续用 {{变量名}} 引用 */
+        /** 保存到的变量名,后续用 {{变量名}} 引用 */
         private String variable;
+        /** 未命中时使用的默认值 */
+        private String defaultValue;
+        /** 失败策略：ignore（继续）/ stop（停止步骤） */
+        private String failStrategy;
     }
 
     /**

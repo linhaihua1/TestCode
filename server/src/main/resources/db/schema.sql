@@ -179,6 +179,26 @@ CREATE TABLE IF NOT EXISTS t_scenario (
     KEY idx_project (project_id)
 ) ENGINE = InnoDB COMMENT '接口场景';
 
+-- ---------------------------- 用例步骤（独立表） ----------------------------
+CREATE TABLE IF NOT EXISTS t_case_step (
+    id           VARCHAR(32) NOT NULL PRIMARY KEY,
+    case_id      VARCHAR(32) NOT NULL COMMENT '所属用例',
+    parent_id    VARCHAR(32) COMMENT '父步骤 ID（控制器嵌套）',
+    step_type    VARCHAR(32) NOT NULL COMMENT 'HTTP_REQUEST/SCRIPT/WAIT/VARIABLE_ASSIGN/IF/FOR/WHILE/TRANSACTION/ONCE/REF_PUBLIC_CASE',
+    name         VARCHAR(256) NOT NULL COMMENT '步骤名称',
+    position     VARCHAR(8) NOT NULL DEFAULT 'TEST' COMMENT 'PRE/TEST/POST',
+    sort_order   INT NOT NULL DEFAULT 0 COMMENT '同 parent 内排序号',
+    enabled      TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+    remark       VARCHAR(1024) COMMENT '步骤备注',
+    config       LONGTEXT NOT NULL COMMENT 'JSON 配置（按 stepType 不同 schema）',
+    fail_strategy VARCHAR(16) NOT NULL DEFAULT 'stop' COMMENT 'stop/continue',
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_case (case_id),
+    KEY idx_parent (parent_id),
+    KEY idx_position (case_id, position)
+) ENGINE = InnoDB COMMENT '用例步骤（10 种类型,支持嵌套）';
+
 CREATE TABLE IF NOT EXISTS t_scenario_step (
     id         VARCHAR(32) NOT NULL PRIMARY KEY,
     scenario_id VARCHAR(32) NOT NULL,
