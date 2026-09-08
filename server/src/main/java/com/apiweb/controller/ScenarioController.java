@@ -28,7 +28,7 @@ import java.util.Map;
  * 接口场景管理 + 场景执行。
  */
 @RestController
-@RequestMapping("/api/scenarios")
+@RequestMapping("/api/v1/scenarios")
 @RequiredArgsConstructor
 public class ScenarioController {
 

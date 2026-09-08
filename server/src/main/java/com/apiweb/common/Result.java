@@ -53,7 +53,7 @@ public class Result<T> {
      */
     public static <T> Result<T> ok(T data) {
         Result<T> r = new Result<>();
-        r.code = 0;
+        r.code = ErrorCode.SUCCESS;
         r.message = "ok";
         r.data = data;
         return r;

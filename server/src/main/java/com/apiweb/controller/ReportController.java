@@ -17,7 +17,7 @@ import java.util.List;
  * 接口测试报告。
  */
 @RestController
-@RequestMapping("/api/reports")
+@RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
 public class ReportController {
 

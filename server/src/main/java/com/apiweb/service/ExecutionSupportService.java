@@ -76,7 +76,7 @@ public class ExecutionSupportService {
      */
     public Map<String, String> buildGlobalVariables(String projectId) {
         Map<String, String> map = new LinkedHashMap<>();
-        List<GlobalVariableEntity> globals = globalVariableMapper.select(
+        List<GlobalVariableEntity> globals = globalVariableMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GlobalVariableEntity>()
                         .eq(GlobalVariableEntity::getProjectId, projectId));
         for (GlobalVariableEntity g : globals) {

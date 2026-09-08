@@ -173,3 +173,46 @@ export const ExecutorApi = {
     axios.post('/executors/heartbeat', data),
   release: (nodeId: string) => axios.post(`/executors/${nodeId}/release`)
 }
+
+/**
+ * 回收站统一管理 API（需求文档 §2.3）。
+ *
+ * <p>type 取值：{@code MODULE|API|CASE|TASK}
+ */
+export interface RecycleBinItem {
+  id: string
+  type: 'MODULE' | 'API' | 'CASE' | 'TASK'
+  name: string
+  extra?: string
+  deletedAt?: string
+}
+
+export interface RecycleBinRestoreResult {
+  restoredCount: number
+  renamedIds?: string[]
+  message?: string
+}
+
+export interface RecycleBinConfig {
+  id?: string
+  projectId: string
+  /** 0 = 不自动清理 */
+  cleanupDays: number
+}
+
+export const RecycleBinApi = {
+  list: (projectId: string, type: RecycleBinItem['type'] = 'CASE') =>
+    axios.get<RecycleBinItem[]>('/recycle-bin', { params: { projectId, type } }),
+  restore: (ids: string[], type: RecycleBinItem['type']) =>
+    axios.post<RecycleBinRestoreResult>('/recycle-bin/restore', { ids, type }),
+  permanent: (ids: string[], type: RecycleBinItem['type']) =>
+    axios.delete<void>('/recycle-bin/permanent', { data: { ids, type } }),
+  purgeOld: (projectId: string, type: RecycleBinItem['type'], olderThanDays = 0) =>
+    axios.delete<number>('/recycle-bin/purge', {
+      params: { projectId, type, olderThanDays }
+    }),
+  getConfig: (projectId: string) =>
+    axios.get<RecycleBinConfig>('/recycle-bin/config', { params: { projectId } }),
+  updateConfig: (cfg: RecycleBinConfig) =>
+    axios.put<void>('/recycle-bin/config', cfg)
+}

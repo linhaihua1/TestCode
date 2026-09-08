@@ -1,0 +1,31 @@
+# LocalDev profile：禁用 RabbitMQ、Quartz 集群、MinIO，便于单机端到端调试
+# 启用方式：--spring.profiles.active=localdev
+
+spring:
+  rabbitmq:
+    listener:
+      simple:
+        # RabbitMQ 不可用时不要让 listener 启动失败
+        auto-startup: false
+    template:
+      # 发送失败时立即抛错（不要阻塞）
+      retry:
+        enabled: false
+  quartz:
+    job-store-type: memory
+    auto-startup: false
+    wait-for-jobs-to-complete-on-shutdown: false
+    properties:
+      org.quartz.threadPool.threadCount: 2
+  # 直接排除 Quartz 自动配置（避免内存模式下属性残留导致启动失败）
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+
+minio:
+  enabled: false
+
+apiweb:
+  jwt:
+    # dev 环境使用固定 JWT secret，避免每次启动变掉导致旧 token 失效
+    secret: dev-secret-key-not-for-production-32bytes-min

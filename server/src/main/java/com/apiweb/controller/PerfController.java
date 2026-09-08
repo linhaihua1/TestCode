@@ -20,7 +20,7 @@ import java.util.List;
  * 性能测试（JMeter）：用例管理 + 异步执行 + 报告。
  */
 @RestController
-@RequestMapping("/api/perf")
+@RequestMapping("/api/v1/perf")
 @RequiredArgsConstructor
 public class PerfController {
 

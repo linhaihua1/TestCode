@@ -4,31 +4,47 @@ import com.apiweb.entity.TestTaskEntity;
 import com.apiweb.job.TestTaskScheduleJob;
 import com.apiweb.mapper.TestTaskMapper;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
  * Quartz 调度管理：任务保存/启停时同步注册或移除 Quartz Trigger（集群模式）。
+ * <p>localdev profile 下 Quartz 自动配置被排除，Scheduler bean 不存在，所有方法静默跳过；
+ * 不会影响其它业务（接口/UI/性能测试仍可手动触发执行）。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TaskScheduleService {
 
-    private final Scheduler scheduler;
+    private final ObjectProvider<Scheduler> schedulerProvider;
     private final TestTaskMapper testTaskMapper;
+
+    public TaskScheduleService(ObjectProvider<Scheduler> schedulerProvider,
+                               TestTaskMapper testTaskMapper) {
+        this.schedulerProvider = schedulerProvider;
+        this.testTaskMapper = testTaskMapper;
+    }
+
+    private Scheduler scheduler() {
+        return schedulerProvider.getIfAvailable();
+    }
 
     /**
      * 启动时同步所有带 cron 且启用的任务到 Quartz（集群安全：重复注册会覆盖）。
      */
     @PostConstruct
     public void syncAll() {
+        Scheduler scheduler = scheduler();
+        if (scheduler == null) {
+            log.warn("[TaskScheduleService] Scheduler bean 不可用（Quartz 未启用），跳过定时任务同步");
+            return;
+        }
         try {
-            List<TestTaskEntity> tasks = testTaskMapper.select(
+            List<TestTaskEntity> tasks = testTaskMapper.selectList(
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<TestTaskEntity>()
                             .isNotNull(TestTaskEntity::getCronExpr)
                             .eq(TestTaskEntity::getEnabled, true)
@@ -46,6 +62,8 @@ public class TaskScheduleService {
      * 注册/更新一个任务的调度。
      */
     public void schedule(TestTaskEntity task) {
+        Scheduler scheduler = scheduler();
+        if (scheduler == null) return;
         if (task.getCronExpr() == null || task.getCronExpr().isBlank()
                 || !Boolean.TRUE.equals(task.getEnabled())) {
             remove(task.getId());
@@ -74,6 +92,8 @@ public class TaskScheduleService {
      * 移除调度（任务删除/停用时）。
      */
     public void remove(String taskId) {
+        Scheduler scheduler = scheduler();
+        if (scheduler == null) return;
         try {
             scheduler.deleteJob(jobKey(taskId));
         } catch (SchedulerException e) {

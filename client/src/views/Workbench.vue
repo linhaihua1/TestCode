@@ -1,125 +1,102 @@
-<template>
-  <a-card :bordered="false" body-style="padding: 12px">
-    <a-row :gutter="12" style="height: calc(100vh - 130px)">
-      <!-- 左侧：模块树 + 用例列表 -->
-      <a-col :span="6" style="height: 100%">
-        <a-card title="用例库" size="small" style="height: 100%">
-          <template #extra>
-            <a-space>
-              <a-tooltip title="新建模块">
-                <a-button size="small" type="text" @click="createModule()">
-                  <folder-add-outlined />
-                </a-button>
-              </a-tooltip>
-            </a-space>
-          </template>
-          <a-input-search
-            v-model:value="moduleKeyword"
-            placeholder="搜索模块"
-            style="margin-bottom: 8px"
-            size="small"
-          />
-          <VirtualTree
-            v-if="moduleTree.length"
-            :tree="moduleTree"
-            :selected-key="selectedModuleKey"
-            :keyword="moduleKeyword"
-            :height="300"
-            @select="onModuleSelect"
-          />
-          <a-empty v-else description="暂无模块" />
-        </a-card>
-      </a-col>
+<!--
+  工作台主页面（需求文档 §1 + 开发文档 §5.1）。
 
-      <!-- 中间：用例编辑 -->
-      <a-col :span="12" style="height: 100%; overflow: auto">
+  <h3>布局</h3>
+  <ul>
+    <li>顶部全局配置栏：全局变量 / 调试记录 / 回收站（由 AppLayout 提供）</li>
+    <li>分割线（由 AppLayout 提供）</li>
+    <li>下方三栏：左 = 用例库（含模块树+用例列表）/ 中 = 编写用例 / 右 = 接口管理</li>
+  </ul>
+
+  <h3>快捷键</h3>
+  <ul>
+    <li>Ctrl+S：保存当前用例</li>
+    <li>Ctrl+Enter：调试当前用例</li>
+    <li>Ctrl+F：聚焦到用例名称搜索框</li>
+  </ul>
+-->
+<template>
+  <div class="workbench-root">
+    <ThreePaneLayout
+      storage-key="workbench.pane-widths"
+      left-title="用例库"
+      middle-title="编写用例"
+      right-title="接口管理"
+    >
+      <template #left>
+        <WorkbenchLeftPanel
+          :project-id="projectId"
+          :current-case-id="currentCase?.id"
+          @open="openCase"
+        />
+      </template>
+      <template #middle>
         <CaseEditorPanel
           v-if="currentCase"
+          ref="editorRef"
           :case-data="currentCase"
           @saved="onCaseSaved"
           @debug-finished="onDebugFinished"
         />
         <a-empty
           v-else
-          description="从右侧选择用例，或在用例列表新建"
+          description="从左侧选择用例，或在用例列表新建"
           style="margin-top: 80px"
         />
-      </a-col>
+      </template>
+      <template #right>
+        <ApiManagerPanel :project-id="projectId" />
+      </template>
+    </ThreePaneLayout>
 
-      <!-- 右侧：用例列表 + 接口管理 -->
-      <a-col :span="6" style="height: 100%">
-        <a-tabs v-model:active-key="rightTab" size="small" style="height: 100%">
-          <a-tab-pane key="cases" tab="用例">
-            <CaseLibraryPanel
-              :project-id="projectId"
-              :module-id="selectedModuleKey"
-              @open="openCase"
-            />
-          </a-tab-pane>
-          <a-tab-pane key="apis" tab="接口">
-            <ApiManagerPanel :project-id="projectId" />
-          </a-tab-pane>
-        </a-tabs>
-      </a-col>
-    </a-row>
-
-    <!-- 调试记录弹窗 -->
     <DebugRecordsModal
       v-model:open="debugOpen"
       :case-id="debuggingCaseId"
     />
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { FolderAddOutlined } from '@ant-design/icons-vue'
-import { ModuleApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
-import type { ModuleNode, CaseInfo } from '@/types'
+import { useShortcuts } from '@/hooks/useShortcuts'
+import type { CaseInfo } from '@/types'
+import ThreePaneLayout from '@/components/ThreePaneLayout.vue'
+import WorkbenchLeftPanel from '@/components/workbench/WorkbenchLeftPanel.vue'
 import CaseEditorPanel from '@/components/workbench/CaseEditorPanel.vue'
-import CaseLibraryPanel from '@/components/workbench/CaseLibraryPanel.vue'
 import ApiManagerPanel from '@/components/workbench/ApiManagerPanel.vue'
 import DebugRecordsModal from '@/components/workbench/DebugRecordsModal.vue'
 
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
 
-const moduleTree = ref<ModuleNode[]>([])
-const moduleKeyword = ref('')
-const selectedModuleKey = ref<string>('')
-const rightTab = ref<'cases' | 'apis'>('cases')
-
 const currentCase = ref<CaseInfo | null>(null)
 
 const debugOpen = ref(false)
 const debuggingCaseId = ref('')
 
-async function loadModules() {
-  if (!projectId.value) return
-  moduleTree.value = await ModuleApi.tree(projectId.value, 'case')
-}
+const editorRef = ref<InstanceType<typeof CaseEditorPanel> | null>(null)
 
-function onModuleSelect(key: string) {
-  selectedModuleKey.value = key
-}
+// 全局快捷键：Ctrl+S 保存、Ctrl+Enter 调试
+useShortcuts({
+  onSave: () => {
+    if (!currentCase.value) {
+      message.info('请先选择一个用例')
+      return
+    }
+    editorRef.value?.save?.()
+  },
+  onDebug: () => {
+    if (!currentCase.value) {
+      message.info('请先选择一个用例')
+      return
+    }
+    editorRef.value?.debug?.()
+  }
+})
 
-async function createModule(parentId?: string) {
-  const name = prompt('模块名称')
-  if (!name) return
-  await ModuleApi.create({
-    projectId: projectId.value,
-    parentId: parentId ?? selectedModuleKey.value || null,
-    name,
-    type: 'case',
-    sortOrder: 0
-  })
-  await loadModules()
-  message.success('已创建模块')
-}
-
-async function openCase(c: CaseInfo) {
+function openCase(c: CaseInfo) {
   currentCase.value = c
 }
 
@@ -132,9 +109,26 @@ function onDebugFinished(caseId: string) {
   debugOpen.value = true
 }
 
-watch(projectId, loadModules, { immediate: false })
+watch(projectId, () => {
+  // 项目切换时清空当前用例
+  currentCase.value = null
+})
+
 onMounted(async () => {
   await projectStore.fetchAll()
-  await loadModules()
+  if (projectStore.projects.length && !projectId.value) {
+    projectStore.setCurrent(projectStore.projects[0].id)
+  }
 })
 </script>
+
+<style scoped>
+.workbench-root {
+  height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+</style>

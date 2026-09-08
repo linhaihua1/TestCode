@@ -15,7 +15,7 @@ import java.util.Map;
  * 审计日志查询（仅管理员）。
  */
 @RestController
-@RequestMapping("/api/audit-logs")
+@RequestMapping("/api/v1/audit-logs")
 @RequiredArgsConstructor
 public class AuditLogController {
 

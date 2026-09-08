@@ -1,5 +1,17 @@
+<!--
+  应用主框架（需求文档 §1 + 开发文档 §5.1）。
+
+  <h3>布局</h3>
+  <ul>
+    <li>顶部主导航栏（logo + 菜单 + 项目选择 + 用户菜单）</li>
+    <li>顶部全局配置栏（全局变量 / 调试记录 / 回收站 / 快捷键提示）</li>
+    <li>分割线（隔离顶部配置区与下方业务）</li>
+    <li>下方路由内容</li>
+  </ul>
+-->
 <template>
   <a-layout style="min-height: 100vh">
+    <!-- 主导航栏 -->
     <a-layout-header class="header">
       <div class="logo">⚡ Api-Web</div>
       <a-menu
@@ -21,6 +33,7 @@
           <a-space class="user-info">
             <a-avatar size="small">{{ auth.user?.username?.[0]?.toUpperCase() }}</a-avatar>
             <span>{{ auth.user?.username }}</span>
+            <a-tag v-if="auth.user?.role" color="cyan" size="small">{{ auth.user.role }}</a-tag>
             <down-outlined />
           </a-space>
           <template #overlay>
@@ -37,7 +50,37 @@
         </a-dropdown>
       </a-space>
     </a-layout-header>
-    <a-layout-content style="padding: 16px; background: #f0f2f5">
+
+    <!-- 顶部全局配置栏（需求文档 §2） -->
+    <div class="global-config-bar">
+      <a-space>
+        <a-tooltip title="全局变量管理（支持密钥脱敏）">
+          <a-button type="text" @click="goTo('global-variables')">
+            <SettingOutlined />全局变量
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="查看全局调试记录">
+          <a-button type="text" @click="goTo('debug-records')">
+            <FileSearchOutlined />调试记录
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="回收站（模块/接口/用例/任务）">
+          <a-button type="text" @click="goTo('recycle-bin')">
+            <DeleteOutlined />回收站
+          </a-button>
+        </a-tooltip>
+      </a-space>
+      <a-space size="small" class="shortcut-hint">
+        <a-tag>Ctrl+S 保存</a-tag>
+        <a-tag>Ctrl+Enter 调试</a-tag>
+        <a-tag>Ctrl+F 搜索</a-tag>
+      </a-space>
+    </div>
+
+    <!-- 分割线（需求文档 §1） -->
+    <div class="divider" />
+
+    <a-layout-content class="content">
       <router-view v-slot="{ Component }">
         <component :is="Component" />
       </router-view>
@@ -69,7 +112,8 @@ import { message } from 'ant-design-vue'
 import {
   AppstoreOutlined, ProjectOutlined, CodeOutlined, ThunderboltOutlined,
   RobotOutlined, UserOutlined, FileTextOutlined, AuditOutlined, EnvironmentOutlined,
-  SettingOutlined, DownOutlined, LockOutlined, LogoutOutlined
+  SettingOutlined, DownOutlined, LockOutlined, LogoutOutlined,
+  FileSearchOutlined, DeleteOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -107,6 +151,10 @@ const menuItems = computed(() => [
 
 function onMenuSelect({ key }: { key: string }) {
   router.push({ name: key })
+}
+
+function goTo(name: string) {
+  router.push({ name })
 }
 
 function onProjectChange(id: string) {
@@ -153,6 +201,8 @@ onMounted(async () => {
   background: #001529;
   padding: 0 24px;
   color: white;
+  height: 48px;
+  line-height: 48px;
 }
 .logo {
   font-size: 20px;
@@ -163,5 +213,26 @@ onMounted(async () => {
 .user-info {
   color: white;
   cursor: pointer;
+}
+.global-config-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+.divider {
+  height: 1px;
+  background: #e8e8e8;
+}
+.content {
+  padding: 16px;
+  background: #f0f2f5;
+  flex: 1;
+}
+.shortcut-hint {
+  font-size: 12px;
+  color: #999;
 }
 </style>

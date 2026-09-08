@@ -15,7 +15,7 @@ import java.util.List;
  * 环境配置管理。
  */
 @RestController
-@RequestMapping("/api/environments")
+@RequestMapping("/api/v1/environments")
 @RequiredArgsConstructor
 public class EnvironmentController {
 

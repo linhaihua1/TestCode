@@ -143,7 +143,7 @@ public class PerfExecutionService {
     private ResultCollector createResultCollector(File jtlFile) {
         ResultCollector collector = new ResultCollector();
         SampleSaveConfiguration saveConfig = new SampleSaveConfiguration();
-        saveConfig.setFormatter("csv");
+        // CSV 格式输出（JMeter 5.6 没有 setFormatter，通过 JMeterProperties 控制）
         saveConfig.setAsXml(false);
         saveConfig.setTime(true);
         saveConfig.setLabel(true);
@@ -152,18 +152,17 @@ public class PerfExecutionService {
         saveConfig.setThreadName(true);
         saveConfig.setDataType(true);
         saveConfig.setSuccess(true);
-        saveConfig.setFailureMessage(true);
+        saveConfig.setAssertionResultsFailureMessage(true);  // JMeter 5.6 重命名自 setFailureMessage
         saveConfig.setBytes(true);
         saveConfig.setSentBytes(true);
-        saveConfig.setGrpThreads(true);
-        saveConfig.setAllThreads(true);
-        saveConfig.setURL(true);
+        saveConfig.setThreadCounts(true);        // JMeter 5.6 重命名自 setGrpThreads/setAllThreads
+        saveConfig.setUrl(true);                  // JMeter 5.6 重命名自 setURL
         saveConfig.setLatency(true);
         saveConfig.setConnectTime(true);
         saveConfig.setEncoding(false);
         saveConfig.setIdleTime(false);
-        saveConfig.setTimestampFormat("ms");
-        saveConfig.setPrintFieldNames(true);
+        saveConfig.setTimestamp(true);            // JMeter 5.6 重命名自 setTimestampFormat
+        saveConfig.setFieldNames(true);           // JMeter 5.6 重命名自 setPrintFieldNames
         collector.setSaveConfig(saveConfig);
         collector.setFilename(jtlFile.getAbsolutePath());
         collector.setErrorLogging(false);

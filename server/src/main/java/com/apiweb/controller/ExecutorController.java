@@ -14,7 +14,7 @@ import java.util.Map;
  * 执行机（可以是独立部署的同一 jar 或专用执行机进程）周期性调用 /heartbeat 保持在线。
  */
 @RestController
-@RequestMapping("/api/executors")
+@RequestMapping("/api/v1/executors")
 @RequiredArgsConstructor
 public class ExecutorController {
 

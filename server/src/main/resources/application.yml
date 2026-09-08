@@ -7,7 +7,7 @@ spring:
   application:
     name: api-web-server
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:api_web}?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:api_web}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&connectionCollation=utf8mb4_unicode_ci
     username: ${MYSQL_USER:apiweb}
     password: ${MYSQL_PASSWORD:apiweb123}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -80,11 +80,8 @@ apiweb:
     secret: ${JWT_SECRET:change-me-in-production-0123456789abcdef}
     expire-hours: 24
   security:
-    # 免认证路径
-    permit-paths:
-      - /api/auth/login
-      - /api/auth/register
-      - /actuator/health
+    # 免认证路径（逗号分隔）
+    permit-paths: /api/auth/login,/api/auth/register,/actuator/health
   executor:
     # 执行机心跳超时（秒），超时视为离线，从资源池剔除
     heartbeat-timeout: 60

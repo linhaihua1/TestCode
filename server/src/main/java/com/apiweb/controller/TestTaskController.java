@@ -23,7 +23,7 @@ import java.util.List;
  * 测试任务：编排用例集合，支持手动触发（RabbitMQ 异步投递）与 Quartz 定时调度。
  */
 @RestController
-@RequestMapping("/api/test-tasks")
+@RequestMapping("/api/v1/test-tasks")
 @RequiredArgsConstructor
 public class TestTaskController {
 

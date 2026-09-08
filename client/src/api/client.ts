@@ -16,7 +16,7 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
 const instance: AxiosInstance = axios.create({
-  baseURL: '/api',         // 由 vite.config.ts 的 server.proxy 转发到后端 8080
+  baseURL: '/api/v1',      // 由 vite.config.ts 的 server.proxy 转发到后端 8080
   timeout: 60_000          // 60 秒超时（性能测试 / 大文件下载可单独覆盖）
 })
 
@@ -35,7 +35,8 @@ instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
  * 响应拦截器：
  * <ul>
  *   <li>code=0：返回 data 字段</li>
- *   <li>code=401：清理登录态，跳登录页</li>
+ *   <li>code=1002（未登录）：清理登录态，跳登录页</li>
+ *   <li>code=1003（无权限）：弹出"权限不足"提示</li>
  *   <li>其它 code：抛 Error(message)</li>
  *   <li>HTTP 错误（4xx/5xx）：从 response.data.message 取错误信息</li>
  * </ul>
@@ -47,14 +48,14 @@ instance.interceptors.response.use(
       if (data.code === 0) {
         return data.data
       }
-      if (data.code === 401) {
+      if (data.code === 1002) {
         // token 过期或被服务端吊销
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         window.location.href = '/#/login'
         throw new Error('登录已过期')
       }
-      throw new Error(data.message || '请求失败')
+      throw new Error(data.message || `请求失败(code=${data.code})`)
     }
     // 非 Result 格式（如文件下载、二进制流）原样返回
     return data

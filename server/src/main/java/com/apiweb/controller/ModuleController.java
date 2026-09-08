@@ -10,14 +10,18 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * 模块树管理：多级模块树（用例库/接口库的目录结构）。
+ *
+ * <p>删除采用"软删除到回收站"语义：被删除的模块及子模块设置 {@code deleted_at}，
+ * 通过 {@link com.apiweb.controller.RecycleBinController} 还原或永久删除。
  */
 @RestController
-@RequestMapping("/api/modules")
+@RequestMapping("/api/v1/modules")
 @RequiredArgsConstructor
 public class ModuleController {
 
@@ -41,6 +45,7 @@ public class ModuleController {
                 new LambdaQueryWrapper<ModuleEntity>()
                         .eq(ModuleEntity::getProjectId, projectId)
                         .eq(ModuleEntity::getType, type)
+                        .isNull(ModuleEntity::getDeletedAt)
                         .orderByAsc(ModuleEntity::getSortOrder));
         Map<String, List<ModuleEntity>> byParent = modules.stream()
                 .collect(Collectors.groupingBy(m -> m.getParentId() == null ? "" : m.getParentId()));
@@ -89,13 +94,25 @@ public class ModuleController {
         return Result.ok();
     }
 
+    /**
+     * 删除模块：级联软删除所有子模块到回收站。
+     *
+     * <p>需求文档 §2.3：删除有子目录时，先级联标记所有子目录的 {@code deleted_at}，
+     * 由用户在回收站二次确认永久删除或还原。
+     */
     @AuditLog(action = "delete", entityType = "module")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
-        // 级联删除子模块
         List<String> toDelete = new ArrayList<>();
         collectSubtree(id, toDelete);
-        toDelete.forEach(moduleMapper::deleteById);
+        Instant now = Instant.now();
+        for (String mid : toDelete) {
+            ModuleEntity m = moduleMapper.selectById(mid);
+            if (m != null) {
+                m.setDeletedAt(now);
+                moduleMapper.updateById(m);
+            }
+        }
         return Result.ok();
     }
 

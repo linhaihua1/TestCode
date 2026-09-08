@@ -14,7 +14,7 @@ import java.util.List;
  * 全局变量管理。
  */
 @RestController
-@RequestMapping("/api/global-variables")
+@RequestMapping("/api/v1/global-variables")
 @RequiredArgsConstructor
 public class GlobalVariableController {
 

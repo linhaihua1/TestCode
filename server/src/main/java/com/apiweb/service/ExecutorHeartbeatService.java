@@ -84,7 +84,7 @@ public class ExecutorHeartbeatService {
     @Scheduled(fixedDelay = 30_000, initialDelay = 30_000)
     public void evictStaleNodes() {
         Instant deadline = Instant.now().minusSeconds(heartbeatTimeoutSeconds);
-        List<ExecutorNodeEntity> stale = executorNodeMapper.select(
+        List<ExecutorNodeEntity> stale = executorNodeMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorNodeEntity>()
                         .eq(ExecutorNodeEntity::getStatus, "online")
                         .lt(ExecutorNodeEntity::getLastHeartbeat, deadline));
@@ -100,7 +100,7 @@ public class ExecutorHeartbeatService {
      * 查询资源池（在线节点列表）。
      */
     public List<ExecutorNodeEntity> resourcePool() {
-        return executorNodeMapper.select(
+        return executorNodeMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorNodeEntity>()
                         .in(ExecutorNodeEntity::getStatus, "online", "busy")
                         .orderByDesc(ExecutorNodeEntity::getLastHeartbeat));

@@ -31,7 +31,7 @@ import java.util.Map;
  * 用例管理：CRUD + 版本历史 + 评审流 + 调试执行 + 调试记录 + 回收站。
  */
 @RestController
-@RequestMapping("/api/cases")
+@RequestMapping("/api/v1/cases")
 @RequiredArgsConstructor
 public class CaseController {
 
@@ -224,11 +224,13 @@ public class CaseController {
         record.setResult(result.getResult());
         record.setTotalDuration((int) result.getTotalDurationMs());
         record.setRequestSummary(JsonUtils.toJson(result.getSteps().stream()
-                .map(s -> Map.of("stepName", s.getStepName(),
-                        "requestSummary", s.getRequestSummary() == null ? "" : s.getRequestSummary()))));
+                .map(s -> Map.of("stepName", s.getStepName() == null ? "" : s.getStepName(),
+                        "requestSummary", s.getRequestSummary() == null ? "" : s.getRequestSummary()))
+                .toList()));
         record.setResponseSummary(JsonUtils.toJson(result.getSteps().stream()
-                .map(s -> Map.of("stepName", s.getStepName(),
-                        "responseSummary", s.getResponseSummary() == null ? "" : s.getResponseSummary()))));
+                .map(s -> Map.of("stepName", s.getStepName() == null ? "" : s.getStepName(),
+                        "responseSummary", s.getResponseSummary() == null ? "" : s.getResponseSummary()))
+                .toList()));
         record.setAssertionResults(JsonUtils.toJson(result.getSteps().stream()
                 .flatMap(s -> s.getAssertions().stream()).toList()));
         record.setExtractedVariables(JsonUtils.toJson(result.getVariables()));

@@ -71,7 +71,6 @@ public class JmeterBootstrapper {
             // 3. 初始化 JMeterUtils
             JMeterUtils.setJMeterHome(jmeterHome.getAbsolutePath());
             JMeterUtils.loadJMeterProperties(new File(binDir, "jmeter.properties").getAbsolutePath());
-            JMeterUtils.setJMeterProperties(JMeterUtils.getJMeterProperties());
             JMeterUtils.initLocale();
             JMeterUtils.initLogging();
             // 显式覆盖一些关键默认值（让 SaveService 取到正确值）

@@ -15,7 +15,7 @@ import java.util.List;
  * 项目管理。
  */
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 public class ProjectController {
 

@@ -27,7 +27,7 @@ import java.util.Map;
  * UI 自动化：测试用例 / 执行场景 / 执行与报告。
  */
 @RestController
-@RequestMapping("/api/ui")
+@RequestMapping("/api/v1/ui")
 @RequiredArgsConstructor
 public class UiController {
 

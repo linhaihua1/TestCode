@@ -10,6 +10,15 @@
 CREATE DATABASE IF NOT EXISTS api_web DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE api_web;
 
+CREATE TABLE IF NOT EXISTS t_recycle_bin_config (
+    id         VARCHAR(32) NOT NULL PRIMARY KEY,
+    project_id VARCHAR(32) NOT NULL,
+    cleanup_days INT NOT NULL DEFAULT 30 COMMENT '0 = 不自动清理',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_project (project_id)
+) ENGINE = InnoDB COMMENT '回收站自动清理配置';
+
 -- ---------------------------- 用户 ----------------------------
 CREATE TABLE IF NOT EXISTS t_user (
     id            VARCHAR(32)  NOT NULL PRIMARY KEY,
@@ -63,10 +72,12 @@ CREATE TABLE IF NOT EXISTS t_module (
     name       VARCHAR(128) NOT NULL,
     type       VARCHAR(16) NOT NULL DEFAULT 'case' COMMENT 'case/api/ui/perf',
     sort_order INT NOT NULL DEFAULT 0,
+    deleted_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_project (project_id),
-    KEY idx_parent (parent_id)
+    KEY idx_parent (parent_id),
+    KEY idx_deleted (deleted_at)
 ) ENGINE = InnoDB COMMENT '模块树（支持多级）';
 
 CREATE TABLE IF NOT EXISTS t_case (

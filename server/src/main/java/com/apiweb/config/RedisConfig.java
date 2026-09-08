@@ -28,7 +28,7 @@ public class RedisConfig {
         om.registerModule(new JavaTimeModule());
         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         om.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL, JsonAutoDetect.Visibility.ANY);
+                ObjectMapper.DefaultTyping.NON_FINAL, com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
 
         Jackson2JsonRedisSerializer<Object> jsonSerializer =
                 new Jackson2JsonRedisSerializer<>(om, Object.class);

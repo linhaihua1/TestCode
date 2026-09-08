@@ -17,7 +17,7 @@ import java.util.Map;
  * 用户管理（仅管理员）。
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
 

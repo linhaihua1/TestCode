@@ -1,9 +1,12 @@
 package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import java.time.Instant;
 
 /** 接口定义 */
 @Data
@@ -25,4 +28,8 @@ public class ApiDefinitionEntity extends BaseEntity {
     private String moduleId;
     /** JSON: string[] */
     private String tags;
+
+    /** 软删除时间：null 表示未删除，进入回收站时设置 */
+    @TableField("deleted_at")
+    private Instant deletedAt;
 }

@@ -17,7 +17,7 @@ import java.util.Map;
  * 接口定义管理（接口库）。
  */
 @RestController
-@RequestMapping("/api/apis")
+@RequestMapping("/api/v1/apis")
 @RequiredArgsConstructor
 public class ApiDefinitionController {
 
@@ -83,10 +83,20 @@ public class ApiDefinitionController {
         return Result.ok();
     }
 
+    /**
+     * 软删除接口定义到回收站（需求文档 §2.3）。
+     *
+     * <p>物理删除请走 {@code /api/v1/recycle-bin/permanent}。
+     */
     @AuditLog(action = "delete", entityType = "api")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
-        apiMapper.deleteById(id);
+        ApiDefinitionEntity api = apiMapper.selectById(id);
+        if (api == null) {
+            throw BizException.notFound("接口不存在");
+        }
+        api.setDeletedAt(java.time.Instant.now());
+        apiMapper.updateById(api);
         return Result.ok();
     }
 

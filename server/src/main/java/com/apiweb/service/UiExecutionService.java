@@ -113,7 +113,7 @@ public class UiExecutionService {
         }
     }
 
-    private void doStep(WebDriver driver, Map<String, Object> step, Map<String, Object> row) {
+    private void doStep(WebDriver driver, Map<String, Object> step, Map<String, Object> row) throws InterruptedException {
         String action = str(step.get("action"), "open");
         WebElement el = action.equals("open") || action.equals("wait") || action.equals("script")
                 || action.startsWith("assert_title") ? null : findElement(driver, step);
