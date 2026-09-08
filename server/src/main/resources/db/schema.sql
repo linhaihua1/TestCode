@@ -227,25 +227,32 @@ CREATE TABLE IF NOT EXISTS t_scenario_step (
 
 -- ---------------------------- 测试任务 / 执行记录 ----------------------------
 CREATE TABLE IF NOT EXISTS t_test_task (
-    id             VARCHAR(32) NOT NULL PRIMARY KEY,
-    project_id     VARCHAR(32) NOT NULL,
-    name           VARCHAR(256) NOT NULL,
-    description    VARCHAR(1024),
-    case_ids       JSON NOT NULL,
-    environment_id VARCHAR(32),
-    execute_mode   VARCHAR(16) NOT NULL DEFAULT 'sequential' COMMENT 'sequential/parallel',
-    retry_count    INT NOT NULL DEFAULT 0,
-    timeout_ms     INT NOT NULL DEFAULT 300000,
-    cron_expr      VARCHAR(64),
-    enabled        TINYINT(1) NOT NULL DEFAULT 1,
-    notify_url     VARCHAR(512),
-    variables      JSON NOT NULL,
-    base_url       VARCHAR(512),
-    created_by     VARCHAR(64),
-    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at     DATETIME,
-    KEY idx_project (project_id)
+    id                  VARCHAR(32) NOT NULL PRIMARY KEY,
+    project_id          VARCHAR(32) NOT NULL,
+    name                VARCHAR(256) NOT NULL,
+    description         VARCHAR(1024),
+    case_ids            JSON NOT NULL,
+    environment_id      VARCHAR(32),
+    execute_mode        VARCHAR(16) NOT NULL DEFAULT 'sequential' COMMENT 'sequential/parallel',
+    fail_strategy       VARCHAR(32) NOT NULL DEFAULT 'stop_on_fail' COMMENT 'stop_on_fail/continue_all/retry_then_stop',
+    parallel_pool_size  INT NOT NULL DEFAULT 5 COMMENT '并行池大小（1-200）',
+    retry_count         INT NOT NULL DEFAULT 0,
+    timeout_ms          INT NOT NULL DEFAULT 300000,
+    cron_expr           VARCHAR(64),
+    enabled             TINYINT(1) NOT NULL DEFAULT 1,
+    notify_url          VARCHAR(512),
+    variables              JSON NOT NULL,
+    base_url            VARCHAR(512),
+    created_by          VARCHAR(64),
+    webhook_token       VARCHAR(64) COMMENT 'CI/CD 触发 Token,留空禁用',
+    webhook_enabled     TINYINT(1) NOT NULL DEFAULT 0,
+    webhook_auto_execute TINYINT(1) NOT NULL DEFAULT 1,
+    notify_channels     JSON NOT NULL COMMENT '通知渠道配置 [{type,target,secret}]',
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at          DATETIME,
+    KEY idx_project (project_id),
+    KEY idx_webhook (webhook_token)
 ) ENGINE = InnoDB COMMENT '测试任务';
 
 CREATE TABLE IF NOT EXISTS t_test_task_run (
@@ -262,15 +269,32 @@ CREATE TABLE IF NOT EXISTS t_test_task_run (
 
 -- ---------------------------- 报告 ----------------------------
 CREATE TABLE IF NOT EXISTS t_report (
-    id          VARCHAR(32) NOT NULL PRIMARY KEY,
-    project_id  VARCHAR(32) NOT NULL,
-    scenario_id VARCHAR(32),
-    name        VARCHAR(256) NOT NULL,
-    status      VARCHAR(16) NOT NULL,
-    duration    INT NOT NULL DEFAULT 0,
-    started_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    KEY idx_project (project_id)
-) ENGINE = InnoDB COMMENT '接口测试报告';
+    id                  VARCHAR(32) NOT NULL PRIMARY KEY,
+    project_id          VARCHAR(32) NOT NULL,
+    scenario_id         VARCHAR(32),
+    task_id             VARCHAR(32) COMMENT '关联任务 ID,可空',
+    name                VARCHAR(256) NOT NULL,
+    status              VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT 'pending/running/passed/failed/error',
+    duration            INT NOT NULL DEFAULT 0,
+    started_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at         DATETIME,
+    trigger_type        VARCHAR(16) NOT NULL DEFAULT 'manual' COMMENT 'manual/schedule/webhook/api',
+    trigger_by          VARCHAR(64),
+    total_cases         INT NOT NULL DEFAULT 0,
+    passed_cases        INT NOT NULL DEFAULT 0,
+    failed_cases        INT NOT NULL DEFAULT 0,
+    error_cases         INT NOT NULL DEFAULT 0,
+    skipped_cases       INT NOT NULL DEFAULT 0,
+    total_assertions    INT NOT NULL DEFAULT 0,
+    passed_assertions   INT NOT NULL DEFAULT 0,
+    failed_assertions   INT NOT NULL DEFAULT 0,
+    avg_response_time   INT NOT NULL DEFAULT 0,
+    p95_response_time   INT NOT NULL DEFAULT 0,
+    environment_snapshot VARCHAR(512),
+    KEY idx_project (project_id),
+    KEY idx_task (task_id),
+    KEY idx_started (started_at)
+) ENGINE = InnoDB COMMENT '测试报告';
 
 CREATE TABLE IF NOT EXISTS t_report_detail (
     id         VARCHAR(32) NOT NULL PRIMARY KEY,
@@ -395,3 +419,33 @@ CREATE TABLE IF NOT EXISTS t_executor_node (
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB COMMENT '执行机节点（心跳注册资源池）';
+
+-- ---------------------------- 报告分享链接 ----------------------------
+CREATE TABLE IF NOT EXISTS t_report_share (
+    id              VARCHAR(32) NOT NULL PRIMARY KEY,
+    token           VARCHAR(64) NOT NULL UNIQUE COMMENT 'URL 分享 token,32 位随机串',
+    report_id       VARCHAR(32) NOT NULL,
+    created_by      VARCHAR(64),
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at      DATETIME NOT NULL COMMENT '过期时间',
+    password        VARCHAR(128) COMMENT '可选,BCrypt 哈希;null 表示无密码',
+    revoked         TINYINT(1) NOT NULL DEFAULT 0,
+    access_count    INT NOT NULL DEFAULT 0,
+    last_accessed_at DATETIME,
+    max_access_count INT COMMENT '可选,达到上限禁止访问',
+    allowed_ips     VARCHAR(1024) COMMENT '可选,允许的客户端 IP/CIDR,逗号分隔',
+    KEY idx_report (report_id),
+    KEY idx_token (token)
+) ENGINE = InnoDB COMMENT '报告分享链接';
+
+CREATE TABLE IF NOT EXISTS t_report_share_log (
+    id          VARCHAR(32) NOT NULL PRIMARY KEY,
+    share_id    VARCHAR(32) NOT NULL,
+    report_id   VARCHAR(32) NOT NULL,
+    access_ip   VARCHAR(64),
+    user_agent  VARCHAR(512),
+    accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status      VARCHAR(32) NOT NULL COMMENT 'success/expired/revoked/wrong_password/rate_limited',
+    KEY idx_share (share_id),
+    KEY idx_accessed (accessed_at)
+) ENGINE = InnoDB COMMENT '报告分享访问日志（审计）';

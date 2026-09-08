@@ -250,6 +250,51 @@ public final class EngineDtos {
         private Map<String, Object> variables = new LinkedHashMap<>();
         /** 整体错误日志（步骤异常的汇总） */
         private String errorLog;
+
+        /**
+         * 是否全部通过（result=success 且无 failed/error 步骤）。
+         */
+        public boolean allPassed() {
+            if (!"success".equals(result)) return false;
+            if (steps == null) return true;
+            for (StepResult s : steps) {
+                if ("failed".equals(s.getStatus()) || "error".equals(s.getStatus())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * 失败的步骤数。
+         */
+        public int failedCount() {
+            if (steps == null) return 0;
+            int n = 0;
+            for (StepResult s : steps) {
+                if ("failed".equals(s.getStatus()) || "error".equals(s.getStatus())) {
+                    n++;
+                }
+            }
+            return n;
+        }
+    }
+
+    /**
+     * 执行环境快照：用于在 CaseRunner 中生成变量池。
+     *
+     * <p>支持 task 级覆盖（task 自己的 baseUrl / variables 优先于 environment 表）。
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Env {
+        /** 环境 ID（来自 t_environment 表） */
+        private String environmentId;
+        /** 任务级 baseUrl 覆盖 */
+        private String baseUrl;
+        /** 任务级 variables JSON ([{key,value}]) */
+        private String variablesJson;
     }
 
     // ====================================================================
