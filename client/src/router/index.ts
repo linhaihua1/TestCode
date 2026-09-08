@@ -58,6 +58,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'tasks', name: 'tasks', component: () => import('@/views/TestExecutionPage.vue') },
       { path: 'reports', name: 'reports', component: () => import('@/views/ReportList.vue') },
       { path: 'reports/:id', name: 'report-detail', component: () => import('@/views/TestReportPage.vue') },
+      { path: 'trend', name: 'trend', component: () => import('@/views/TrendPage.vue') },
       { path: 'perf', name: 'perf', component: () => import('@/views/PerfCasePage.vue') },
       { path: 'perf/reports/:id', name: 'perf-report-detail', component: () => import('@/views/PerfReportPage.vue') },
       { path: 'ui', name: 'ui-tests', component: () => import('@/views/UiTestList.vue') },

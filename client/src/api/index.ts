@@ -2,6 +2,7 @@ import axios from './client'
 import type {
   User, Project, Environment, GlobalVariable, ModuleNode, CaseInfo,
   ApiDefinition, Scenario, TestTask, TestTaskRun, Report, ReportDetail,
+  ReportShare, TrendBucket, TrendSummary,
   PerfCase, PerfReport, UiTestCase, UiScenario, UiReport, AuditLog, ExecutorNode,
   CaseVersion, CaseReview, DebugRecord
 } from '@/types'
@@ -112,16 +113,61 @@ export const TestTaskApi = {
   create: (data: Partial<TestTask>) => axios.post<TestTask>('/test-tasks', data),
   update: (id: string, data: Partial<TestTask>) => axios.put(`/test-tasks/${id}`, data),
   remove: (id: string) => axios.delete(`/test-tasks/${id}`),
+  /** 异步执行(投递 RabbitMQ) */
   run: (id: string) => axios.post<TestTaskRun[]>(`/test-tasks/${id}/run`),
+  /** 同步本地执行(走 TaskExecutorService,支持并行池) */
+  runSync: (id: string) => axios.post<TestTaskRun[]>(`/test-tasks/${id}/run-sync`),
   runs: (id: string) => axios.get<TestTaskRun[]>(`/test-tasks/${id}/runs`),
-  toggle: (id: string) => axios.post(`/test-tasks/${id}/toggle`)
+  toggle: (id: string) => axios.post(`/test-tasks/${id}/toggle`),
+  /** 生成/重置 webhook token,返回完整 URL 仅一次 */
+  rotateWebhook: (id: string) =>
+    axios.post<{ token: string; url: string }>(`/test-tasks/${id}/webhook/rotate`),
+  /** 关闭 webhook */
+  disableWebhook: (id: string) => axios.post(`/test-tasks/${id}/webhook/disable`)
 }
 
 export const ReportApi = {
-  list: (params: { projectId?: string; scenarioId?: string }) =>
-    axios.get<Report[]>('/reports', { params }),
-  detail: (id: string) => axios.get<ReportDetail[]>(`/reports/${id}`),
+  list: (params: {
+    projectId?: string
+    scenarioId?: string
+    taskId?: string
+    page?: number
+    size?: number
+  }) => axios.get<Report[]>('/reports', { params }),
+  /** 报告基本信息 */
+  get: (id: string) => axios.get<Report>(`/reports/${id}`),
+  /** 报告步骤明细 */
+  details: (id: string) => axios.get<ReportDetail[]>(`/reports/${id}/details`),
+  /** HTML 导出(直接下载) */
+  exportHtmlUrl: (id: string) => `/api/v1/reports/${id}/export/html`,
+  /** PDF 导出(直接下载) */
+  exportPdfUrl: (id: string) => `/api/v1/reports/${id}/export/pdf`,
+  /** 趋势统计 */
+  trend: (params: { projectId?: string; days?: number }) =>
+    axios.get<TrendBucket[]>('/reports/trend', { params }),
+  /** 整体汇总 */
+  summary: (params: { projectId?: string; days?: number }) =>
+    axios.get<TrendSummary>('/reports/summary', { params }),
+  /** 创建分享链接 */
+  createShare: (reportId: string, data: { expireDays: number; password?: string }) =>
+    axios.post<ReportShare>(`/reports/${reportId}/share`, data),
+  /** 报告的全部分享 */
+  listShares: (reportId: string) =>
+    axios.get<ReportShare[]>(`/reports/${reportId}/shares`),
+  /** 撤销分享 */
+  revokeShare: (shareId: string) =>
+    axios.post(`/reports/shares/${shareId}/revoke`),
   remove: (id: string) => axios.delete(`/reports/${id}`)
+}
+
+/**
+ * CI/CD Webhook 触发（公开 API,无需登录）。
+ */
+export const WebhookApi = {
+  /** 触发任务（一般由 CI 系统调用,query 传 token） */
+  trigger: (token: string, triggerBy?: string) =>
+    axios.post<{ taskId: string; taskName: string; execId: string; runIds: string[] }>(
+      '/webhook/test-tasks/trigger', null, { params: { token, triggerBy } })
 }
 
 export const PerfApi = {

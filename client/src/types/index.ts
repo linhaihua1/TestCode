@@ -142,6 +142,10 @@ export interface TestTask extends BaseEntity {
   caseIds: string[]
   environmentId?: string
   executeMode: 'sequential' | 'parallel'
+  /** 失败策略：stop_on_fail / continue_all / retry_then_stop */
+  failStrategy?: 'stop_on_fail' | 'continue_all' | 'retry_then_stop'
+  /** 并行池大小（1-200,仅 parallel 模式生效） */
+  parallelPoolSize?: number
   retryCount: number
   timeoutMs: number
   cronExpr?: string
@@ -151,12 +155,30 @@ export interface TestTask extends BaseEntity {
   baseUrl?: string
   createdBy?: string
   deletedAt?: string
+  // CI/CD webhook 字段
+  webhookToken?: string
+  webhookEnabled?: boolean
+  webhookAutoExecute?: boolean
+  // 通知渠道
+  notifyChannels?: NotifyChannel[]
+}
+
+/**
+ * 通知渠道：失败时通知的渠道配置。
+ */
+export interface NotifyChannel {
+  /** email / dingtalk / feishu / webhook */
+  type: 'email' | 'dingtalk' | 'feishu' | 'webhook'
+  /** 接收方:邮箱/手机号/群机器人 webhook URL */
+  target: string
+  /** 钉钉/飞书可选加签密钥 */
+  secret?: string
 }
 
 export interface TestTaskRun {
   id: string
   taskId: string
-  result: 'pending' | 'running' | 'success' | 'failed' | 'error'
+  result: 'pending' | 'running' | 'success' | 'failed' | 'error' | 'skipped'
   duration: number
   startedAt: string
   endedAt?: string
@@ -167,11 +189,78 @@ export interface Report {
   id: string
   projectId: string
   scenarioId?: string
+  taskId?: string
   name: string
   status: string
   duration: number
   startedAt: string
+  finishedAt?: string
+  triggerType?: 'manual' | 'schedule' | 'webhook' | 'api'
+  triggerBy?: string
+  totalCases?: number
+  passedCases?: number
+  failedCases?: number
+  errorCases?: number
+  skippedCases?: number
+  totalAssertions?: number
+  passedAssertions?: number
+  failedAssertions?: number
+  avgResponseTime?: number
+  p95ResponseTime?: number
+  environmentSnapshot?: string
   details?: ReportDetail[]
+}
+
+/**
+ * 报告分享链接。
+ */
+export interface ReportShare {
+  id: string
+  token: string
+  reportId: string
+  createdBy?: string
+  createdAt: string
+  expiresAt: string
+  revoked: boolean
+  accessCount: number
+  lastAccessedAt?: string
+  maxAccessCount?: number
+  /** 是否设置了密码 */
+  hasPassword: boolean
+  allowedIps?: string
+  /** 分享 URL（前端拼接） */
+  url?: string
+}
+
+/**
+ * 趋势统计 - 单日桶。
+ */
+export interface TrendBucket {
+  date: string
+  totalCases: number
+  passedCases: number
+  failedCases: number
+  errorCases: number
+  skippedCases: number
+  totalAssertions: number
+  passedAssertions: number
+  failedAssertions: number
+  avgResponseTime: number
+  p95Max: number
+  reportCount: number
+  passRate: number
+}
+
+/**
+ * 趋势统计 - 整体汇总（顶栏卡片）。
+ */
+export interface TrendSummary {
+  totalCases: number
+  passedCases: number
+  failedCases: number
+  errorCases: number
+  reportCount: number
+  passRate: number
 }
 
 export interface ReportDetail {

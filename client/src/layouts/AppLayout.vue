@@ -113,7 +113,7 @@ import {
   AppstoreOutlined, ProjectOutlined, CodeOutlined, ThunderboltOutlined,
   RobotOutlined, UserOutlined, FileTextOutlined, AuditOutlined, EnvironmentOutlined,
   SettingOutlined, DownOutlined, LockOutlined, LogoutOutlined,
-  FileSearchOutlined, DeleteOutlined
+  FileSearchOutlined, DeleteOutlined, LineChartOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -137,6 +137,7 @@ const menuItems = computed(() => [
   { key: 'scenarios', icon: () => h(FileTextOutlined), label: '场景' },
   { key: 'tasks', icon: () => h(ThunderboltOutlined), label: '测试任务' },
   { key: 'reports', icon: () => h(FileTextOutlined), label: '接口报告' },
+  { key: 'trend', icon: () => h(LineChartOutlined), label: '趋势统计' },
   { key: 'perf', icon: () => h(ThunderboltOutlined), label: '性能测试' },
   { key: 'ui', icon: () => h(RobotOutlined), label: 'UI 自动化' },
   { key: 'environments', icon: () => h(EnvironmentOutlined), label: '环境' },
