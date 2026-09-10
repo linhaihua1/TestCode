@@ -1,0 +1,414 @@
+/**
+ * 全局基础样式 —— 重置、排版、滚动条、Ant Design 观感统一。
+ *
+ * 依赖 tokens.css 中的 CSS 变量，必须在其之后引入。
+ * 这里只放"全局生效"的规则；单组件私有样式仍写在各自 <style scoped> 中。
+ */
+
+/* ============================================================
+   1. 基础重置与排版
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  color: var(--tx-2);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 600;
+  color: var(--tx-1);
+  line-height: var(--lh-tight);
+}
+
+a {
+  color: var(--c-primary);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+a:hover {
+  color: var(--c-primary-hover);
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* ============================================================
+   2. 滚动条 —— 细、低对比、hover 才明显
+   ============================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bd-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--bd-strong);
+  border-radius: var(--rd-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--tx-4);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ============================================================
+   3. Ant Design 观感统一
+   ============================================================ */
+
+/* --- 卡片：统一圆角 + 柔和阴影，去掉生硬边框 --- */
+.ant-card {
+  border-radius: var(--rd-lg);
+  box-shadow: var(--sd-sm);
+  transition: box-shadow var(--dur-base) var(--ease);
+}
+
+.ant-card-bordered {
+  border-color: var(--bd-base);
+}
+
+.ant-card-head {
+  min-height: 52px;
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--bd-subtle);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.ant-card-head-title {
+  padding: var(--sp-3) 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.ant-card-body {
+  padding: var(--sp-5);
+}
+
+/* --- 表格：去掉外框、表头浅底、行 hover 明确 --- */
+.ant-table-wrapper .ant-table {
+  background: transparent;
+  border-radius: var(--rd-md);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: var(--bg-subtle);
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-bottom: 1px solid var(--bd-base);
+}
+
+/* 去掉表头列的竖向分隔感 */
+.ant-table-wrapper .ant-table-thead > tr > th::before {
+  display: none !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--bd-subtle);
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: var(--bg-hover) !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: var(--bg-active) !important;
+}
+
+/* --- 输入类控件：圆角 + 聚焦光晕统一 --- */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-select:not(.ant-select-customize-input) .ant-select-selector,
+.ant-picker {
+  border-radius: var(--rd-md);
+  border-color: var(--bd-base);
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+.ant-picker:hover {
+  border-color: var(--bd-strong);
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused:not(.ant-select-disabled) .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--c-primary);
+  box-shadow: var(--sd-focus);
+}
+
+/* --- 按钮：圆角 + 去掉默认厚重感 --- */
+.ant-btn {
+  border-radius: var(--rd-md);
+  font-weight: 500;
+  box-shadow: none;
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.ant-btn-primary {
+  box-shadow: var(--sd-xs);
+}
+
+.ant-btn-primary:not(:disabled):hover {
+  box-shadow: var(--sd-sm);
+}
+
+/* 文字按钮（工具栏图标按钮）收紧内边距 */
+.ant-btn-text {
+  border-radius: var(--rd-sm);
+}
+
+/* --- 标签：圆角胶囊 --- */
+.ant-tag {
+  border-radius: var(--rd-sm);
+  font-size: var(--fs-xs);
+  line-height: 20px;
+  padding: 0 7px;
+  margin-inline-end: var(--sp-1);
+}
+
+/* --- 模态框：更大圆角 + 深阴影 --- */
+.ant-modal-content {
+  border-radius: var(--rd-lg);
+  box-shadow: var(--sd-xl);
+  overflow: hidden;
+}
+
+.ant-modal-header {
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--bd-subtle);
+}
+
+.ant-modal-title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.ant-modal-body {
+  padding: var(--sp-6);
+}
+
+.ant-modal-footer {
+  padding: var(--sp-4) var(--sp-6);
+  margin-top: 0;
+  border-top: 1px solid var(--bd-subtle);
+}
+
+/* --- 抽屉 --- */
+.ant-drawer-header {
+  border-bottom: 1px solid var(--bd-subtle);
+}
+.ant-drawer-title {
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+/* --- Tabs：去掉底部粗线，选中态用主色 --- */
+.ant-tabs-top > .ant-tabs-nav::before {
+  border-bottom-color: var(--bd-base);
+}
+
+.ant-tabs .ant-tabs-tab {
+  font-weight: 500;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: 600;
+}
+
+/* --- 下拉菜单 / 弹出层 --- */
+.ant-dropdown-menu,
+.ant-select-dropdown {
+  border-radius: var(--rd-md);
+  box-shadow: var(--sd-md);
+  padding: var(--sp-1);
+}
+
+.ant-dropdown-menu-item {
+  border-radius: var(--rd-sm);
+}
+
+/* --- 分页 --- */
+.ant-pagination-item {
+  border-radius: var(--rd-sm);
+}
+
+/* --- 空状态 --- */
+.ant-empty-description {
+  color: var(--tx-4);
+}
+
+/* --- 消息提示 --- */
+.ant-message-notice-content {
+  border-radius: var(--rd-md);
+  box-shadow: var(--sd-lg);
+}
+
+/* ============================================================
+   4. 通用工具类
+   ============================================================ */
+
+/* 页面容器：列表页统一外壳。
+   注意：AppLayout 的 .content 已提供 padding，这里不再重复加内边距，
+   只作为语义化容器供页面组织内部结构。 */
+.page {
+  min-height: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--tx-1);
+  min-width: 0;
+}
+
+.page-title .sub {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--tx-3);
+}
+
+/* 页标题左侧的返回按钮：视觉上弱化，hover 才明显 */
+.page-title__back {
+  color: var(--tx-3) !important;
+  margin-right: calc(-1 * var(--sp-1));
+}
+
+.page-title__back:hover {
+  color: var(--c-primary) !important;
+  background: var(--c-primary-bg) !important;
+}
+
+/* 页标题内的强调图标 */
+.page-title__icon {
+  font-size: var(--fs-lg);
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+/* 统计卡片组 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--sd-xs);
+  transition: box-shadow var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease);
+}
+
+.stat-card:hover {
+  box-shadow: var(--sd-md);
+  transform: translateY(-1px);
+}
+
+.stat-card .label {
+  font-size: var(--fs-sm);
+  color: var(--tx-3);
+  margin-bottom: var(--sp-2);
+}
+
+.stat-card .value {
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  color: var(--tx-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card .value.success { color: var(--c-success); }
+.stat-card .value.error   { color: var(--c-error); }
+.stat-card .value.warning { color: var(--c-warning); }
+.stat-card .value.primary { color: var(--c-primary); }
+
+/* 文本工具 */
+.text-1 { color: var(--tx-1); }
+.text-2 { color: var(--tx-2); }
+.text-3 { color: var(--tx-3); }
+.text-4 { color: var(--tx-4); }
+.text-success { color: var(--c-success); }
+.text-error   { color: var(--c-error); }
+.text-warning { color: var(--c-warning); }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* 截断 */
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 卡片化内容块（用于替代裸 a-card） */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-lg);
+  box-shadow: var(--sd-xs);
+}
