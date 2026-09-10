@@ -48,8 +48,7 @@ public class CaseRunner {
 
     @PostConstruct
     public void init() {
-        // 调试日志
-        log.info("CaseRunner 已就绪,共注册 {} 种步骤执行器", registry != null ? "?" : "0");
+        log.info("CaseRunner 已就绪,已注册步骤执行器 {} 种", registry.size());
     }
 
     // ============================================================

@@ -8,6 +8,7 @@ import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -26,7 +27,15 @@ import java.util.Map;
 public class RefPublicCaseExecutor implements StepExecutor {
 
     private static final int MAX_DEPTH = 5;
-    private final CaseRunner caseRunner;
+
+    /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
+    private final ObjectProvider<CaseRunner> caseRunnerProvider;
+
+    private CaseRunner runner() {
+        CaseRunner r = caseRunnerProvider.getIfAvailable();
+        if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
+        return r;
+    }
 
     @Override
     public StepType type() { return StepType.REF_PUBLIC_CASE; }
@@ -65,6 +74,7 @@ public class RefPublicCaseExecutor implements StepExecutor {
                     }
                 }
             }
+            CaseRunner caseRunner = runner();
             List<StepDef> referenced = caseRunner.loadCaseSteps(publicCaseId);
             ctx.setRefCaseDepth(ctx.getRefCaseDepth() + 1);
             caseRunner.runSteps(referenced, ctx);

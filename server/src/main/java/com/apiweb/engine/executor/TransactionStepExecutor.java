@@ -7,6 +7,7 @@ import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -26,7 +27,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TransactionStepExecutor implements StepExecutor {
 
-    private final CaseRunner caseRunner;
+    /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
+    private final ObjectProvider<CaseRunner> caseRunnerProvider;
+
+    private CaseRunner runner() {
+        CaseRunner r = caseRunnerProvider.getIfAvailable();
+        if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
+        return r;
+    }
 
     @Override
     public StepType type() { return StepType.TRANSACTION; }
@@ -46,7 +54,7 @@ public class TransactionStepExecutor implements StepExecutor {
             if (rule == null || rule.isBlank()) rule = "all_pass";
 
             int sizeBefore = ctx.getResult().getSteps().size();
-            caseRunner.runSteps(children, ctx);
+            runner().runSteps(children, ctx);
             int sizeAfter = ctx.getResult().getSteps().size();
 
             int passed = 0, failed = 0, error = 0;

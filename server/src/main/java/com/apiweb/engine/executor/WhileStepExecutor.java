@@ -7,6 +7,7 @@ import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,7 +24,14 @@ public class WhileStepExecutor implements StepExecutor {
 
     private static final int DEFAULT_MAX_ITERATIONS = 1000;
 
-    private final CaseRunner caseRunner;
+    /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
+    private final ObjectProvider<CaseRunner> caseRunnerProvider;
+
+    private CaseRunner runner() {
+        CaseRunner r = caseRunnerProvider.getIfAvailable();
+        if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
+        return r;
+    }
 
     @Override
     public StepType type() { return StepType.WHILE; }
@@ -46,6 +54,7 @@ public class WhileStepExecutor implements StepExecutor {
             long deadline = System.currentTimeMillis() + timeoutMs;
             int iterations = 0;
             List<StepDef> children = step.getChildren() != null ? step.getChildren() : List.of();
+            CaseRunner caseRunner = runner();
             while (caseRunner.evalCondition(condition == null ? "" : condition, ctx.getResolver())) {
                 if (++iterations > maxIters || System.currentTimeMillis() > deadline) {
                     sr.setStatus("failed");

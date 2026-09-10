@@ -7,6 +7,7 @@ import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -21,7 +22,14 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 public class OnceStepExecutor implements StepExecutor {
 
-    private final CaseRunner caseRunner;
+    /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
+    private final ObjectProvider<CaseRunner> caseRunnerProvider;
+
+    private CaseRunner runner() {
+        CaseRunner r = caseRunnerProvider.getIfAvailable();
+        if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
+        return r;
+    }
 
     @Override
     public StepType type() { return StepType.ONCE; }
@@ -40,7 +48,7 @@ public class OnceStepExecutor implements StepExecutor {
         }
         long start = System.currentTimeMillis();
         try {
-            caseRunner.runSteps(step.getChildren(), ctx);
+            runner().runSteps(step.getChildren(), ctx);
             sr.setStatus("success");
             ctx.markOnceExecuted(step.getId());
         } catch (Exception e) {

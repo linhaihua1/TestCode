@@ -7,6 +7,7 @@ import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -24,7 +25,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ForStepExecutor implements StepExecutor {
 
-    private final CaseRunner caseRunner;
+    /**
+     * 用 ObjectProvider 延迟获取 CaseRunner。
+     *
+     * <p>CaseRunner 依赖 StepExecutorRegistry，而 registry 又收集本执行器，
+     * 直接注入 CaseRunner 会形成循环依赖（BeanCurrentlyInCreationException）。
+     * ObjectProvider 只在真正执行时取 Bean，打断构造期环路。
+     */
+    private final ObjectProvider<CaseRunner> caseRunnerProvider;
+
+    private CaseRunner runner() {
+        CaseRunner r = caseRunnerProvider.getIfAvailable();
+        if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
+        return r;
+    }
 
     @Override
     public StepType type() { return StepType.FOR; }
@@ -43,6 +57,11 @@ public class ForStepExecutor implements StepExecutor {
             String loopVar = step.cfg("loopVar");
             if (loopVar == null || loopVar.isBlank()) loopVar = "i";
             List<StepDef> children = step.getChildren() != null ? step.getChildren() : List.of();
+            if (children.isEmpty()) {
+                sr.setDurationMs(System.currentTimeMillis() - start);
+                return sr;
+            }
+            CaseRunner caseRunner = runner();
 
             if ("list".equalsIgnoreCase(mode)) {
                 String listVar = step.cfg("listVar");

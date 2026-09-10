@@ -1,23 +1,32 @@
-# LocalDev profile：禁用 RabbitMQ、Quartz 集群、MinIO，便于单机端到端调试
+# LocalDev profile：禁用 RabbitMQ 消费端、Quartz 集群、MinIO，便于单机端到端调试
 # 启用方式：--spring.profiles.active=localdev
+#
+# 说明：本 profile 保留 RabbitMQ 自动配置（RabbitMQConfig 需要 ConnectionFactory
+# 来构造 RabbitTemplate），只把「消费端容器」关掉，避免本机没有 MQ 时
+# 注解式 @RabbitListener 每 5 秒重连一次并刷屏 ERROR 日志。
 
 spring:
   rabbitmq:
     listener:
       simple:
-        # RabbitMQ 不可用时不要让 listener 启动失败
+        # 关闭 SimpleMessageListenerContainer（@RabbitListener 实际使用的容器）
+        auto-startup: false
+      # 双保险：直接式容器同样关闭
+      direct:
         auto-startup: false
     template:
       # 发送失败时立即抛错（不要阻塞）
       retry:
         enabled: false
+
   quartz:
     job-store-type: memory
     auto-startup: false
     wait-for-jobs-to-complete-on-shutdown: false
     properties:
       org.quartz.threadPool.threadCount: 2
-  # 直接排除 Quartz 自动配置（避免内存模式下属性残留导致启动失败）
+
+  # 排除 Quartz 自动配置（内存模式下属性残留会导致启动失败）
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration

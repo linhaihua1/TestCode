@@ -35,4 +35,9 @@ public class StepExecutorRegistry {
     public StepExecutor get(StepType type) {
         return executors.getOrDefault(type, executors.get(StepType.HTTP_REQUEST));
     }
+
+    /** 已注册的执行器数量（供启动日志使用）。 */
+    public int size() {
+        return executors.size();
+    }
 }
