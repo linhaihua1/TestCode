@@ -115,9 +115,10 @@ api-web/                                # 仓库根
 | Ant Design Vue | 4.x | 组件库 |
 | Pinia | 2.x | 状态管理 |
 | vue-router | 4.x | 路由 |
-| vue-draggable-plus | - | 拖拽（基于 SortableJS） |
+| vuedraggable | 4.x | 拖拽（基于 SortableJS） |
 | monaco-editor | 0.45.x | 代码编辑器（脚本编辑） |
-| @antv/g2 / G2Plot | - | 报告图表 |
+| echarts | 5.x | 报告图表（配 vue-echarts） |
+| xlsx | 0.18.x | Excel 导入解析 |
 | dayjs | - | 时间处理（含 UTC） |
 | axios | 1.x | HTTP 客户端 |
 
@@ -150,6 +151,15 @@ docker exec -i apiweb-mysql mysql -uapiweb -papiweb123 api_web < server/src/main
 mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql
 ```
 
+> **增量迁移**：schema.sql 用 `CREATE TABLE IF NOT EXISTS`，对已存在的旧库不会补列。
+> 若旧库缺表/缺列（如升级后新增 `t_case_step`、`t_report_share` 等），执行幂等迁移脚本：
+>
+> ```bash
+> mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql
+> ```
+>
+> 结构漂移可用 `python server/scripts/check_schema_drift.py` 自动比对实体字段与数据库列。
+
 ### 3.4 启动后端（开发模式）
 
 ```bash
@@ -160,6 +170,14 @@ mvn spring-boot:run
 或用 IDE（IntelliJ IDEA）打开 `server/` 作为 Maven 项目，直接运行 `ApiWebApplication` 主类。
 
 后端默认端口 `8080`，启动后可访问 http://localhost:8080/api。
+
+> **localdev 模式（单机无 Docker 调试）**：本机没有 RabbitMQ/MinIO/Quartz 集群时，用 `localdev` profile 即可只依赖 MySQL + Redis 拉起后端：
+>
+> ```bash
+> java -jar target/api-web-server-*.jar --spring.profiles.active=localdev
+> ```
+>
+> 该 profile 会禁用 RabbitMQ 消费端、Quartz 集群、MinIO（对象存储降级为本地文件系统），并排除相应自动配置，避免无 MQ 时反复重连刷屏。
 
 ### 3.5 启动前端（开发模式）
 
@@ -374,11 +392,17 @@ sb.append("      </CookieManager>\n      <hashTree/>\n");
 ### 5.1 目录约定
 
 - **views/**：每个路由对应一个 Vue 文件
-- **components/**：可复用组件
+- **components/**：可复用组件（含 `workbench/` 工作台子面板）
+- **layouts/**：布局组件（`AppLayout.vue` 左侧侧边栏框架）
 - **api/**：按域拆分的 API 调用函数
 - **stores/**：Pinia store
 - **router/**：路由表
 - **types/**：TS 类型定义（对应后端 DTO）
+- **styles/**：设计系统 —— `tokens.css`（设计令牌）/ `global.css`（全局样式与工具类）/ `antTheme.ts`（antd 主题）
+- **utils/**：工具函数（如 `uid.ts` 拖拽排序标识）
+- **hooks/**：组合式函数（如 `useShortcuts.ts` 全局快捷键）
+
+> 组件样式统一使用 `styles/tokens.css` 中的 CSS 变量（`--c-*`、`--bg-*`、`--bd-*`、`--sp-*`、`--rd-*`、`--sd-*`），不要硬编码色值。
 
 ### 5.2 API 调用约定
 
@@ -427,25 +451,30 @@ export const useProjectStore = defineStore('project', () => {
 
 ### 5.5 三栏工作台（核心页面）
 
-`views/Workbench.vue` 是测试用例编辑的核心，由 3 个子面板组成：
+`views/Workbench.vue` 是测试用例编辑的核心，顶部为配置栏（全局变量/调试记录/回收站），下方由 3 个子面板组成：
 
-- `components/workbench/CaseLibraryPanel.vue` —— 左侧模块树
-- `components/workbench/CaseEditorPanel.vue` —— 中间用例编辑（表单 + Monaco）
-- `components/workbench/ApiManagerPanel.vue` —— 右侧接口管理
+- `components/workbench/WorkbenchLeftPanel.vue` —— 左侧用例库（搜索 + 模块树 + 用例列表）
+- `components/workbench/CaseEditorPanel.vue` —— 中间编写用例（脚本/调试记录双 Tab + 前置/测试/后置三分区）
+- `components/workbench/ApiManagerPanel.vue` —— 右侧接口管理（目录树 + Excel 导入）
+- `components/workbench/StepCard.vue` —— 单步骤卡片（禁用/启用开关、右键复制粘贴、6 种步骤类型）
+- `components/workbench/DebugModal.vue` —— 调试弹窗（环境变量选择与增删改）
 
 子面板通过 `props / emits` 与父组件通信，避免 Pinia store 滥用。
 
 ### 5.6 拖拽
 
-使用 `vue-draggable-plus`：
+使用 `vuedraggable`（基于 SortableJS）。注意 vuedraggable 4.x **强制 `#item` 插槽 + `item-key`**，
+可拖拽数据需带唯一 `_id` 字段（新增行时用 `utils/uid.ts` 的 `uid()` 生成，旧数据用 `ensureIds()` 补齐）：
 
 ```vue
-<VueDraggable v-model="stepList" :animation="150" handle=".drag-handle">
-  <div v-for="step in stepList" :key="step.id" class="step-item">
-    <DragOutlined class="drag-handle" />
-    {{ step.name }}
-  </div>
-</VueDraggable>
+<draggable v-model="stepList" item-key="_id" :animation="150" handle=".drag-handle">
+  <template #item="{ element: step }">
+    <div class="step-item">
+      <DragOutlined class="drag-handle" />
+      {{ step.name }}
+    </div>
+  </template>
+</draggable>
 ```
 
 ### 5.7 Monaco Editor

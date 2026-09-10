@@ -110,6 +110,28 @@ cd api-web
 ./scripts/logs.sh --docker     # 看容器日志
 
 ./scripts/reset-db.sh          # 危险：删除并重建数据库（仅开发用）
+
+### 2.5 本地无 Docker 快速启动（localdev 单机调试）
+
+若本机已装 **MySQL 8.0 + Redis**，但没有 Docker / RabbitMQ / MinIO，可用 `localdev` profile 快速拉起后端（仅依赖 MySQL + Redis）：
+
+```bash
+# 1. 确保 MySQL(3306)、Redis(6379) 已启动，并已初始化 api_web 库
+# 2. 打包并启动后端（localdev 禁用 RabbitMQ 消费端 / Quartz 集群 / MinIO）
+cd server
+mvn -DskipTests package
+java -jar target/api-web-server-*.jar --spring.profiles.active=localdev
+
+# 3. 启动前端
+cd ../client
+npm install && npm run dev
+```
+
+说明：
+
+- 旧库升级时执行幂等迁移：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
+- 对象存储（MinIO）在 localdev 下自动降级为本地文件系统（`C:\dev\apiweb-oss` 或 `/tmp/apiweb-oss`）
+- 登录账号：`admin / admin@123`
 ```
 
 ---
