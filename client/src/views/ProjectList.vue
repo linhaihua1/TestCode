@@ -1,6 +1,8 @@
 <template>
-  <a-card title="项目列表" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 工具栏（原 #extra 内容） -->
+    <div class="page-header">
+      <div class="page-title">项目列表</div>
       <a-space>
         <a-input-search
           v-model:value="keyword"
@@ -13,37 +15,41 @@
           <plus-outlined /> 新建项目
         </a-button>
       </a-space>
-    </template>
-    <a-table
-      :data-source="projects"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      :pagination="{ pageSize: 20 }"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'updatedAt'">
-          {{ formatTime(record.updatedAt) }}
+    </div>
+
+    <!-- 表格卡片 -->
+    <div class="panel">
+      <a-table
+        :data-source="projects"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+        :pagination="{ pageSize: 20 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'updatedAt'">
+            {{ formatTime(record.updatedAt) }}
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="enterProject(record)">
+                <enter-outlined />进入
+              </a-button>
+              <a-button size="small" type="link" @click="openModal(record)">
+                编辑
+              </a-button>
+              <a-popconfirm
+                title="确认删除该项目及其下属数据？"
+                @confirm="remove(record)"
+              >
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="enterProject(record)">
-              <enter-outlined />进入
-            </a-button>
-            <a-button size="small" type="link" @click="openModal(record)">
-              编辑
-            </a-button>
-            <a-popconfirm
-              title="确认删除该项目及其下属数据？"
-              @confirm="remove(record)"
-            >
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
-  </a-card>
+      </a-table>
+    </div>
+  </div>
 
   <a-modal
     v-model:open="modal"
@@ -151,3 +157,10 @@ function enterProject(record: Project) {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 操作列按钮：收紧与单元格的留白 */
+:deep(.ant-table-tbody > tr > td .ant-btn-link) {
+  padding: 0 var(--sp-2);
+}
+</style>

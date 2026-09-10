@@ -117,7 +117,8 @@ function emitChange() {
 
 <style scoped>
 .kv-editor {
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  background: var(--bg-card);
 }
 </style>

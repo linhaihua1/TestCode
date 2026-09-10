@@ -1,6 +1,8 @@
 <template>
-  <a-card title="测试任务" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">测试任务</div>
       <a-space>
         <a-button @click="$router.push('/trend')">
           <line-chart-outlined />趋势
@@ -9,74 +11,77 @@
           <plus-outlined />新建任务
         </a-button>
       </a-space>
-    </template>
+    </div>
 
-    <a-table
-      :data-source="tasks"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      :expanded-row-keys="expandedKeys"
-      @expand="onExpand"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'enabled'">
-          <a-switch :checked="record.enabled" @change="toggle(record)" />
-        </template>
-        <template v-else-if="column.key === 'cronExpr'">
-          <a-tag v-if="record.cronExpr" color="blue">{{ record.cronExpr }}</a-tag>
-          <a-tag v-else color="default">手动</a-tag>
-        </template>
-        <template v-else-if="column.key === 'executeMode'">
-          <a-tag :color="record.executeMode === 'parallel' ? 'orange' : 'default'">
-            {{ record.executeMode === 'parallel' ? '并行' : '顺序' }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'failStrategy'">
-          <a-tag color="purple">{{ strategyLabel(record.failStrategy) }}</a-tag>
-        </template>
-        <template v-else-if="column.key === 'webhookEnabled'">
-          <a-tag v-if="record.webhookEnabled" color="green">已启用</a-tag>
-          <a-tag v-else color="default">未启用</a-tag>
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="runAsync(record)" :loading="runningId === record.id + 'a'">
-              <api-outlined />异步
-            </a-button>
-            <a-button size="small" type="link" @click="runSync(record)" :loading="runningId === record.id + 's'">
-              <thunderbolt-outlined />同步
-            </a-button>
-            <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-
-      <template #expandedRowRender="{ record }">
-        <a-table
-          :data-source="runsByTask[record.id] || []"
-          :columns="runColumns"
-          row-key="id"
-          size="small"
-          :pagination="false"
-        >
-          <template #bodyCell="{ column, run }">
-            <template v-if="column.key === 'result'">
-              <a-tag :color="resultColor(run.result)">{{ run.result }}</a-tag>
-            </template>
-            <template v-else-if="column.key === 'duration'">
-              {{ run.duration }} ms
-            </template>
-            <template v-else-if="column.key === 'startedAt'">
-              {{ formatDate(run.startedAt) }}
-            </template>
+    <!-- 任务表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="tasks"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+        :expanded-row-keys="expandedKeys"
+        @expand="onExpand"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'enabled'">
+            <a-switch :checked="record.enabled" @change="toggle(record)" />
           </template>
-        </a-table>
-      </template>
-    </a-table>
+          <template v-else-if="column.key === 'cronExpr'">
+            <a-tag v-if="record.cronExpr" color="blue">{{ record.cronExpr }}</a-tag>
+            <a-tag v-else color="default">手动</a-tag>
+          </template>
+          <template v-else-if="column.key === 'executeMode'">
+            <a-tag :color="record.executeMode === 'parallel' ? 'orange' : 'default'">
+              {{ record.executeMode === 'parallel' ? '并行' : '顺序' }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'failStrategy'">
+            <a-tag color="purple">{{ strategyLabel(record.failStrategy) }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'webhookEnabled'">
+            <a-tag v-if="record.webhookEnabled" color="green">已启用</a-tag>
+            <a-tag v-else color="default">未启用</a-tag>
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="runAsync(record)" :loading="runningId === record.id + 'a'">
+                <api-outlined />异步
+              </a-button>
+              <a-button size="small" type="link" @click="runSync(record)" :loading="runningId === record.id + 's'">
+                <thunderbolt-outlined />同步
+              </a-button>
+              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
+        </template>
+
+        <template #expandedRowRender="{ record }">
+          <a-table
+            :data-source="runsByTask[record.id] || []"
+            :columns="runColumns"
+            row-key="id"
+            size="small"
+            :pagination="false"
+          >
+            <template #bodyCell="{ column, run }">
+              <template v-if="column.key === 'result'">
+                <a-tag :color="resultColor(run.result)">{{ run.result }}</a-tag>
+              </template>
+              <template v-else-if="column.key === 'duration'">
+                {{ run.duration }} ms
+              </template>
+              <template v-else-if="column.key === 'startedAt'">
+                {{ formatDate(run.startedAt) }}
+              </template>
+            </template>
+          </a-table>
+        </template>
+      </a-table>
+    </div>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal
@@ -230,7 +235,7 @@
         </a-tab-pane>
       </a-tabs>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -488,13 +493,19 @@ onMounted(reload)
 </script>
 
 <style scoped>
+/* 表单内辅助提示文案 */
 .hint {
-  color: #888;
-  font-size: 12px;
-  margin-top: 4px;
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+  margin-top: var(--sp-1);
   display: block;
 }
+/* 通知渠道行间距 */
 .notify-row {
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
+}
+/* Cron 表达式标签用等宽字体，便于阅读 */
+:deep(.ant-table-tbody > tr > td .ant-tag) {
+  font-family: var(--font-mono);
 }
 </style>

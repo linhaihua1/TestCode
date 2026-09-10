@@ -1,30 +1,38 @@
 <template>
-  <a-card title="接口场景" :bordered="false">
-    <template #extra>
-      <a-button type="primary" @click="openCreate">
-        <plus-outlined />新建场景
-      </a-button>
-    </template>
-    <a-table
-      :data-source="scenarios"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      @row-click="(r: any) => router.push({ name: 'scenario-editor', params: { id: r.id } })"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'action'">
-          <a-space @click.stop>
-            <a-button size="small" type="link" @click="execute(record)">
-              <play-circle-outlined />执行
-            </a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">接口场景</div>
+      <a-space>
+        <a-button type="primary" @click="openCreate">
+          <plus-outlined />新建场景
+        </a-button>
+      </a-space>
+    </div>
+
+    <!-- 表格卡片 -->
+    <div class="panel">
+      <a-table
+        :data-source="scenarios"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+        @row-click="(r: any) => router.push({ name: 'scenario-editor', params: { id: r.id } })"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'action'">
+            <a-space @click.stop>
+              <a-button size="small" type="link" @click="execute(record)">
+                <play-circle-outlined />执行
+              </a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -41,7 +49,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -111,3 +119,10 @@ async function remove(record: Scenario) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 行点击进入编辑器，光标反馈 */
+:deep(.ant-table-tbody > tr) {
+  cursor: pointer;
+}
+</style>

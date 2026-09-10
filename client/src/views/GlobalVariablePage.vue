@@ -13,8 +13,10 @@
   </ul>
 -->
 <template>
-  <a-card title="全局变量管理" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 操作 -->
+    <div class="page-header">
+      <div class="page-title">全局变量管理</div>
       <a-space>
         <a-button type="primary" @click="openCreate">
           <plus-outlined />新增变量
@@ -25,40 +27,43 @@
           </a-button>
         </a-popconfirm>
       </a-space>
-    </template>
+    </div>
 
-    <a-table
-      :data-source="variables"
-      :columns="columns"
-      :loading="loading"
-      :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-      :pagination="{ pageSize: 20 }"
-      row-key="id"
-      size="middle"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'value'">
-          <span v-if="record.type === 'SECRET' && !revealed[record.id]">******</span>
-          <span v-else>{{ record.value }}</span>
-          <a-button
-            v-if="record.type === 'SECRET'"
-            size="small"
-            type="text"
-            @click="toggleReveal(record.id)"
-          >
-            {{ revealed[record.id] ? '🙈' : '👁' }}
-          </a-button>
+    <!-- 变量表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="variables"
+        :columns="columns"
+        :loading="loading"
+        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
+        :pagination="{ pageSize: 20 }"
+        row-key="id"
+        size="middle"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'value'">
+            <span v-if="record.type === 'SECRET' && !revealed[record.id]">******</span>
+            <span v-else>{{ record.value }}</span>
+            <a-button
+              v-if="record.type === 'SECRET'"
+              size="small"
+              type="text"
+              @click="toggleReveal(record.id)"
+            >
+              {{ revealed[record.id] ? '🙈' : '👁' }}
+            </a-button>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <a-space>
+              <a-button size="small" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record.id)">
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'actions'">
-          <a-space>
-            <a-button size="small" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record.id)">
-              <a-button size="small" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal
       v-model:open="modalOpen"
@@ -89,7 +94,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -207,3 +212,11 @@ function toggleReveal(id: string) {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+/* SECRET 值的眼睛按钮与值文本基线对齐 */
+:deep(.ant-table-tbody > tr > td .ant-btn-text) {
+  margin-left: var(--sp-1);
+  vertical-align: middle;
+}
+</style>

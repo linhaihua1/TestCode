@@ -1,6 +1,8 @@
 <template>
-  <a-card title="审计日志" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 筛选/刷新 -->
+    <div class="page-header">
+      <div class="page-title">审计日志</div>
       <a-space>
         <a-input v-model:value="username" placeholder="按用户名筛选" style="width: 160px" @pressEnter="reload" />
         <a-select
@@ -11,34 +13,38 @@
         />
         <a-button @click="reload"><reload-outlined />刷新</a-button>
       </a-space>
-    </template>
-    <a-table
-      :data-source="records"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      :pagination="{ current: page, pageSize: size, total, onChange: onPageChange }"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'createdAt'">
-          {{ formatTime(record.createdAt) }}
+    </div>
+
+    <!-- 审计日志表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="records"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+        :pagination="{ current: page, pageSize: size, total, onChange: onPageChange }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'createdAt'">
+            {{ formatTime(record.createdAt) }}
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-tag color="blue">{{ record.action }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'beforeAfter'">
+            <a-popover trigger="click" v-if="record.beforeJson">
+              <a-button type="link" size="small">查看变更</a-button>
+              <template #content>
+                <pre style="max-width: 500px; max-height: 300px; overflow: auto">{{
+                  JSON.stringify({ before: record.beforeJson, after: record.afterJson }, null, 2)
+                }}</pre>
+              </template>
+            </a-popover>
+          </template>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-tag color="blue">{{ record.action }}</a-tag>
-        </template>
-        <template v-else-if="column.key === 'beforeAfter'">
-          <a-popover trigger="click" v-if="record.beforeJson">
-            <a-button type="link" size="small">查看变更</a-button>
-            <template #content>
-              <pre style="max-width: 500px; max-height: 300px; overflow: auto">{{
-                JSON.stringify({ before: record.beforeJson, after: record.afterJson }, null, 2)
-              }}</pre>
-            </template>
-          </a-popover>
-        </template>
-      </template>
-    </a-table>
-  </a-card>
+      </a-table>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -109,3 +115,12 @@ function onPageChange(p: number) {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 审计动作标签：等宽字体便于区分 */
+:deep(.ant-table-tbody > tr > td .ant-tag) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+</style>

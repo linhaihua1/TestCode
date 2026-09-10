@@ -1,57 +1,69 @@
 <template>
-  <a-card title="性能测试" :bordered="false">
-    <template #extra>
-      <a-button type="primary" @click="openCreate">
-        <plus-outlined />新建用例
-      </a-button>
-    </template>
-    <a-tabs v-model:active-key="activeTab">
-      <a-tab-pane key="cases" tab="用例">
-        <a-table
-          :data-source="cases"
-          :columns="caseColumns"
-          row-key="id"
-          :loading="loading"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'threads'">
-              {{ record.threads }} 线程 / {{ record.rampUp }}s ramp-up
-              <a-tag v-if="durationFor(record)" color="purple">{{ record.duration }}s</a-tag>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-space>
-                <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
-                  <play-circle-outlined />运行
-                </a-button>
-                <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-                <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                  <a-button size="small" type="link" danger>删除</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </a-tab-pane>
-      <a-tab-pane key="reports" tab="报告">
-        <a-table
-          :data-source="reports"
-          :columns="reportColumns"
-          row-key="id"
-          :loading="loadingReports"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <router-link :to="{ name: 'perf-report-detail', params: { id: record.id } }">
-                <a-button size="small" type="link">查看</a-button>
-              </router-link>
-            </template>
-          </template>
-        </a-table>
-      </a-tab-pane>
-    </a-tabs>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">性能测试</div>
+      <a-space>
+        <a-button type="primary" @click="openCreate">
+          <plus-outlined />新建用例
+        </a-button>
+      </a-space>
+    </div>
+
+    <!-- 用例 / 报告 tabs -->
+    <div class="panel perf-tabs">
+      <a-tabs v-model:active-key="activeTab">
+        <a-tab-pane key="cases" tab="用例">
+          <div class="tab-pane-inner">
+            <a-table
+              :data-source="cases"
+              :columns="caseColumns"
+              row-key="id"
+              :loading="loading"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'threads'">
+                  {{ record.threads }} 线程 / {{ record.rampUp }}s ramp-up
+                  <a-tag v-if="durationFor(record)" color="purple">{{ record.duration }}s</a-tag>
+                </template>
+                <template v-else-if="column.key === 'action'">
+                  <a-space>
+                    <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
+                      <play-circle-outlined />运行
+                    </a-button>
+                    <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+                    <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                      <a-button size="small" type="link" danger>删除</a-button>
+                    </a-popconfirm>
+                  </a-space>
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-tab-pane>
+        <a-tab-pane key="reports" tab="报告">
+          <div class="tab-pane-inner">
+            <a-table
+              :data-source="reports"
+              :columns="reportColumns"
+              row-key="id"
+              :loading="loadingReports"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'status'">
+                  <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+                </template>
+                <template v-else-if="column.key === 'action'">
+                  <router-link :to="{ name: 'perf-report-detail', params: { id: record.id } }">
+                    <a-button size="small" type="link">查看</a-button>
+                  </router-link>
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -105,21 +117,26 @@
         </a-row>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { PerfApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
 import type { PerfCase, PerfReport } from '@/types'
 
+const route = useRoute()
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
 
-const activeTab = ref<'cases' | 'reports'>('cases')
+// 支持侧边栏通过 ?tab=reports 直达「报告」页（对应「测试报告」菜单入口）
+const activeTab = ref<'cases' | 'reports'>(
+  route.query.tab === 'reports' ? 'reports' : 'cases'
+)
 const cases = ref<PerfCase[]>([])
 const reports = ref<PerfReport[]>([])
 const loading = ref(false)
@@ -253,3 +270,17 @@ onMounted(() => {
   reloadReports()
 })
 </script>
+
+<style scoped>
+/* tabs panel：去掉内层 card 默认 padding，让 tabs 顶满 panel */
+.perf-tabs {
+  padding: 0;
+}
+:deep(.perf-tabs > .ant-tabs > .ant-tabs-nav) {
+  margin: 0 var(--sp-4);
+}
+/* tabs 内表格区给一点 padding，避免贴边 */
+:deep(.perf-tabs .tab-pane-inner) {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
+</style>

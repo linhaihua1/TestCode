@@ -1,27 +1,35 @@
 <template>
-  <a-card title="环境管理" :bordered="false">
-    <template #extra>
-      <a-button type="primary" @click="openCreate">
-        <plus-outlined />新建环境
-      </a-button>
-    </template>
-    <a-table
-      :data-source="envs"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">环境管理</div>
+      <a-space>
+        <a-button type="primary" @click="openCreate">
+          <plus-outlined />新建环境
+        </a-button>
+      </a-space>
+    </div>
+
+    <!-- 环境表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="envs"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -50,7 +58,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -133,3 +141,10 @@ async function remove(record: Environment) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* BaseURL 等可能较长的列在窄屏不撑破表格 */
+:deep(.ant-table-tbody > tr > td) {
+  word-break: break-all;
+}
+</style>

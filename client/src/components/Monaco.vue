@@ -78,7 +78,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .monaco-container {
   width: 100%;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  overflow: hidden;
 }
 </style>

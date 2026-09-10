@@ -1,32 +1,38 @@
 <template>
-  <a-card title="全局变量" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 操作 -->
+    <div class="page-header">
+      <div class="page-title">全局变量</div>
       <a-space>
         <a-button @click="openCreate">
           <plus-outlined />新增变量
         </a-button>
       </a-space>
-    </template>
-    <a-table
-      :data-source="variables"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'value'">
-          <span>{{ record.encrypted ? '••••••' : record.value }}</span>
+    </div>
+
+    <!-- 变量表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="variables"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'value'">
+            <span>{{ record.encrypted ? '••••••' : record.value }}</span>
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -52,7 +58,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -135,3 +141,10 @@ async function remove(record: GlobalVariable) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 当加密值有长 JSON 时，文本可换行避免撑破表格 */
+:deep(.ant-table-tbody > tr > td) {
+  word-break: break-word;
+}
+</style>

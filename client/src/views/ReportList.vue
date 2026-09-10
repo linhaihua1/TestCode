@@ -1,6 +1,8 @@
 <template>
-  <a-card title="测试报告" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 工具栏 -->
+    <div class="page-header">
+      <div class="page-title">测试报告</div>
       <a-space>
         <router-link to="/trend">
           <a-button type="link"><line-chart-outlined />趋势统计</a-button>
@@ -9,89 +11,95 @@
           <reload-outlined />刷新
         </a-button>
       </a-space>
-    </template>
+    </div>
 
-    <!-- 筛选 + 汇总 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="6">
-        <a-statistic title="报告总数" :value="reports.length" />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="近 7 天通过率"
-          :value="recent7PassRate"
-          :precision="2"
-          suffix="%"
-          :value-style="{ color: recent7PassRate >= 80 ? '#52c41a' : '#faad14' }"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="总用例数" :value="totalCases" />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="总失败数" :value="totalFailed">
-          <template #suffix>
-            <span style="font-size: 12px; color: #888">含异常</span>
+    <!-- 筛选 + 汇总：统一 stat-grid 风格 -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">报告总数</div>
+        <div class="value tabular">{{ reports.length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">近 7 天通过率</div>
+        <div
+          class="value"
+          :class="{
+            success: recent7PassRate >= 80,
+            warning: recent7PassRate < 80
+          }"
+        >
+          {{ recent7PassRate.toFixed(2) }}<span class="text-3" style="font-size: var(--fs-md); margin-left: 4px">%</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="label">总用例数</div>
+        <div class="value tabular">{{ totalCases }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">总失败数</div>
+        <div class="value error tabular">{{ totalFailed }}</div>
+        <div class="text-3" style="font-size: var(--fs-xs); margin-top: var(--sp-1)">含异常</div>
+      </div>
+    </div>
+
+    <!-- 报告表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="reports"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+        :pagination="{ pageSize: 20 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
           </template>
-        </a-statistic>
-      </a-col>
-    </a-row>
-
-    <a-table
-      :data-source="reports"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      :pagination="{ pageSize: 20 }"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+          <template v-else-if="column.key === 'triggerType'">
+            <a-tag color="blue">{{ triggerLabel(record.triggerType) }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'startedAt'">
+            {{ formatTime(record.startedAt) }}
+          </template>
+          <template v-else-if="column.key === 'cases'">
+            <span v-if="record.totalCases">
+              <a-tag color="green">{{ record.passedCases || 0 }}</a-tag> /
+              <a-tag color="red">{{ record.failedCases || 0 }}</a-tag> /
+              <a-tag>{{ record.totalCases }}</a-tag>
+            </span>
+            <span v-else>-</span>
+          </template>
+          <template v-else-if="column.key === 'response'">
+            {{ record.avgResponseTime || 0 }} ms
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <router-link :to="{ name: 'report-detail', params: { id: record.id } }">
+                <a-button size="small" type="link">查看</a-button>
+              </router-link>
+              <a-dropdown>
+                <a-button size="small" type="link">
+                  导出 <down-outlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="(e: any) => exportReport(record, e.key)">
+                    <a-menu-item key="html">HTML</a-menu-item>
+                    <a-menu-item key="pdf">PDF</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+              <router-link :to="{ name: 'report-detail', params: { id: record.id }, hash: '#shares' }">
+                <a-button size="small" type="link">分享</a-button>
+              </router-link>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'triggerType'">
-          <a-tag color="blue">{{ triggerLabel(record.triggerType) }}</a-tag>
-        </template>
-        <template v-else-if="column.key === 'startedAt'">
-          {{ formatTime(record.startedAt) }}
-        </template>
-        <template v-else-if="column.key === 'cases'">
-          <span v-if="record.totalCases">
-            <a-tag color="green">{{ record.passedCases || 0 }}</a-tag> /
-            <a-tag color="red">{{ record.failedCases || 0 }}</a-tag> /
-            <a-tag>{{ record.totalCases }}</a-tag>
-          </span>
-          <span v-else>-</span>
-        </template>
-        <template v-else-if="column.key === 'response'">
-          {{ record.avgResponseTime || 0 }} ms
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <router-link :to="{ name: 'report-detail', params: { id: record.id } }">
-              <a-button size="small" type="link">查看</a-button>
-            </router-link>
-            <a-dropdown>
-              <a-button size="small" type="link">
-                导出 <down-outlined />
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e: any) => exportReport(record, e.key)">
-                  <a-menu-item key="html">HTML</a-menu-item>
-                  <a-menu-item key="pdf">PDF</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-            <router-link :to="{ name: 'report-detail', params: { id: record.id }, hash: '#shares' }">
-              <a-button size="small" type="link">分享</a-button>
-            </router-link>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
-  </a-card>
+      </a-table>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -194,3 +202,12 @@ async function remove(record: Report) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 通过/失败/总数 三色标签列：等宽对齐 */
+:deep(.ant-table-tbody > tr > td .ant-tag) {
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: center;
+}
+</style>

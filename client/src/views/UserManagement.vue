@@ -1,23 +1,31 @@
 <template>
-  <a-card title="用户管理" :bordered="false">
-    <template #extra>
-      <a-button type="primary" @click="openCreate"><plus-outlined />新建用户</a-button>
-    </template>
-    <a-table :data-source="users" :columns="columns" row-key="id" :loading="loading">
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'role'">
-          <a-tag :color="record.role === 'admin' ? 'red' : 'blue'">{{ record.role }}</a-tag>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">用户管理</div>
+      <a-space>
+        <a-button type="primary" @click="openCreate"><plus-outlined />新建用户</a-button>
+      </a-space>
+    </div>
+
+    <!-- 用户表格 -->
+    <div class="panel">
+      <a-table :data-source="users" :columns="columns" row-key="id" :loading="loading">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'role'">
+            <a-tag :color="record.role === 'admin' ? 'red' : 'blue'">{{ record.role }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal v-model:open="modal" :title="form.id ? '编辑用户' : '新建用户'" @ok="save" width="480">
       <a-form layout="vertical">
@@ -35,7 +43,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -112,3 +120,12 @@ async function remove(record: User) {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 角色标签：用等宽字体便于阅读 */
+:deep(.ant-table-tbody > tr > td .ant-tag) {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+</style>

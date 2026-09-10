@@ -1,6 +1,8 @@
 <template>
-  <a-card title="测试趋势统计" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 时间维度切换 + 刷新 -->
+    <div class="page-header">
+      <div class="page-title">测试趋势统计</div>
       <a-space>
         <a-segmented
           v-model:value="days"
@@ -11,40 +13,46 @@
           <reload-outlined />刷新
         </a-button>
       </a-space>
-    </template>
+    </div>
 
-    <!-- 摘要卡片 -->
-    <a-row :gutter="16" v-if="summary" style="margin-bottom: 16px">
-      <a-col :span="6">
-        <a-statistic title="报告数" :value="summary.reportCount" />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="用例总数" :value="summary.totalCases" />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="通过率"
-          :value="summary.passRate"
-          :precision="2"
-          suffix="%"
-          :value-style="{ color: summary.passRate >= 80 ? '#52c41a' : summary.passRate >= 60 ? '#faad14' : '#ff4d4f' }"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="失败用例" :value="summary.failedCases + summary.errorCases">
-          <template #suffix>
-            <span style="font-size: 12px; color: #888">
-              失败 {{ summary.failedCases }} / 异常 {{ summary.errorCases }}
-            </span>
-          </template>
-        </a-statistic>
-      </a-col>
-    </a-row>
+    <!-- 摘要卡片：统一为 stat-grid -->
+    <div v-if="summary" class="stat-grid">
+      <div class="stat-card">
+        <div class="label">报告数</div>
+        <div class="value tabular">{{ summary.reportCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">用例总数</div>
+        <div class="value tabular">{{ summary.totalCases }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">通过率</div>
+        <div
+          class="value tabular"
+          :class="{
+            success: summary.passRate >= 80,
+            warning: summary.passRate >= 60 && summary.passRate < 80,
+            error: summary.passRate < 60
+          }"
+        >
+          {{ summary.passRate.toFixed(2) }}<span class="text-3" style="font-size: var(--fs-md); margin-left: 4px">%</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="label">失败用例</div>
+        <div class="value error tabular">{{ summary.failedCases + summary.errorCases }}</div>
+        <div class="text-3" style="font-size: var(--fs-xs); margin-top: var(--sp-1)">
+          失败 {{ summary.failedCases }} / 异常 {{ summary.errorCases }}
+        </div>
+      </div>
+    </div>
 
-    <!-- ECharts 图表 -->
-    <div ref="chartRef" class="trend-chart" v-show="!loading"></div>
-    <a-empty v-if="!loading && trend.length === 0" description="所选时间范围暂无报告" />
-  </a-card>
+    <!-- ECharts 图表放在 panel 内，统一卡观感 -->
+    <div class="panel" style="padding: var(--sp-5)">
+      <div ref="chartRef" class="trend-chart" v-show="!loading"></div>
+      <a-empty v-if="!loading && trend.length === 0" description="所选时间范围暂无报告" />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">

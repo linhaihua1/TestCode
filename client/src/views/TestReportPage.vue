@@ -1,166 +1,212 @@
 <template>
-  <a-card :bordered="false" v-if="report">
-    <a-page-header
-      :title="report.name"
-      :sub-title="`触发方式：${triggerLabel(report.triggerType)} · 耗时 ${report.duration || 0} ms`"
-      @back="() => router.back()"
-    >
-      <template #extra>
-        <a-space>
-          <a-button @click="openTrend" type="link">
-            <line-chart-outlined />趋势
-          </a-button>
-          <a-button @click="exportHtml" type="link">
-            <download-outlined />HTML
-          </a-button>
-          <a-button @click="exportPdf" type="link">
-            <file-pdf-outlined />PDF
-          </a-button>
-          <a-button @click="openShare" type="primary">
-            <share-alt-outlined />分享报告
-          </a-button>
-        </a-space>
-      </template>
-    </a-page-header>
+  <div class="page report-page" v-if="report">
+    <!-- 页头 -->
+    <header class="page-header">
+      <div class="page-title">
+        <file-text-outlined class="page-title__icon" />
+        <span class="ellipsis">{{ report.name }}</span>
+        <span class="sub">
+          触发方式：{{ triggerLabel(report.triggerType) }} · 耗时 {{ report.duration || 0 }} ms
+        </span>
+      </div>
+      <a-space>
+        <a-button @click="openTrend">
+          <line-chart-outlined />趋势
+        </a-button>
+        <a-button @click="exportHtml">
+          <download-outlined />HTML
+        </a-button>
+        <a-button @click="exportPdf">
+          <file-pdf-outlined />PDF
+        </a-button>
+        <a-button type="primary" @click="openShare">
+          <share-alt-outlined />分享报告
+        </a-button>
+      </a-space>
+    </header>
 
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="6">
-        <a-statistic title="用例总数" :value="report.totalCases || 0" />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="通过率"
-          :value="passRate"
-          :precision="2"
-          suffix="%"
-          :value-style="{ color: passRate >= 80 ? '#52c41a' : passRate >= 60 ? '#faad14' : '#ff4d4f' }"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="断言" :value="report.totalAssertions || 0">
-          <template #suffix>
-            <span style="font-size: 12px; color: #888">
-              通过 {{ report.passedAssertions || 0 }} / 失败 {{ report.failedAssertions || 0 }}
-            </span>
-          </template>
-        </a-statistic>
-      </a-col>
-      <a-col :span="6">
-        <a-statistic title="平均响应时间" :value="report.avgResponseTime || 0" suffix="ms" />
-      </a-col>
-    </a-row>
+    <!-- 关键指标卡片 -->
+    <section class="stat-grid">
+      <div class="stat-card">
+        <div class="label">用例总数</div>
+        <div class="value tabular">{{ report.totalCases || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">通过率</div>
+        <div
+          class="value tabular"
+          :class="{
+            success: passRate >= 80,
+            warning: passRate >= 60 && passRate < 80,
+            error: passRate < 60
+          }"
+        >
+          {{ passRate.toFixed(2) }}<span class="unit">%</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="label">断言</div>
+        <div class="value tabular">{{ report.totalAssertions || 0 }}</div>
+        <div class="sub-stat">
+          通过 {{ report.passedAssertions || 0 }} / 失败 {{ report.failedAssertions || 0 }}
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="label">平均响应时间</div>
+        <div class="value tabular primary">
+          {{ report.avgResponseTime || 0 }}<span class="unit"> ms</span>
+        </div>
+      </div>
+    </section>
 
-    <!-- Tab 切换：明细 / HTML预览 / 分享记录 -->
-    <a-tabs v-model:active-key="activeTab">
-      <a-tab-pane key="details" tab="步骤明细">
-        <a-list :data-source="details" :loading="loadingDetails">
-          <template #renderItem="{ item }">
-            <a-list-item>
-              <a-list-item-meta>
-                <template #title>
-                  <a-space>
-                    <a-tag :color="statusColor(item.status)">{{ item.status }}</a-tag>
-                    <span>{{ item.stepName }}</span>
-                    <a-tag v-if="item.durationMs" color="default">{{ item.durationMs }} ms</a-tag>
-                  </a-space>
-                </template>
-                <template #description>
-                  <a-space direction="vertical" style="width: 100%">
-                    <a-alert v-if="item.error" type="error" :message="item.error" />
-                    <a-collapse ghost>
-                      <a-collapse-panel :header="`断言结果 (${item.assertions?.length || 0})`">
-                        <a-list :data-source="item.assertions" size="small">
-                          <template #renderItem="{ item: a }">
-                            <a-list-item>
-                              <a-space>
-                                <a-tag :color="a.passed ? 'green' : 'red'">
+    <!-- Tab 切换 -->
+    <section class="panel report-panel">
+      <a-tabs v-model:active-key="activeTab" class="report-tabs">
+        <!-- 步骤明细 -->
+        <a-tab-pane key="details" tab="步骤明细">
+          <a-list
+            class="report-list"
+            :data-source="details"
+            :loading="loadingDetails"
+          >
+            <template #renderItem="{ item }">
+              <a-list-item class="report-list__item">
+                <a-list-item-meta>
+                  <template #title>
+                    <div class="step-title">
+                      <a-tag :color="statusColor(item.status)" class="step-tag">
+                        {{ item.status }}
+                      </a-tag>
+                      <span class="step-name">{{ item.stepName }}</span>
+                      <a-tag v-if="item.durationMs" class="step-duration">
+                        {{ item.durationMs }} ms
+                      </a-tag>
+                    </div>
+                  </template>
+                  <template #description>
+                    <div class="step-body">
+                      <a-alert
+                        v-if="item.error"
+                        type="error"
+                        :message="item.error"
+                        show-icon
+                        class="step-error"
+                      />
+                      <a-collapse ghost class="step-collapse">
+                        <a-collapse-panel :header="`断言结果 (${item.assertions?.length || 0})`">
+                          <a-list
+                            :data-source="item.assertions"
+                            size="small"
+                            class="assertion-list"
+                          >
+                            <template #renderItem="{ item: a }">
+                              <a-list-item class="assertion-item">
+                                <a-tag :color="a.passed ? 'green' : 'red'" class="assertion-mark">
                                   {{ a.passed ? '✓' : '✗' }}
                                 </a-tag>
                                 <span>{{ a.message }}</span>
-                              </a-space>
-                            </a-list-item>
-                          </template>
-                        </a-list>
-                      </a-collapse-panel>
-                      <a-collapse-panel header="提取变量">
-                        <pre>{{ JSON.stringify(item.extracts, null, 2) }}</pre>
-                      </a-collapse-panel>
-                      <a-collapse-panel v-if="item.requestSummary" header="请求摘要">
-                        <pre>{{ item.requestSummary }}</pre>
-                      </a-collapse-panel>
-                      <a-collapse-panel v-if="item.responseSummary" header="响应摘要">
-                        <pre>{{ item.responseSummary }}</pre>
-                      </a-collapse-panel>
-                    </a-collapse>
-                  </a-space>
+                              </a-list-item>
+                            </template>
+                          </a-list>
+                        </a-collapse-panel>
+                        <a-collapse-panel header="提取变量">
+                          <pre class="json-pre">{{ JSON.stringify(item.extracts, null, 2) }}</pre>
+                        </a-collapse-panel>
+                        <a-collapse-panel v-if="item.requestSummary" header="请求摘要">
+                          <pre class="json-pre">{{ item.requestSummary }}</pre>
+                        </a-collapse-panel>
+                        <a-collapse-panel v-if="item.responseSummary" header="响应摘要">
+                          <pre class="json-pre">{{ item.responseSummary }}</pre>
+                        </a-collapse-panel>
+                      </a-collapse>
+                    </div>
+                  </template>
+                </a-list-item-meta>
+              </a-list-item>
+            </template>
+          </a-list>
+        </a-tab-pane>
+
+        <!-- HTML 预览 -->
+        <a-tab-pane key="html" tab="HTML 预览">
+          <div class="html-preview-wrap">
+            <iframe
+              v-if="htmlPreview"
+              :srcdoc="htmlPreview"
+              class="html-frame"
+              sandbox=""
+            />
+            <a-empty
+              v-else
+              description="暂无 HTML 报告，点击下方按钮加载"
+              class="html-empty"
+            />
+            <a-button
+              v-if="!htmlPreview"
+              type="primary"
+              @click="loadHtmlPreview"
+              class="html-load-btn"
+            >
+              <download-outlined />加载 HTML 报告
+            </a-button>
+          </div>
+        </a-tab-pane>
+
+        <!-- 分享记录 -->
+        <a-tab-pane key="shares" tab="分享记录">
+          <div class="shares-wrap">
+            <a-button
+              type="primary"
+              @click="openShare"
+              class="shares-create-btn"
+            >
+              <plus-outlined />创建分享
+            </a-button>
+            <a-table
+              :data-source="shares"
+              row-key="id"
+              :loading="loadingShares"
+              :pagination="false"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'token'">
+                  <a-typography-paragraph :copyable="{ text: sharePublicUrl(record) }">
+                    <a-tag>{{ record.token.substring(0, 8) }}...</a-tag>
+                  </a-typography-paragraph>
                 </template>
-              </a-list-item-meta>
-            </a-list-item>
-          </template>
-        </a-list>
-      </a-tab-pane>
-
-      <a-tab-pane key="html" tab="HTML 预览">
-        <div class="html-preview-wrap">
-          <iframe
-            v-if="htmlPreview"
-            :srcdoc="htmlPreview"
-            class="html-frame"
-            sandbox=""
-          />
-          <a-empty v-else description="暂无 HTML 报告,点击" />
-          <a-button v-if="!htmlPreview" @click="loadHtmlPreview">加载 HTML 报告</a-button>
-        </div>
-      </a-tab-pane>
-
-      <a-tab-pane key="shares" tab="分享记录">
-        <a-button type="primary" style="margin-bottom: 12px" @click="openShare">
-          <plus-outlined />创建分享
-        </a-button>
-        <a-table
-          :data-source="shares"
-          row-key="id"
-          :loading="loadingShares"
-          :pagination="false"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'token'">
-              <a-typography-paragraph :copyable="{ text: sharePublicUrl(record) }">
-                <a-tag>{{ record.token.substring(0, 8) }}...</a-tag>
-              </a-typography-paragraph>
-            </template>
-            <template v-else-if="column.key === 'expiresAt'">
-              <a-tag :color="isExpired(record.expiresAt) ? 'red' : 'green'">
-                {{ formatDate(record.expiresAt) }}
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'accessCount'">
-              {{ record.accessCount }}{{ record.maxAccessCount ? `/${record.maxAccessCount}` : '' }}
-            </template>
-            <template v-else-if="column.key === 'hasPassword'">
-              <a-tag v-if="record.hasPassword" color="orange">已设置</a-tag>
-              <a-tag v-else color="default">无</a-tag>
-            </template>
-            <template v-else-if="column.key === 'revoked'">
-              <a-tag v-if="record.revoked" color="red">已撤销</a-tag>
-              <a-tag v-else color="green">有效</a-tag>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button
-                size="small"
-                type="link"
-                danger
-                :disabled="record.revoked"
-                @click="revokeShare(record)"
-              >
-                撤销
-              </a-button>
-            </template>
-          </template>
-        </a-table>
-      </a-tab-pane>
-    </a-tabs>
+                <template v-else-if="column.key === 'expiresAt'">
+                  <a-tag :color="isExpired(record.expiresAt) ? 'red' : 'green'">
+                    {{ formatDate(record.expiresAt) }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'accessCount'">
+                  {{ record.accessCount }}{{ record.maxAccessCount ? `/${record.maxAccessCount}` : '' }}
+                </template>
+                <template v-else-if="column.key === 'hasPassword'">
+                  <a-tag v-if="record.hasPassword" color="orange">已设置</a-tag>
+                  <a-tag v-else>无</a-tag>
+                </template>
+                <template v-else-if="column.key === 'revoked'">
+                  <a-tag v-if="record.revoked" color="red">已撤销</a-tag>
+                  <a-tag v-else color="green">有效</a-tag>
+                </template>
+                <template v-else-if="column.key === 'action'">
+                  <a-button
+                    size="small"
+                    type="link"
+                    danger
+                    :disabled="record.revoked"
+                    @click="revokeShare(record)"
+                  >
+                    撤销
+                  </a-button>
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </section>
 
     <!-- 创建分享弹窗 -->
     <a-modal
@@ -189,7 +235,7 @@
         />
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -200,6 +246,7 @@ import {
   LineChartOutlined,
   DownloadOutlined,
   FilePdfOutlined,
+  FileTextOutlined,
   ShareAltOutlined,
   PlusOutlined
 } from '@ant-design/icons-vue'
@@ -344,15 +391,162 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.html-preview-wrap {
-  height: 70vh;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
+/* AppLayout 外层已经提供了页面 padding，这里避免重复 */
+.report-page {
+  padding: 0;
+}
+
+.page-title__icon {
+  font-size: var(--fs-lg);
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+/* 数值后缀单位 */
+.stat-card .unit {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--tx-3);
+  margin-left: 2px;
+}
+
+/* 统计卡片下方辅助行 */
+.sub-stat {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tab 所在面板（带圆角+阴影） */
+.report-panel {
+  padding: 0;
   overflow: hidden;
 }
+
+.report-tabs {
+  padding: 0 var(--sp-5);
+}
+
+.report-tabs :deep(.ant-tabs-content-holder) {
+  padding: var(--sp-4) 0 var(--sp-5);
+}
+
+/* === 步骤明细列表 === */
+.report-list :deep(.ant-list-item) {
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--bd-subtle);
+}
+
+.report-list :deep(.ant-list-item:last-child) {
+  border-bottom: none;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.step-tag {
+  text-transform: capitalize;
+}
+
+.step-name {
+  color: var(--tx-1);
+  font-weight: 500;
+}
+
+.step-duration {
+  margin-left: auto;
+  color: var(--tx-3);
+}
+
+.step-body {
+  width: 100%;
+  margin-top: var(--sp-2);
+}
+
+.step-error {
+  margin-bottom: var(--sp-3);
+}
+
+.step-collapse {
+  background: transparent;
+}
+
+/* === 断言子列表 === */
+.assertion-list :deep(.ant-list-item) {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px dashed var(--bd-subtle);
+}
+
+.assertion-list :deep(.ant-list-item:last-child) {
+  border-bottom: none;
+}
+
+.assertion-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--tx-2);
+  font-size: var(--fs-sm);
+}
+
+.assertion-mark {
+  flex-shrink: 0;
+  margin: 0;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* === JSON / 摘要预格式化块 === */
+.json-pre {
+  margin: 0;
+  padding: var(--sp-3);
+  background: var(--bg-subtle);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--tx-2);
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 320px;
+}
+
+/* === HTML 预览 === */
+.html-preview-wrap {
+  position: relative;
+  height: 70vh;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  overflow: hidden;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
 .html-frame {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+.html-load-btn {
+  align-self: center;
+}
+
+/* === 分享记录 === */
+.shares-wrap {
+  padding: 0 var(--sp-1);
+}
+
+.shares-create-btn {
+  margin-bottom: var(--sp-4);
 }
 </style>

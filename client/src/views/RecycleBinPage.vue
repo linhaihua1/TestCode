@@ -15,58 +15,66 @@
   </ul>
 -->
 <template>
-  <a-card title="回收站" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 清理配置提示与入口 -->
+    <div class="page-header">
+      <div class="page-title">回收站</div>
       <a-space>
-        <span style="font-size: 13px; color: #666">
+        <span class="text-3" style="font-size: var(--fs-sm)">
           自动清理：{{ config.cleanupDays === 0 ? '不自动清理' : `${config.cleanupDays} 天` }}
         </span>
         <a-button @click="configOpen = true">配置</a-button>
       </a-space>
-    </template>
+    </div>
 
-    <a-space style="margin-bottom: 12px">
-      <a-select v-model:value="filterType" :options="typeOptions" style="width: 140px" />
-      <a-button @click="reload">刷新</a-button>
-      <a-popconfirm title="确认批量还原？" @confirm="batchRestore">
-        <a-button type="primary" :disabled="!selectedRowKeys.length">批量还原</a-button>
-      </a-popconfirm>
-      <a-popconfirm
-        title="永久删除不可恢复！确认批量永久删除？"
-        ok-text="确认永久删除"
-        cancel-text="取消"
-        @confirm="batchPermanent"
+    <!-- 批量操作工具条 -->
+    <div class="panel toolbar">
+      <a-space>
+        <a-select v-model:value="filterType" :options="typeOptions" style="width: 140px" />
+        <a-button @click="reload">刷新</a-button>
+        <a-popconfirm title="确认批量还原？" @confirm="batchRestore">
+          <a-button type="primary" :disabled="!selectedRowKeys.length">批量还原</a-button>
+        </a-popconfirm>
+        <a-popconfirm
+          title="永久删除不可恢复！确认批量永久删除？"
+          ok-text="确认永久删除"
+          cancel-text="取消"
+          @confirm="batchPermanent"
+        >
+          <a-button danger :disabled="!selectedRowKeys.length">批量永久删除</a-button>
+        </a-popconfirm>
+      </a-space>
+    </div>
+
+    <!-- 回收站表格 -->
+    <div class="panel" style="margin-top: var(--sp-4)">
+      <a-table
+        :data-source="items"
+        :columns="columns"
+        :loading="loading"
+        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
+        row-key="id"
+        size="middle"
+        :pagination="{ pageSize: 20 }"
       >
-        <a-button danger :disabled="!selectedRowKeys.length">批量永久删除</a-button>
-      </a-popconfirm>
-    </a-space>
-
-    <a-table
-      :data-source="items"
-      :columns="columns"
-      :loading="loading"
-      :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-      row-key="id"
-      size="middle"
-      :pagination="{ pageSize: 20 }"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'type'">
-          <a-tag :color="typeColor(record.type)">{{ typeLabel(record.type) }}</a-tag>
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'type'">
+            <a-tag :color="typeColor(record.type)">{{ typeLabel(record.type) }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'deletedAt'">
+            {{ formatTime(record.deletedAt) }}
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <a-space>
+              <a-button size="small" @click="restore(record)">还原</a-button>
+              <a-popconfirm title="永久删除不可恢复，确认？" @confirm="permanent(record.id)">
+                <a-button size="small" danger>永久删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'deletedAt'">
-          {{ formatTime(record.deletedAt) }}
-        </template>
-        <template v-else-if="column.key === 'actions'">
-          <a-space>
-            <a-button size="small" @click="restore(record)">还原</a-button>
-            <a-popconfirm title="永久删除不可恢复，确认？" @confirm="permanent(record.id)">
-              <a-button size="small" danger>永久删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <!-- 自动清理配置弹窗 -->
     <a-modal
@@ -86,7 +94,7 @@
         />
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -207,3 +215,10 @@ onMounted(async () => {
   await reload()
 })
 </script>
+
+<style scoped>
+/* 工具条 panel：横向 padding 收紧，纵向留白让控件更紧凑 */
+.toolbar {
+  padding: var(--sp-3) var(--sp-4);
+}
+</style>

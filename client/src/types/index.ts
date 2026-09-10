@@ -274,6 +274,8 @@ export interface ReportDetail {
 }
 
 export interface AssertionResult {
+  /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
+  _id?: string
   source?: string
   property?: string
   operator: string
@@ -284,8 +286,40 @@ export interface AssertionResult {
 }
 
 export interface ExtractResult {
+  /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
+  _id?: string
   variable: string
   value: string
+}
+
+/**
+ * 接口用例步骤（编写用例面板）。
+ *
+ * <p>position 区分前置/测试/后置三个分区，enabled 控制是否参与执行。
+ * type 对应 6 种步骤：HTTP 请求 / 等待时间 / IF / FOR / WHILE / JS 脚本。
+ */
+export interface CaseStep {
+  /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
+  _id?: string
+  /** 步骤分区：前置 / 测试 / 后置（默认 TEST） */
+  position?: 'PRE' | 'TEST' | 'POST'
+  /** 是否启用（false = 跳过执行） */
+  enabled?: boolean
+  type: 'http' | 'wait' | 'if' | 'for' | 'while' | 'script'
+  name?: string
+  method?: string
+  url?: string
+  headers: KeyValueItem[]
+  query: KeyValueItem[]
+  body?: string
+  assertions: AssertionResult[]
+  extracts: ExtractResult[]
+  condition?: string
+  loopCount?: number
+  /** 等待时间（毫秒），type=wait 时使用 */
+  waitMs?: number
+  script?: string
+  __activeTab?: string
 }
 
 export interface StepResult {
@@ -350,6 +384,8 @@ export interface UiTestCase extends BaseEntity {
 }
 
 export interface UiStep {
+  /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
+  _id?: string
   action: 'open' | 'click' | 'input' | 'clear' | 'submit' | 'wait'
     | 'assert_text' | 'assert_title' | 'screenshot' | 'script'
   locator?: 'id' | 'name' | 'css' | 'xpath' | 'class' | 'tag' | 'link_text' | 'partial_link_text'

@@ -1,47 +1,59 @@
 <template>
-  <a-card title="UI 自动化" :bordered="false">
-    <template #extra>
-      <a-button type="primary" @click="openCreate">
-        <plus-outlined />新建用例
-      </a-button>
-    </template>
-    <a-tabs v-model:active-key="activeTab">
-      <a-tab-pane key="tests" tab="用例">
-        <a-table
-          :data-source="tests"
-          :columns="testColumns"
-          row-key="id"
-          :loading="loading"
-          @row-click="(r: any) => router.push({ name: 'ui-test-editor', params: { id: r.id } })"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'action'" @click.stop>
-              <a-space>
-                <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
-                  <play-circle-outlined />运行
-                </a-button>
-                <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                  <a-button size="small" type="link" danger @click.stop>删除</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </a-tab-pane>
-      <a-tab-pane key="scenarios" tab="场景">
-        <a-table :data-source="scenarios" :columns="scenarioColumns" row-key="id" :loading="loadingScenarios">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'action'">
-              <a-space>
-                <a-button size="small" type="link" @click="runScenario(record)" :loading="runningScenarioId === record.id">
-                  <play-circle-outlined />运行
-                </a-button>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </a-tab-pane>
-    </a-tabs>
+  <div class="page">
+    <!-- 页头：标题 + 主操作 -->
+    <div class="page-header">
+      <div class="page-title">UI 自动化</div>
+      <a-space>
+        <a-button type="primary" @click="openCreate">
+          <plus-outlined />新建用例
+        </a-button>
+      </a-space>
+    </div>
+
+    <!-- 用例 / 场景 tabs -->
+    <div class="panel ui-tabs">
+      <a-tabs v-model:active-key="activeTab">
+        <a-tab-pane key="tests" tab="用例">
+          <div class="tab-pane-inner">
+            <a-table
+              :data-source="tests"
+              :columns="testColumns"
+              row-key="id"
+              :loading="loading"
+              @row-click="(r: any) => router.push({ name: 'ui-test-editor', params: { id: r.id } })"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'action'" @click.stop>
+                  <a-space>
+                    <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
+                      <play-circle-outlined />运行
+                    </a-button>
+                    <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                      <a-button size="small" type="link" danger @click.stop>删除</a-button>
+                    </a-popconfirm>
+                  </a-space>
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-tab-pane>
+        <a-tab-pane key="scenarios" tab="场景">
+          <div class="tab-pane-inner">
+            <a-table :data-source="scenarios" :columns="scenarioColumns" row-key="id" :loading="loadingScenarios">
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'action'">
+                  <a-space>
+                    <a-button size="small" type="link" @click="runScenario(record)" :loading="runningScenarioId === record.id">
+                      <play-circle-outlined />运行
+                    </a-button>
+                  </a-space>
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -61,12 +73,12 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { UiApi } from '@/api'
@@ -74,10 +86,14 @@ import { useProjectStore } from '@/stores/project'
 import type { UiTestCase, UiScenario } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
 
-const activeTab = ref<'tests' | 'scenarios'>('tests')
+// 支持侧边栏通过 ?tab=scenarios 直达「场景」页（对应「UI 用例执行」菜单入口）
+const activeTab = ref<'tests' | 'scenarios'>(
+  route.query.tab === 'scenarios' ? 'scenarios' : 'tests'
+)
 const tests = ref<UiTestCase[]>([])
 const scenarios = ref<UiScenario[]>([])
 const loading = ref(false)
@@ -166,3 +182,20 @@ async function remove(record: UiTestCase) {
 watch(projectId, () => { reload(); reloadScenarios() }, { immediate: false })
 onMounted(() => { reload(); reloadScenarios() })
 </script>
+
+<style scoped>
+/* tabs panel 布局：贴边 tabs 标题行 + 给表格留 padding */
+.ui-tabs {
+  padding: 0;
+}
+:deep(.ui-tabs > .ant-tabs > .ant-tabs-nav) {
+  margin: 0 var(--sp-4);
+}
+:deep(.ui-tabs .tab-pane-inner) {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
+/* 用例列表行点击进编辑器，光标反馈 */
+:deep(.ui-tabs .ant-table-tbody > tr) {
+  cursor: pointer;
+}
+</style>

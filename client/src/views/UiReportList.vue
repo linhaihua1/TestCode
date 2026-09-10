@@ -1,23 +1,31 @@
 <template>
-  <a-card title="UI 自动化报告" :bordered="false">
-    <a-table
-      :data-source="reports"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+  <div class="page">
+    <!-- 页头：标题（无额外操作） -->
+    <div class="page-header">
+      <div class="page-title">UI 自动化报告</div>
+    </div>
+
+    <!-- 报告表格 -->
+    <div class="panel">
+      <a-table
+        :data-source="reports"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'duration'">
+            {{ record.duration }} ms
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-button size="small" type="link" @click="showDetail(record)">查看</a-button>
+          </template>
         </template>
-        <template v-else-if="column.key === 'duration'">
-          {{ record.duration }} ms
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <a-button size="small" type="link" @click="showDetail(record)">查看</a-button>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal v-model:open="detailOpen" title="报告明细" width="900" :footer="null">
       <a-tabs v-model:active-key="detailTab">
@@ -47,7 +55,7 @@
         </a-tab-pane>
       </a-tabs>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -95,3 +103,10 @@ async function showDetail(record: UiReport) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 耗时列：等宽数字 */
+:deep(.ant-table-tbody > tr > td) {
+  font-variant-numeric: tabular-nums;
+}
+</style>

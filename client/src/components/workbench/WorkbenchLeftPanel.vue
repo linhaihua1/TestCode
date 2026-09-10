@@ -59,28 +59,28 @@
         >
           <template #renderItem="{ item }">
             <a-list-item
+              class="case-item"
               :class="{ active: currentCaseId === item.id }"
               @click="emit('open', item)"
-              style="cursor: pointer"
             >
               <a-list-item-meta>
                 <template #title>
-                  <a-space size="small">
-                    <span class="case-name">{{ item.name }}</span>
-                    <a-tag color="blue" size="small">v{{ item.version }}</a-tag>
-                  </a-space>
+                  <div class="case-item__title">
+                    <span class="case-name ellipsis">{{ item.name }}</span>
+                    <a-tag color="blue">v{{ item.version }}</a-tag>
+                  </div>
                 </template>
                 <template #description>
                   <a-space size="small">
-                    <a-tag size="small" :color="statusColor(item.status)">{{ item.status }}</a-tag>
-                    <a-tag size="small">{{ item.priority }}</a-tag>
+                    <a-tag :color="statusColor(item.status)">{{ statusLabel(item.status) }}</a-tag>
+                    <a-tag>{{ item.priority }}</a-tag>
                   </a-space>
                 </template>
               </a-list-item-meta>
             </a-list-item>
           </template>
           <template #footer v-if="!cases.length && !loading">
-            <a-empty description="无用例" />
+            <a-empty description="暂无用例" />
           </template>
         </a-list>
       </a-tab-pane>
@@ -159,6 +159,18 @@ const priorityOptions = [
   { label: 'P2', value: 'P2' },
   { label: 'P3', value: 'P3' }
 ]
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: '草稿',
+  reviewing: '评审中',
+  pass: '已通过',
+  fail: '驳回',
+  trash: '已废弃'
+}
+
+function statusLabel(s: string | undefined) {
+  return (s && STATUS_LABEL[s]) || s || '-'
+}
 
 function statusColor(s: string | undefined) {
   switch (s) {
@@ -253,33 +265,79 @@ onMounted(async () => {
   flex-direction: column;
   height: 100%;
 }
+
 .left-toolbar {
   display: flex;
-  gap: 6px;
-  padding: 6px 6px;
-  border-bottom: 1px solid #e8e8e8;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--bd-subtle);
+  background: var(--pane-bg);
 }
+
 .left-tabs {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+
+.left-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 var(--sp-3);
+  border-bottom: 1px solid var(--bd-subtle);
+}
+
 .left-tabs :deep(.ant-tabs-content-holder) {
   flex: 1;
   overflow: auto;
 }
+
 .tree-wrap {
-  padding: 4px;
+  padding: var(--sp-2);
 }
+
+.tree-actions {
+  margin-top: var(--sp-2);
+}
+
 .case-list {
-  max-height: calc(100vh - 280px);
   overflow: auto;
 }
-.case-list :deep(.ant-list-item.active) {
-  background: #e6f7ff;
+
+/* 用例条目：紧凑、hover 与选中态明确 */
+.case-list :deep(.ant-list-item) {
+  padding: var(--sp-3);
+  border-radius: var(--rd-md);
+  border-block-end: none;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
+
+.case-list :deep(.ant-list-item:hover) {
+  background: var(--bg-hover);
+}
+
+.case-list :deep(.ant-list-item.active) {
+  background: var(--c-primary-bg);
+  box-shadow: inset 2px 0 0 var(--c-primary);
+}
+
+.case-item__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
 .case-name {
-  font-size: 13px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--tx-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.case-list :deep(.ant-list-item-meta-description) {
+  margin-top: var(--sp-1);
 }
 </style>

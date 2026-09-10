@@ -1,6 +1,8 @@
 <template>
-  <a-card title="接口管理" :bordered="false">
-    <template #extra>
+  <div class="page">
+    <!-- 页头：标题 + 工具栏 -->
+    <div class="page-header">
+      <div class="page-title">接口管理</div>
       <a-space>
         <a-input-search v-model:value="keyword" placeholder="搜索" style="width: 200px" @search="reload" />
         <a-select v-model:value="methodFilter" :options="methodOptions" style="width: 120px" @change="reload" />
@@ -8,27 +10,31 @@
           <plus-outlined />新建
         </a-button>
       </a-space>
-    </template>
-    <a-table
-      :data-source="apis"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'method'">
-          <a-tag :color="methodColor(record.method)">{{ record.method }}</a-tag>
+    </div>
+
+    <!-- 表格卡片 -->
+    <div class="panel">
+      <a-table
+        :data-source="apis"
+        :columns="columns"
+        row-key="id"
+        :loading="loading"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'method'">
+            <a-tag :color="methodColor(record.method)">{{ record.method }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(record)">
+                <a-button size="small" type="link" danger>删除</a-button>
+              </a-popconfirm>
+            </a-space>
+          </template>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-            <a-popconfirm title="确认删除？" @confirm="remove(record)">
-              <a-button size="small" type="link" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+      </a-table>
+    </div>
 
     <a-modal
       v-model:open="modal"
@@ -63,7 +69,7 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </a-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -172,3 +178,17 @@ async function remove(record: ApiDefinition) {
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
+
+<style scoped>
+/* 工具栏：搜索 + 下拉同行等高对齐 */
+:deep(.page-header .ant-input-affix-wrapper),
+:deep(.page-header .ant-select) {
+  vertical-align: middle;
+}
+/* 方法列：标签字体等宽以便对齐 */
+:deep(.ant-table-tbody > tr > td .ant-tag) {
+  font-family: var(--font-mono);
+  min-width: 44px;
+  text-align: center;
+}
+</style>

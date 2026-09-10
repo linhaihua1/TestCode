@@ -26,15 +26,20 @@
 <template>
   <div class="three-pane-layout" :class="{ dragging }">
     <!-- 左侧面板 -->
-    <aside class="pane pane-left" :style="leftStyle">
+    <aside class="pane pane-left" :class="{ 'pane--collapsed': widths.leftCollapsed }" :style="leftStyle">
       <div class="pane-header">
         <span v-if="widths.leftCollapsed" class="pane-icon">📁</span>
-        <span v-else class="pane-title">{{ leftTitle || '左侧' }}</span>
-        <button class="pane-toggle" @click="toggleLeft" :title="widths.leftCollapsed ? '展开' : '折叠'">
-          {{ widths.leftCollapsed ? '›' : '‹' }}
-        </button>
+        <template v-else>
+          <span class="pane-title">{{ leftTitle || '左侧' }}</span>
+          <button class="pane-toggle" @click="toggleLeft" title="折叠">
+            <LeftOutlined />
+          </button>
+        </template>
       </div>
-      <div v-show="!widths.leftCollapsed" class="pane-body">
+      <div v-if="widths.leftCollapsed" class="pane-rail" @click="toggleLeft" title="展开">
+        <span class="pane-icon">📁</span>
+      </div>
+      <div v-else class="pane-body">
         <slot name="left" />
       </div>
     </aside>
@@ -48,7 +53,7 @@
 
     <!-- 中间面板 -->
     <main class="pane pane-middle" :style="middleStyle">
-      <div class="pane-header middle">
+      <div class="pane-header pane-header--middle">
         <span class="pane-title">{{ middleTitle || '中间' }}</span>
       </div>
       <div class="pane-body">
@@ -64,15 +69,20 @@
     />
 
     <!-- 右侧面板 -->
-    <aside class="pane pane-right" :style="rightStyle">
+    <aside class="pane pane-right" :class="{ 'pane--collapsed': widths.rightCollapsed }" :style="rightStyle">
       <div class="pane-header">
         <span v-if="widths.rightCollapsed" class="pane-icon">📡</span>
-        <span v-else class="pane-title">{{ rightTitle || '右侧' }}</span>
-        <button class="pane-toggle" @click="toggleRight" :title="widths.rightCollapsed ? '展开' : '折叠'">
-          {{ widths.rightCollapsed ? '‹' : '›' }}
-        </button>
+        <template v-else>
+          <span class="pane-title">{{ rightTitle || '右侧' }}</span>
+          <button class="pane-toggle" @click="toggleRight" title="折叠">
+            <RightOutlined />
+          </button>
+        </template>
       </div>
-      <div v-show="!widths.rightCollapsed" class="pane-body">
+      <div v-if="widths.rightCollapsed" class="pane-rail" @click="toggleRight" title="展开">
+        <span class="pane-icon">📡</span>
+      </div>
+      <div v-else class="pane-body">
         <slot name="right" />
       </div>
     </aside>
@@ -81,6 +91,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { LeftOutlined, RightOutlined } from '@ant-design/icons-vue'
 
 interface PaneWidths {
   left: number
@@ -190,68 +201,125 @@ function toggleRight() {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--bg-page);
+  border-radius: var(--rd-lg);
+  border: 1px solid var(--bd-base);
+  box-shadow: var(--sd-sm);
 }
+
 .three-pane-layout.dragging {
   cursor: col-resize;
   user-select: none;
 }
+
 .pane {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--pane-bg);
   overflow: hidden;
 }
+
+/* 面板头部：统一高度与浅底 */
 .pane-header {
-  height: 32px;
-  flex: 0 0 32px;
+  height: var(--pane-header-h);
+  flex: 0 0 var(--pane-header-h);
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  border-bottom: 1px solid #e8e8e8;
-  background: #fafafa;
-  gap: 6px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
+  border-bottom: 1px solid var(--bd-subtle);
+  background: var(--pane-header-bg);
 }
-.pane-header.middle {
-  background: #fff;
+
+.pane-header--middle {
+  background: var(--pane-bg);
 }
+
 .pane-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #333;
   flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--tx-2);
+  letter-spacing: 0.2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .pane-icon {
   font-size: 14px;
-}
-.pane-toggle {
-  background: transparent;
-  border: none;
-  font-size: 14px;
-  color: #888;
-  cursor: pointer;
-  padding: 0 4px;
   line-height: 1;
 }
-.pane-toggle:hover {
-  color: #1890ff;
+
+.pane-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--tx-4);
+  background: transparent;
+  border: none;
+  border-radius: var(--rd-sm);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
 }
+
+.pane-toggle:hover {
+  color: var(--c-primary);
+  background: var(--c-primary-bg);
+}
+
+/* 折叠态：窄条 + 竖排提示 */
+.pane--collapsed .pane-header {
+  padding: 0;
+  justify-content: center;
+}
+
+.pane-rail {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: var(--sp-3);
+  cursor: pointer;
+  background: var(--pane-header-bg);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.pane-rail:hover {
+  background: var(--c-primary-bg);
+}
+
 .pane-body {
   flex: 1;
   overflow: auto;
   min-height: 0;
 }
+
+/* 拖拽手柄：默认隐形，hover/拖拽时显色 */
 .pane-resizer {
-  width: 4px;
-  flex: 0 0 4px;
+  width: 5px;
+  flex: 0 0 5px;
   background: transparent;
   cursor: col-resize;
-  transition: background 0.15s;
+  position: relative;
+  transition: background var(--dur-fast) var(--ease);
 }
-.pane-resizer:hover {
-  background: #1890ff;
+
+.pane-resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.pane-resizer:hover::after,
+.three-pane-layout.dragging .pane-resizer::after {
+  background: var(--c-primary);
 }
 </style>
