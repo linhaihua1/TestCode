@@ -47,6 +47,14 @@ public class TestTaskEntity extends BaseEntity {
     private String createdBy;
     private Instant deletedAt;
 
+    // ----- 执行机参数 -----
+    /** 执行机完整地址（http://host:port），可选 */
+    private String executorUrl;
+    /** 执行机域名/IP */
+    private String executorHost;
+    /** 执行机端口 */
+    private Integer executorPort;
+
     // ----- CI/CD webhook 字段 -----
     /** webhook Token（32 字符随机串,留空则禁用 webhook） */
     private String webhookToken;

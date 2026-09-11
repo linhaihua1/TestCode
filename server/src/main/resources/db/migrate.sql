@@ -146,6 +146,14 @@ CALL add_column_if_missing('t_test_task', 'webhook_auto_execute',
 CALL add_column_if_missing('t_test_task', 'notify_channels',
     '`notify_channels` JSON NULL COMMENT ''通知渠道配置（钉钉/企微/飞书/webhook）''');
 
+-- 执行机参数（测试执行任务指定执行机地址/域名/端口）
+CALL add_column_if_missing('t_test_task', 'executor_url',
+    '`executor_url` VARCHAR(512) NULL COMMENT ''执行机地址（http://host:port）''');
+CALL add_column_if_missing('t_test_task', 'executor_host',
+    '`executor_host` VARCHAR(256) NULL COMMENT ''执行机域名/IP''');
+CALL add_column_if_missing('t_test_task', 'executor_port',
+    '`executor_port` INT NULL COMMENT ''执行机端口''');
+
 -- P3：报告表补齐任务关联 / 触发方式 / 统计明细字段
 CALL add_column_if_missing('t_report', 'task_id',
     '`task_id` VARCHAR(32) NULL COMMENT ''关联任务 ID,可空''');
@@ -177,6 +185,22 @@ CALL add_column_if_missing('t_report', 'p95_response_time',
     '`p95_response_time` INT NOT NULL DEFAULT 0 COMMENT ''P95 响应耗时(ms)''');
 CALL add_column_if_missing('t_report', 'environment_snapshot',
     '`environment_snapshot` VARCHAR(512) NULL COMMENT ''环境快照(JSON)''');
+
+-- UI 执行场景（测试执行任务）补齐执行参数字段
+CALL add_column_if_missing('t_ui_scenario', 'environment_id',
+    '`environment_id` VARCHAR(32) NULL COMMENT ''执行环境 ID（t_environment）''');
+CALL add_column_if_missing('t_ui_scenario', 'variables',
+    '`variables` JSON NULL COMMENT ''执行参数 [{key,value}]''');
+CALL add_column_if_missing('t_ui_scenario', 'executor_url',
+    '`executor_url` VARCHAR(512) NULL COMMENT ''执行机完整地址''');
+CALL add_column_if_missing('t_ui_scenario', 'executor_host',
+    '`executor_host` VARCHAR(256) NULL COMMENT ''执行机域名/IP''');
+CALL add_column_if_missing('t_ui_scenario', 'executor_port',
+    '`executor_port` INT NULL COMMENT ''执行机端口''');
+CALL add_column_if_missing('t_ui_scenario', 'retry_count',
+    '`retry_count` INT NOT NULL DEFAULT 0 COMMENT ''失败重试次数''');
+CALL add_column_if_missing('t_ui_scenario', 'timeout_ms',
+    '`timeout_ms` INT NOT NULL DEFAULT 0 COMMENT ''用例执行超时(毫秒)''');
 
 -- ----------------------------------------------------------------------------
 -- 3. 收尾

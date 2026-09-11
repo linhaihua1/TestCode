@@ -281,6 +281,50 @@ public class PerfExecutionService {
         private JmxBuilder() {}
 
         public static String build(PerfCaseEntity c) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            sb.append("<jmeterTestPlan version=\"1.2\" properties=\"5.0\" jmeter=\"5.6\">\n");
+            sb.append("  <hashTree>\n");
+            appendTestPlan(sb, c.getName());
+            sb.append("    <hashTree>\n");
+            appendThreadGroup(sb, c, "    ");
+            sb.append("  </hashTree>\n</jmeterTestPlan>\n");
+            return sb.toString();
+        }
+
+        /**
+         * 批量导出：多个用例合并为一个 .jmx（一个 TestPlan + 多个 ThreadGroup）。
+         * 每个用例作为一个独立的线程组，testname 用用例名区分。
+         */
+        public static String buildMulti(List<PerfCaseEntity> cases) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            sb.append("<jmeterTestPlan version=\"1.2\" properties=\"5.0\" jmeter=\"5.6\">\n");
+            sb.append("  <hashTree>\n");
+            appendTestPlan(sb, "批量导出测试计划");
+            sb.append("    <hashTree>\n");
+            for (PerfCaseEntity c : cases) {
+                appendThreadGroup(sb, c, "    ");
+            }
+            sb.append("    </hashTree>\n");
+            sb.append("  </hashTree>\n</jmeterTestPlan>\n");
+            return sb.toString();
+        }
+
+        /** 生成 TestPlan 元素（含用户变量占位）。 */
+        private static void appendTestPlan(StringBuilder sb, String testName) {
+            sb.append("    <TestPlan guiclass=\"TestPlanGui\" testclass=\"TestPlan\" ");
+            sb.append("testname=\"").append(escape(testName)).append("\">\n");
+            sb.append("      <boolProp name=\"TestPlan.functional_mode\">false</boolProp>\n");
+            sb.append("      <boolProp name=\"TestPlan.serialize_threadgroups\">false</boolProp>\n");
+            sb.append("      <elementProp name=\"TestPlan.user_defined_variables\" elementType=\"Arguments\">\n");
+            sb.append("        <collectionProp name=\"Arguments.arguments\"/>\n");
+            sb.append("      </elementProp>\n");
+            sb.append("    </TestPlan>\n");
+        }
+
+        /** 生成一个 ThreadGroup（线程组 + 其下的用户变量 / HTTP 请求 / 思考时间）。 */
+        private static void appendThreadGroup(StringBuilder sb, PerfCaseEntity c, String indent) {
             Map<String, Object> profile = JsonUtils.toMap(c.getProfile());
             String loadProfile = String.valueOf(profile.getOrDefault("loadProfile", "fixed"));
             int threads = c.getThreads();
@@ -288,37 +332,24 @@ public class PerfExecutionService {
             // 阶梯加压：threads 为峰值，按 5 级阶梯到达
             int steps = "stepping".equals(loadProfile) ? 5 : 1;
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-            sb.append("<jmeterTestPlan version=\"1.2\" properties=\"5.0\" jmeter=\"5.6\">\n");
-            sb.append("  <hashTree>\n");
-            sb.append("    <TestPlan guiclass=\"TestPlanGui\" testclass=\"TestPlan\" ");
+            sb.append(indent).append("<ThreadGroup guiclass=\"ThreadGroupGui\" testclass=\"ThreadGroup\" ");
             sb.append("testname=\"").append(escape(c.getName())).append("\">\n");
-            sb.append("      <boolProp name=\"TestPlan.functional_mode\">false</boolProp>\n");
-            sb.append("      <boolProp name=\"TestPlan.serialize_threadgroups\">false</boolProp>\n");
-            sb.append("      <elementProp name=\"TestPlan.user_defined_variables\" elementType=\"Arguments\">\n");
-            sb.append("        <collectionProp name=\"Arguments.arguments\"/>\n");
-            sb.append("      </elementProp>\n");
-            sb.append("    </TestPlan>\n");
-            sb.append("    <hashTree>\n");
-            sb.append("    <ThreadGroup guiclass=\"ThreadGroupGui\" testclass=\"ThreadGroup\" ");
-            sb.append("testname=\"").append(escape(c.getName())).append("\">\n");
-            sb.append("      <stringProp name=\"ThreadGroup.num_threads\">")
+            sb.append(indent).append("  <stringProp name=\"ThreadGroup.num_threads\">")
                     .append(threads).append("</stringProp>\n");
-            sb.append("      <stringProp name=\"ThreadGroup.ramp_time\">")
+            sb.append(indent).append("  <stringProp name=\"ThreadGroup.ramp_time\">")
                     .append(Math.max(rampUp, steps)).append("</stringProp>\n");
-            sb.append("      <stringProp name=\"ThreadGroup.on_sample_error\">")
+            sb.append(indent).append("  <stringProp name=\"ThreadGroup.on_sample_error\">")
                     .append(c.getOnSampleError()).append("</stringProp>\n");
             if (c.getDuration() > 0) {
-                sb.append("      <stringProp name=\"ThreadGroup.duration\">")
+                sb.append(indent).append("  <stringProp name=\"ThreadGroup.duration\">")
                         .append(c.getDuration()).append("</stringProp>\n");
-                sb.append("      <stringProp name=\"ThreadGroup.scheduler\">true</stringProp>\n");
+                sb.append(indent).append("  <stringProp name=\"ThreadGroup.scheduler\">true</stringProp>\n");
             } else {
-                sb.append("      <stringProp name=\"LoopController.loops\">")
+                sb.append(indent).append("  <stringProp name=\"LoopController.loops\">")
                         .append(c.getLoops()).append("</stringProp>\n");
             }
-            sb.append("    </ThreadGroup>\n");
-            sb.append("    <hashTree>\n");
+            sb.append(indent).append("</ThreadGroup>\n");
+            sb.append(indent).append("<hashTree>\n");
 
             // 用户自定义变量
             List<Map<String, Object>> vars = JsonUtils.toList(c.getVariables());
@@ -339,22 +370,89 @@ public class PerfExecutionService {
 
             // HTTP 请求步骤
             for (Map<String, Object> step : JsonUtils.toList(c.getSteps())) {
+                String stepName = str(step.getOrDefault("name", "HTTP请求"));
+                String protocol = str(step.getOrDefault("protocol", "https"));
+                String method = str(step.getOrDefault("method", "GET"));
+                String host = str(step.getOrDefault("host", ""));
+                String port = str(step.getOrDefault("port", ""));
+                String path = str(step.getOrDefault("path", ""));
+                String encoding = str(step.getOrDefault("encoding", "UTF-8"));
                 sb.append("      <HTTPSamplerProxy guiclass=\"HttpTestSampleGui\" ");
-                sb.append("testclass=\"HTTPSamplerProxy\" testname=\"")
-                        .append(escape(str(step.getOrDefault("name", "HTTP请求")))).append("\">\n");
+                sb.append("testclass=\"HTTPSamplerProxy\" testname=\"").append(escape(stepName)).append("\">\n");
                 sb.append("        <stringProp name=\"HTTPSampler.domain\">")
-                        .append(escape(str(step.getOrDefault("host", "")))).append("</stringProp>\n");
+                        .append(escape(host)).append("</stringProp>\n");
                 sb.append("        <stringProp name=\"HTTPSampler.port\">")
-                        .append(escape(str(step.getOrDefault("port", "")))).append("</stringProp>\n");
+                        .append(escape(port)).append("</stringProp>\n");
+                sb.append("        <stringProp name=\"HTTPSampler.protocol\">")
+                        .append(escape(protocol)).append("</stringProp>\n");
+                sb.append("        <stringProp name=\"HTTPSampler.contentEncoding\">")
+                        .append(escape(encoding)).append("</stringProp>\n");
                 sb.append("        <stringProp name=\"HTTPSampler.path\">")
-                        .append(escape(str(step.getOrDefault("path", "")))).append("</stringProp>\n");
+                        .append(escape(path)).append("</stringProp>\n");
                 sb.append("        <stringProp name=\"HTTPSampler.method\">")
-                        .append(escape(str(step.getOrDefault("method", "GET")))).append("</stringProp>\n");
-                String body = str(step.getOrDefault("body", ""));
-                if (!body.isBlank()) {
-                    sb.append("        <boolProp name=\"HTTPSampler.postBodyRaw\">true</boolProp>\n");
+                        .append(escape(method)).append("</stringProp>\n");
+                sb.append("        <boolProp name=\"HTTPSampler.follow_redirects\">")
+                        .append(Boolean.parseBoolean(str(step.getOrDefault("followRedirects", "true"))))
+                        .append("</boolProp>\n");
+                sb.append("        <boolProp name=\"HTTPSampler.use_keepalive\">")
+                        .append(Boolean.parseBoolean(str(step.getOrDefault("useKeepAlive", "true"))))
+                        .append("</boolProp>\n");
+                sb.append("        <elementProp name=\"HTTPsampler.Arguments\" elementType=\"Arguments\">\n");
+                sb.append("          <collectionProp name=\"Arguments.arguments\">\n");
+                for (Map<String, Object> q : kvList(step.get("queryParams"))) {
+                    sb.append("            <elementProp name=\"")
+                            .append(escape(str(q.get("key")))).append("\" elementType=\"HTTPArgument\">\n");
+                    sb.append("              <boolProp name=\"HTTPArgument.always_encode\">false</boolProp>\n");
+                    sb.append("              <stringProp name=\"Argument.name\">")
+                            .append(escape(str(q.get("key")))).append("</stringProp>\n");
+                    sb.append("              <stringProp name=\"Argument.value\">")
+                            .append(escape(str(q.get("value")))).append("</stringProp>\n");
+                    sb.append("              <stringProp name=\"Argument.metadata\">=</stringProp>\n");
+                    sb.append("              <boolProp name=\"HTTPArgument.use_equals\">true</boolProp>\n");
+                    sb.append("            </elementProp>\n");
                 }
-                sb.append("      </HTTPSamplerProxy>\n      <hashTree/>\n");
+                sb.append("          </collectionProp>\n        </elementProp>\n");
+
+                // 请求头（HeaderManager）
+                List<Map<String, Object>> headers = kvList(step.get("headers"));
+                String body = str(step.getOrDefault("body", ""));
+                if (!headers.isEmpty() || !body.isBlank()) {
+                    sb.append("      </HTTPSamplerProxy>\n");
+                    sb.append("      <hashTree>\n");
+                    if (!headers.isEmpty()) {
+                        sb.append("        <HeaderManager guiclass=\"HeaderPanel\" testclass=\"HeaderManager\" ")
+                                .append("testname=\"HTTP信息头管理器\">\n");
+                        sb.append("          <collectionProp name=\"HeaderManager.headers\">\n");
+                        for (Map<String, Object> h : headers) {
+                            sb.append("            <elementProp name=\"\" elementType=\"Header\">\n");
+                            sb.append("              <stringProp name=\"Header.name\">")
+                                    .append(escape(str(h.get("key")))).append("</stringProp>\n");
+                            sb.append("              <stringProp name=\"Header.value\">")
+                                    .append(escape(str(h.get("value")))).append("</stringProp>\n");
+                            sb.append("            </elementProp>\n");
+                        }
+                        sb.append("          </collectionProp>\n        </HeaderManager>\n        <hashTree/>\n");
+                    }
+                    if (!body.isBlank()) {
+                        // 用 RawPostBody 承载原始请求体
+                        sb.append("        <elementProp name=\"HTTPsampler.Arguments\" ")
+                                .append("elementType=\"Arguments\" guiclass=\"HTTPArgumentsPanel\" ")
+                                .append("testclass=\"Arguments\" testname=\"用户定义的变量\">\n");
+                        sb.append("          <collectionProp name=\"Arguments.arguments\">\n");
+                        sb.append("            <elementProp name=\"\" elementType=\"HTTPArgument\">\n");
+                        sb.append("              <boolProp name=\"HTTPArgument.always_encode\">false</boolProp>\n");
+                        sb.append("              <stringProp name=\"Argument.value\">")
+                                .append(escape(body)).append("</stringProp>\n");
+                        sb.append("              <stringProp name=\"Argument.metadata\">=</stringProp>\n");
+                        sb.append("            </elementProp>\n");
+                        sb.append("          </collectionProp>\n        </elementProp>\n");
+                        sb.append("        <boolProp name=\"HTTPSampler.postBodyRaw\">true</boolProp>\n");
+                    }
+                    sb.append("      </hashTree>\n");
+                } else {
+                    sb.append("      </HTTPSamplerProxy>\n      <hashTree/>\n");
+                }
+
                 if (c.getThinkTime() > 0) {
                     sb.append("      <ConstantTimer guiclass=\"ConstantTimerGui\" ")
                             .append("testclass=\"ConstantTimer\" testname=\"思考时间\">\n");
@@ -363,8 +461,7 @@ public class PerfExecutionService {
                     sb.append("      </ConstantTimer>\n      <hashTree/>\n");
                 }
             }
-            sb.append("    </hashTree>\n  </hashTree>\n</jmeterTestPlan>\n");
-            return sb.toString();
+            sb.append(indent).append("</hashTree>\n");
         }
 
         private static String escape(String s) {
@@ -374,6 +471,21 @@ public class PerfExecutionService {
 
         private static String str(Object o) {
             return o == null ? "" : String.valueOf(o);
+        }
+
+        /** 把已解析的 List<Map>（或 null）安全转为 List<Map<String,Object>> */
+        @SuppressWarnings("unchecked")
+        private static List<Map<String, Object>> kvList(Object obj) {
+            if (obj instanceof List<?> list) {
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> m) {
+                        result.add((Map<String, Object>) m);
+                    }
+                }
+                return result;
+            }
+            return List.of();
         }
     }
 }

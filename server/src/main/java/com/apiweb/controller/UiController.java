@@ -126,6 +126,7 @@ public class UiController {
         scenario.setName(String.valueOf(body.getOrDefault("name", "未命名场景")));
         scenario.setDescription(body.get("description") == null ? null
                 : String.valueOf(body.get("description")));
+        applyScenarioConfig(scenario, body);
         uiScenarioMapper.insert(scenario);
         saveScenarioSteps(scenario.getId(), body.get("steps"));
         return Result.ok(scenario);
@@ -142,6 +143,11 @@ public class UiController {
         if (body.containsKey("name")) {
             scenario.setName(String.valueOf(body.get("name")));
         }
+        if (body.containsKey("description")) {
+            scenario.setDescription(body.get("description") == null ? null
+                    : String.valueOf(body.get("description")));
+        }
+        applyScenarioConfig(scenario, body);
         uiScenarioMapper.updateById(scenario);
         if (body.containsKey("steps")) {
             uiScenarioStepMapper.delete(new LambdaQueryWrapper<UiScenarioStepEntity>()
@@ -199,6 +205,23 @@ public class UiController {
                 new LambdaQueryWrapper<UiScenarioStepEntity>()
                         .eq(UiScenarioStepEntity::getScenarioId, id)
                         .orderByAsc(UiScenarioStepEntity::getSortOrder));
+        // 组装执行机/重试/超时扩展参数
+        Map<String, Object> extra = new java.util.HashMap<>();
+        if (scenario.getRetryCount() != null) {
+            extra.put("retryCount", scenario.getRetryCount());
+        }
+        if (scenario.getTimeoutMs() != null) {
+            extra.put("timeoutMs", scenario.getTimeoutMs());
+        }
+        if (scenario.getExecutorUrl() != null && !scenario.getExecutorUrl().isBlank()) {
+            extra.put("executorUrl", scenario.getExecutorUrl());
+        }
+        if (scenario.getExecutorHost() != null && !scenario.getExecutorHost().isBlank()) {
+            extra.put("executorHost", scenario.getExecutorHost());
+        }
+        if (scenario.getExecutorPort() != null) {
+            extra.put("executorPort", scenario.getExecutorPort());
+        }
         List<UiReportEntity> reports = new java.util.ArrayList<>();
         for (UiScenarioStepEntity step : steps) {
             UiTestCaseEntity t = step.getUiTestCaseId() == null ? null
@@ -214,7 +237,8 @@ public class UiController {
             report.setStartedAt(Instant.now());
             report.setDetails("[]");
             uiReportMapper.insert(report);
-            taskProducer.sendUiTask(report.getId(), scenario.getProjectId(), t.getId());
+            taskProducer.sendUiTask(report.getId(), scenario.getProjectId(), t.getId(),
+                    scenario.getEnvironmentId(), extra);
             reports.add(report);
         }
         return Result.ok(reports);
@@ -251,6 +275,40 @@ public class UiController {
     public Result<Void> deleteReport(@PathVariable String id) {
         uiReportMapper.deleteById(id);
         return Result.ok();
+    }
+
+    /**
+     * 从请求体解析执行参数并写入场景实体。
+     */
+    private void applyScenarioConfig(UiScenarioEntity scenario, Map<String, Object> body) {
+        if (body.containsKey("environmentId")) {
+            scenario.setEnvironmentId(body.get("environmentId") == null ? null
+                    : String.valueOf(body.get("environmentId")));
+        }
+        if (body.containsKey("variables")) {
+            scenario.setVariables(body.get("variables") == null ? null
+                    : JsonUtils.toJson(body.get("variables")));
+        }
+        if (body.containsKey("executorUrl")) {
+            scenario.setExecutorUrl(body.get("executorUrl") == null ? null
+                    : String.valueOf(body.get("executorUrl")));
+        }
+        if (body.containsKey("executorHost")) {
+            scenario.setExecutorHost(body.get("executorHost") == null ? null
+                    : String.valueOf(body.get("executorHost")));
+        }
+        if (body.containsKey("executorPort")) {
+            scenario.setExecutorPort(body.get("executorPort") == null ? null
+                    : ((Number) body.get("executorPort")).intValue());
+        }
+        if (body.containsKey("retryCount")) {
+            scenario.setRetryCount(body.get("retryCount") == null ? 0
+                    : ((Number) body.get("retryCount")).intValue());
+        }
+        if (body.containsKey("timeoutMs")) {
+            scenario.setTimeoutMs(body.get("timeoutMs") == null ? 0
+                    : ((Number) body.get("timeoutMs")).intValue());
+        }
     }
 
     @SuppressWarnings("unchecked")

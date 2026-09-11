@@ -244,6 +244,9 @@ CREATE TABLE IF NOT EXISTS t_test_task (
     variables              JSON NOT NULL,
     base_url            VARCHAR(512),
     created_by          VARCHAR(64),
+    executor_url        VARCHAR(512) COMMENT '执行机地址（http://host:port）',
+    executor_host       VARCHAR(256) COMMENT '执行机域名/IP',
+    executor_port       INT COMMENT '执行机端口',
     webhook_token       VARCHAR(64) COMMENT 'CI/CD 触发 Token,留空禁用',
     webhook_enabled     TINYINT(1) NOT NULL DEFAULT 0,
     webhook_auto_execute TINYINT(1) NOT NULL DEFAULT 1,
@@ -323,12 +326,19 @@ CREATE TABLE IF NOT EXISTS t_ui_test_case (
 ) ENGINE = InnoDB COMMENT 'UI 测试用例';
 
 CREATE TABLE IF NOT EXISTS t_ui_scenario (
-    id          VARCHAR(32) NOT NULL PRIMARY KEY,
-    project_id  VARCHAR(32) NOT NULL,
-    name        VARCHAR(256) NOT NULL,
-    description VARCHAR(1024),
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id             VARCHAR(32) NOT NULL PRIMARY KEY,
+    project_id     VARCHAR(32) NOT NULL,
+    name           VARCHAR(256) NOT NULL,
+    description    VARCHAR(1024),
+    environment_id VARCHAR(32) COMMENT '执行环境 ID（t_environment）',
+    variables      JSON COMMENT '执行参数 [{key,value}]',
+    executor_url   VARCHAR(512) COMMENT '执行机完整地址',
+    executor_host  VARCHAR(256) COMMENT '执行机域名/IP',
+    executor_port  INT COMMENT '执行机端口',
+    retry_count    INT NOT NULL DEFAULT 0 COMMENT '失败重试次数',
+    timeout_ms     INT NOT NULL DEFAULT 0 COMMENT '用例执行超时(毫秒)',
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_project (project_id)
 ) ENGINE = InnoDB COMMENT 'UI 执行场景';
 
