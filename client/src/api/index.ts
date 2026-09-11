@@ -64,7 +64,15 @@ export const ApiApi = {
   update: (id: string, data: Partial<ApiDefinition>) => axios.put(`/apis/${id}`, data),
   remove: (id: string) => axios.delete(`/apis/${id}`),
   importSwagger: (projectId: string, swagger: any) =>
-    axios.post<number>('/apis/import-swagger', swagger, { params: { projectId } })
+    axios.post<number>('/apis/import-swagger', swagger, { params: { projectId } }),
+  importSwaggerFile: (projectId: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return axios.post('/apis/import-file', fd, {
+      params: { projectId },
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
 }
 
 export const CaseApi = {
@@ -179,6 +187,9 @@ export const PerfApi = {
     axios.put(`/perf/cases/${id}`, data),
   deleteCase: (id: string) => axios.delete(`/perf/cases/${id}`),
   run: (id: string) => axios.post<PerfReport>(`/perf/cases/${id}/run`),
+  exportJmx: (id: string) => axios.get(`/perf/cases/${id}/export-jmx`, { responseType: 'blob' }),
+  exportBatch: (ids: string[]) => axios.post('/perf/cases/export-batch', { ids }, { responseType: 'blob' }),
+  importJmx: (jmx: string) => axios.post<PerfCase>('/perf/cases/import-jmx', { jmx }),
   listReports: (projectId: string) =>
     axios.get<PerfReport[]>('/perf/reports', { params: { projectId } }),
   getReport: (id: string) => axios.get<PerfReport>(`/perf/reports/${id}`),

@@ -155,6 +155,10 @@ export interface TestTask extends BaseEntity {
   baseUrl?: string
   createdBy?: string
   deletedAt?: string
+  // 执行机参数
+  executorUrl?: string
+  executorHost?: string
+  executorPort?: number
   // CI/CD webhook 字段
   webhookToken?: string
   webhookEnabled?: boolean
@@ -351,11 +355,23 @@ export interface PerfCase extends BaseEntity {
 
 export interface PerfStep {
   name?: string
+  protocol?: string
   method?: string
   host?: string
   port?: string
   path?: string
+  /** URL 查询参数 */
+  queryParams?: KeyValueItem[]
+  /** 请求头 */
+  headers?: KeyValueItem[]
+  /** 请求体（POST/PUT 时使用） */
   body?: string
+  /** 编码（默认 UTF-8） */
+  encoding?: string
+  /** 是否跟随重定向 */
+  followRedirects?: boolean
+  /** 是否使用 keep-alive */
+  useKeepAlive?: boolean
 }
 
 export interface PerfReport {
@@ -398,6 +414,20 @@ export interface UiScenario extends BaseEntity {
   projectId: string
   name: string
   description?: string
+  /** 执行环境 ID（t_environment） */
+  environmentId?: string
+  /** 执行参数 [{key,value}] */
+  variables?: KeyValueItem[]
+  /** 执行机完整地址 */
+  executorUrl?: string
+  /** 执行机域名/IP */
+  executorHost?: string
+  /** 执行机端口 */
+  executorPort?: number
+  /** 失败重试次数 */
+  retryCount?: number
+  /** 用例执行超时（毫秒） */
+  timeoutMs?: number
 }
 
 export interface UiReport {

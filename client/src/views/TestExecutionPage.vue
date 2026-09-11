@@ -24,12 +24,19 @@
         @expand="onExpand"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'enabled'">
+          <template v-if="column.key === 'caseCount'">
+            <a-tag color="blue">{{ (record.caseIds || []).length }} 个用例</a-tag>
+          </template>
+          <template v-else-if="column.key === 'enabled'">
             <a-switch :checked="record.enabled" @change="toggle(record)" />
           </template>
           <template v-else-if="column.key === 'cronExpr'">
             <a-tag v-if="record.cronExpr" color="blue">{{ record.cronExpr }}</a-tag>
             <a-tag v-else color="default">手动</a-tag>
+          </template>
+          <template v-else-if="column.key === 'environment'">
+            <a-tag v-if="envName(record.environmentId)" color="cyan">{{ envName(record.environmentId) }}</a-tag>
+            <a-tag v-else color="default">默认环境</a-tag>
           </template>
           <template v-else-if="column.key === 'executeMode'">
             <a-tag :color="record.executeMode === 'parallel' ? 'orange' : 'default'">
@@ -39,17 +46,13 @@
           <template v-else-if="column.key === 'failStrategy'">
             <a-tag color="purple">{{ strategyLabel(record.failStrategy) }}</a-tag>
           </template>
-          <template v-else-if="column.key === 'webhookEnabled'">
-            <a-tag v-if="record.webhookEnabled" color="green">已启用</a-tag>
-            <a-tag v-else color="default">未启用</a-tag>
-          </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
               <a-button size="small" type="link" @click="runAsync(record)" :loading="runningId === record.id + 'a'">
-                <api-outlined />异步
+                <api-outlined />运行
               </a-button>
               <a-button size="small" type="link" @click="runSync(record)" :loading="runningId === record.id + 's'">
-                <thunderbolt-outlined />同步
+                <thunderbolt-outlined />同步运行
               </a-button>
               <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
@@ -83,61 +86,168 @@
       </a-table>
     </div>
 
-    <!-- 新建/编辑弹窗 -->
+    <!-- 新建/编辑任务弹窗 -->
     <a-modal
       v-model:open="modal"
       :title="form.id ? '编辑任务' : '新建任务'"
-      @ok="save"
-      width="780"
+      :width="1000"
       :confirm-loading="saving"
+      :mask-closable="false"
+      @cancel="onCancel"
     >
+      <template #footer>
+        <a-space>
+          <a-button @click="onCancel">取消</a-button>
+          <a-button @click="save(false)" :loading="saving">保存</a-button>
+          <a-button type="primary" @click="save(true)" :loading="saving">
+            <play-circle-outlined />保存并运行
+          </a-button>
+        </a-space>
+      </template>
+
       <a-tabs v-model:active-key="activeTab">
-        <a-tab-pane key="basic" tab="基础">
+        <!-- ============ 基础信息 ============ -->
+        <a-tab-pane key="basic" tab="基础信息">
           <a-form layout="vertical">
-            <a-form-item label="名称" required>
-              <a-input v-model:value="form.name" />
-            </a-form-item>
-            <a-form-item label="描述">
-              <a-textarea v-model:value="form.description" :auto-size="{ minRows: 1, maxRows: 3 }" />
-            </a-form-item>
-            <a-form-item label="用例 ID（每行一个或英文逗号分隔）" required>
-              <a-textarea
-                v-model:value="caseIdsText"
-                :auto-size="{ minRows: 2, maxRows: 6 }"
-                placeholder="abc123, def456"
-              />
-            </a-form-item>
-            <a-row :gutter="8">
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="任务名称" required>
+                  <a-input v-model:value="form.name" placeholder="请输入任务名称" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="描述">
+                  <a-input v-model:value="form.description" placeholder="任务描述（可选）" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
               <a-col :span="8">
-                <a-form-item label="超时 (ms)">
-                  <a-input-number v-model:value="form.timeoutMs" :min="1000" style="width: 100%" />
+                <a-form-item label="执行环境">
+                  <a-select
+                    v-model:value="form.environmentId"
+                    :options="environmentOptions"
+                    placeholder="选择执行环境"
+                    allow-clear
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="超时时间 (ms)">
+                  <a-input-number v-model:value="form.timeoutMs" :min="1000" :step="1000" style="width: 100%" />
                 </a-form-item>
               </a-col>
               <a-col :span="8">
                 <a-form-item label="失败重试次数">
-                  <a-input-number v-model:value="form.retryCount" :min="0" style="width: 100%" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="8">
-                <a-form-item label="baseUrl（覆盖环境）">
-                  <a-input v-model:value="form.baseUrl" placeholder="https://api.example.com" />
+                  <a-input-number v-model:value="form.retryCount" :min="0" :max="10" style="width: 100%" />
                 </a-form-item>
               </a-col>
             </a-row>
-            <a-form-item label="Cron 表达式（留空为手动）">
-              <a-input v-model:value="form.cronExpr" placeholder="0 0 2 * * ? (Quartz Cron)" />
-            </a-form-item>
-            <a-form-item label="启用">
-              <a-switch v-model:checked="form.enabled" />
-            </a-form-item>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="Cron 表达式（留空为手动）">
+                  <a-input v-model:value="form.cronExpr" placeholder="0 0 2 * * ? (Quartz Cron)" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="启用">
+                  <a-switch v-model:checked="form.enabled" />
+                </a-form-item>
+              </a-col>
+            </a-row>
           </a-form>
         </a-tab-pane>
 
+        <!-- ============ 用例编排 ============ -->
+        <a-tab-pane key="cases" tab="用例编排">
+          <div class="case-orchestration">
+            <!-- 左：用例库 -->
+            <div class="case-lib">
+              <div class="case-lib__head">
+                <span>接口用例库</span>
+                <a-input-search
+                  v-model:value="caseKeyword"
+                  placeholder="搜索用例"
+                  size="small"
+                  style="width: 200px"
+                />
+              </div>
+              <div class="case-lib__list">
+                <a-empty v-if="!filteredAvailableCases.length" description="暂无可选用例" />
+                <div
+                  v-for="c in filteredAvailableCases"
+                  :key="c.id"
+                  class="case-lib__item"
+                  @click="addCase(c)"
+                >
+                  <div class="case-lib__name">{{ c.name }}</div>
+                  <a-tag v-if="c.priority" size="small" :color="priorityColor(c.priority)">{{ c.priority }}</a-tag>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右：已选用例（有序） -->
+            <div class="case-selected">
+              <div class="case-selected__head">
+                <span>已选用例（按序执行，共 {{ selectedCases.length }} 个）</span>
+                <span class="case-selected__hint">拖拽或使用按钮调整顺序</span>
+              </div>
+              <div class="case-selected__list">
+                <a-empty v-if="!selectedCases.length" description="从左侧点击添加用例" />
+                <draggable
+                  v-else
+                  v-model="selectedCases"
+                  item-key="id"
+                  :animation="160"
+                  handle=".drag-handle"
+                >
+                  <template #item="{ element: c, index: i }">
+                    <div class="case-row">
+                      <span class="case-row__idx">{{ i + 1 }}</span>
+                      <drag-outlined class="drag-handle" />
+                      <span class="case-row__name">{{ c.name }}</span>
+                      <a-space size="2">
+                        <a-tooltip title="置顶">
+                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'top')">
+                            <vertical-align-top-outlined />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip title="上移">
+                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'up')">
+                            <arrow-up-outlined />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip title="下移">
+                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'down')">
+                            <arrow-down-outlined />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip title="置尾">
+                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'bottom')">
+                            <vertical-align-bottom-outlined />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip title="删除">
+                          <a-button size="small" type="text" danger @click="removeCase(i)">
+                            <delete-outlined />
+                          </a-button>
+                        </a-tooltip>
+                      </a-space>
+                    </div>
+                  </template>
+                </draggable>
+              </div>
+            </div>
+          </div>
+        </a-tab-pane>
+
+        <!-- ============ 执行策略 ============ -->
         <a-tab-pane key="execution" tab="执行策略">
           <a-form layout="vertical">
             <a-form-item label="执行模式">
               <a-radio-group v-model:value="form.executeMode">
-                <a-radio value="sequential">顺序执行（一个失败即停止）</a-radio>
+                <a-radio value="sequential">顺序执行（按编排顺序依次执行）</a-radio>
                 <a-radio value="parallel">并行执行（按并行池大小并发）</a-radio>
               </a-radio-group>
             </a-form-item>
@@ -167,40 +277,41 @@
           </a-form>
         </a-tab-pane>
 
-        <a-tab-pane key="webhook" tab="CI/CD Webhook">
+        <!-- ============ 执行机 ============ -->
+        <a-tab-pane key="executor" tab="执行机">
           <a-form layout="vertical">
             <a-form-item>
               <a-alert
                 type="info"
-                message="启用 Webhook 后,CI 系统可通过 HTTP POST 触发任务执行,适合 GitHub Actions / GitLab CI / Jenkins 等场景。"
+                message="配置执行机后，任务将投递到指定执行机执行；留空则使用默认执行机/本地执行。"
                 show-icon
               />
             </a-form-item>
-            <a-form-item label="启用 Webhook 触发">
-              <a-switch v-model:checked="form.webhookEnabled" />
+            <a-form-item label="执行机地址">
+              <a-input
+                v-model:value="form.executorUrl"
+                placeholder="http://192.168.1.10:9000"
+              />
             </a-form-item>
-            <a-form-item label="触发后自动执行">
-              <a-switch v-model:checked="form.webhookAutoExecute" />
-            </a-form-item>
-            <a-form-item v-if="form.id" label="Webhook Token（仅显示一次）">
-              <a-input-search
-                :value="webhookUrl || '保存后生成'"
-                readonly
-                @search="rotateWebhook()"
-                search-text="重新生成"
-              >
-                <template #addonBefore>
-                  <a-tag color="blue">POST</a-tag>
-                </template>
-              </a-input-search>
-              <div class="hint">调用方式：<code>POST /api/v1/webhook/test-tasks/trigger?token=xxx&triggerBy=git-sha</code></div>
-            </a-form-item>
-            <a-form-item label="频率限制">
-              <span class="hint">同一任务 5 秒内仅允许一次触发,防止 CI 误触发风暴</span>
+            <a-row :gutter="16">
+              <a-col :span="16">
+                <a-form-item label="执行机域名 / IP">
+                  <a-input v-model:value="form.executorHost" placeholder="192.168.1.10 或 executor.example.com" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="执行机端口">
+                  <a-input-number v-model:value="form.executorPort" :min="1" :max="65535" style="width: 100%" placeholder="9000" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item label="baseUrl（覆盖环境）">
+              <a-input v-model:value="form.baseUrl" placeholder="https://api.example.com" />
             </a-form-item>
           </a-form>
         </a-tab-pane>
 
+        <!-- ============ 通知 ============ -->
         <a-tab-pane key="notify" tab="通知渠道">
           <a-form layout="vertical">
             <a-form-item>
@@ -245,11 +356,19 @@ import {
   PlusOutlined,
   ApiOutlined,
   ThunderboltOutlined,
-  LineChartOutlined
+  LineChartOutlined,
+  PlayCircleOutlined,
+  DragOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  VerticalAlignTopOutlined,
+  VerticalAlignBottomOutlined,
+  DeleteOutlined
 } from '@ant-design/icons-vue'
-import { TestTaskApi } from '@/api'
+import draggable from 'vuedraggable'
+import { TestTaskApi, CaseApi, EnvironmentApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
-import type { TestTask, TestTaskRun, NotifyChannel } from '@/types'
+import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from '@/types'
 
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
@@ -260,7 +379,6 @@ const expandedKeys = ref<string[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const runningId = ref<string>('')
-const webhookUrl = ref<string>('')
 const activeTab = ref<string>('basic')
 
 const modal = ref(false)
@@ -273,22 +391,37 @@ const form = reactive<Partial<TestTask>>({
   enabled: true,
   notifyUrl: '',
   baseUrl: '',
+  environmentId: undefined,
+  executorUrl: '',
+  executorHost: '',
+  executorPort: undefined,
   executeMode: 'sequential',
   failStrategy: 'stop_on_fail',
   parallelPoolSize: 5,
-  webhookEnabled: false,
-  webhookAutoExecute: true,
   notifyChannels: []
 })
-const caseIdsText = ref('')
 const variablesJson = ref('[]')
+
+// ---- 用例编排状态 ----
+const allCases = ref<CaseInfo[]>([])
+const caseKeyword = ref('')
+/** 已选用例（有序） */
+const selectedCases = ref<CaseInfo[]>([])
+
+// ---- 环境 ----
+const environments = ref<Environment[]>([])
+
+const environmentOptions = computed(() =>
+  environments.value.map((e) => ({ value: e.id, label: e.name }))
+)
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
+  { title: '用例数', key: 'caseCount', width: 100 },
+  { title: '环境', key: 'environment', width: 120 },
   { title: '调度', key: 'cronExpr', width: 140 },
   { title: '模式', key: 'executeMode', width: 90 },
-  { title: '失败策略', key: 'failStrategy', width: 130 },
-  { title: 'Webhook', key: 'webhookEnabled', width: 100 },
+  { title: '失败策略', key: 'failStrategy', width: 120 },
   { title: '启用', key: 'enabled', width: 80 },
   { title: '操作', key: 'action', width: 280 }
 ]
@@ -298,6 +431,17 @@ const runColumns = [
   { title: '耗时', key: 'duration', width: 100 },
   { title: '开始时间', key: 'startedAt' }
 ]
+
+/** 左侧用例库：排除已选 */
+const filteredAvailableCases = computed(() => {
+  const selectedIds = new Set(selectedCases.value.map((c) => c.id))
+  const kw = caseKeyword.value.trim().toLowerCase()
+  return allCases.value.filter((c) => {
+    if (selectedIds.has(c.id)) return false
+    if (kw && !(c.name || '').toLowerCase().includes(kw)) return false
+    return true
+  })
+})
 
 function resultColor(s: string) {
   return s === 'success' ? 'green'
@@ -316,6 +460,14 @@ function strategyLabel(s?: string) {
   }
 }
 
+function priorityColor(p: string) {
+  return p === 'P0' ? 'red' : p === 'P1' ? 'orange' : p === 'P2' ? 'blue' : 'default'
+}
+
+function envName(id?: string) {
+  return environments.value.find((e) => e.id === id)?.name || ''
+}
+
 function targetPlaceholder(t: string) {
   switch (t) {
     case 'email': return 'user@example.com'
@@ -331,6 +483,39 @@ function formatDate(iso?: string) {
   return new Date(iso).toLocaleString()
 }
 
+/* ---------------- 用例编排操作 ---------------- */
+
+function addCase(c: CaseInfo) {
+  selectedCases.value.push(c)
+}
+
+function removeCase(index: number) {
+  selectedCases.value.splice(index, 1)
+}
+
+/** 手动排序：上移/下移/置顶/置尾 */
+function moveCase(index: number, dir: 'up' | 'down' | 'top' | 'bottom') {
+  const list = selectedCases.value
+  const item = list[index]
+  if (dir === 'top') {
+    list.splice(index, 1)
+    list.unshift(item)
+  } else if (dir === 'bottom') {
+    list.splice(index, 1)
+    list.push(item)
+  } else if (dir === 'up') {
+    if (index === 0) return
+    list.splice(index, 1)
+    list.splice(index - 1, 0, item)
+  } else if (dir === 'down') {
+    if (index === list.length - 1) return
+    list.splice(index, 1)
+    list.splice(index + 1, 0, item)
+  }
+}
+
+/* ---------------- 数据加载 ---------------- */
+
 async function reload() {
   if (!projectId.value) return
   loading.value = true
@@ -341,11 +526,31 @@ async function reload() {
   }
 }
 
+async function loadCases() {
+  if (!projectId.value) return
+  try {
+    allCases.value = await CaseApi.list({ projectId: projectId.value, size: 500 })
+  } catch {
+    allCases.value = []
+  }
+}
+
+async function loadEnvironments() {
+  if (!projectId.value) return
+  try {
+    environments.value = await EnvironmentApi.list(projectId.value)
+  } catch {
+    environments.value = []
+  }
+}
+
 async function onExpand(expanded: boolean, record: TestTask) {
   if (expanded) {
     runsByTask.value[record.id] = await TestTaskApi.runs(record.id)
   }
 }
+
+/* ---------------- 弹窗打开/关闭 ---------------- */
 
 function openCreate() {
   Object.assign(form, {
@@ -358,59 +563,84 @@ function openCreate() {
     enabled: true,
     notifyUrl: '',
     baseUrl: '',
+    environmentId: undefined,
+    executorUrl: '',
+    executorHost: '',
+    executorPort: undefined,
     executeMode: 'sequential',
     failStrategy: 'stop_on_fail',
     parallelPoolSize: 5,
-    webhookEnabled: false,
-    webhookAutoExecute: true,
     notifyChannels: []
   })
-  caseIdsText.value = ''
+  selectedCases.value = []
+  caseKeyword.value = ''
   variablesJson.value = '[]'
-  webhookUrl.value = ''
   activeTab.value = 'basic'
   modal.value = true
 }
 
 function openEdit(record: TestTask) {
-  Object.assign(form, record)
-  caseIdsText.value = (record.caseIds || []).join(', ')
+  Object.assign(form, {
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    timeoutMs: record.timeoutMs,
+    retryCount: record.retryCount,
+    cronExpr: record.cronExpr,
+    enabled: record.enabled,
+    notifyUrl: record.notifyUrl,
+    baseUrl: record.baseUrl,
+    environmentId: record.environmentId,
+    executorUrl: record.executorUrl,
+    executorHost: record.executorHost,
+    executorPort: record.executorPort,
+    executeMode: record.executeMode || 'sequential',
+    failStrategy: record.failStrategy || 'stop_on_fail',
+    parallelPoolSize: record.parallelPoolSize || 5,
+    notifyChannels: record.notifyChannels || []
+  })
   variablesJson.value = JSON.stringify(record.variables || [], null, 2)
-  form.notifyChannels = record.notifyChannels || []
-  form.failStrategy = record.failStrategy || 'stop_on_fail'
-  form.executeMode = record.executeMode || 'sequential'
-  form.parallelPoolSize = record.parallelPoolSize || 5
-  form.webhookEnabled = record.webhookEnabled || false
-  form.webhookAutoExecute = record.webhookAutoExecute !== false
+  // 回填已选用例（按 caseIds 顺序）
+  const caseIds = record.caseIds || []
+  const map = new Map(allCases.value.map((c) => [c.id, c]))
+  selectedCases.value = caseIds
+    .map((id) => map.get(id))
+    .filter(Boolean) as CaseInfo[]
+  caseKeyword.value = ''
   activeTab.value = 'basic'
-  webhookUrl.value = ''
   modal.value = true
 }
 
-async function save() {
+function onCancel() {
+  modal.value = false
+}
+
+/* ---------------- 保存/运行 ---------------- */
+
+async function save(runAfter: boolean) {
   if (!form.name) {
-    message.warning('请填写名称')
+    message.warning('请填写任务名称')
     activeTab.value = 'basic'
     return
   }
-  if (!form.id && caseIdsText.value.trim() === '') {
-    message.warning('请填写用例 ID')
-    activeTab.value = 'basic'
+  if (!selectedCases.value.length) {
+    message.warning('请至少添加一个用例')
+    activeTab.value = 'cases'
+    return
+  }
+  let variables: any[] = []
+  try {
+    variables = JSON.parse(variablesJson.value || '[]')
+  } catch {
+    message.warning('用例级变量 JSON 格式错误')
+    activeTab.value = 'execution'
     return
   }
   saving.value = true
   try {
-    const ids = caseIdsText.value.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)
-    let variables: any[] = []
-    try {
-      variables = JSON.parse(variablesJson.value || '[]')
-    } catch {
-      message.warning('用例级变量 JSON 格式错误')
-      return
-    }
     const payload: any = {
       ...form,
-      caseIds: ids,
+      caseIds: selectedCases.value.map((c) => c.id),
       variables,
       notifyChannels: form.notifyChannels || [],
       projectId: projectId.value
@@ -419,31 +649,24 @@ async function save() {
     delete payload.deletedAt
     delete payload.createdAt
     delete payload.updatedAt
+    let taskId = form.id
     if (form.id) {
       await TestTaskApi.update(form.id, payload)
     } else {
       const created = await TestTaskApi.create(payload)
-      // 创建后展示 webhook
-      if (created.webhookToken) {
-        webhookUrl.value = `/api/v1/webhook/test-tasks/trigger?token=${created.webhookToken}`
-      }
+      taskId = created.id
+      form.id = created.id
     }
     message.success('已保存')
-    if (!form.id) {
-      // 新建后保持弹窗,让用户继续配置 webhook
-      form.id = (await TestTaskApi.list(projectId.value))[0]?.id
-    }
     await reload()
+
+    if (runAfter && taskId) {
+      await runAsync({ id: taskId } as TestTask)
+    }
+    modal.value = false
   } finally {
     saving.value = false
   }
-}
-
-async function rotateWebhook() {
-  if (!form.id) return
-  const r = await TestTaskApi.rotateWebhook(form.id)
-  webhookUrl.value = r.url
-  await message.success(`已生成新 Token,请妥善保管`, 5)
 }
 
 async function runAsync(record: TestTask) {
@@ -488,8 +711,8 @@ function addNotifyChannel() {
   form.notifyChannels.push({ type: 'email', target: '', secret: '' } as NotifyChannel)
 }
 
-watch(projectId, reload, { immediate: false })
-onMounted(reload)
+watch(projectId, () => { reload(); loadCases(); loadEnvironments() }, { immediate: false })
+onMounted(() => { reload(); loadCases(); loadEnvironments() })
 </script>
 
 <style scoped>
@@ -507,5 +730,128 @@ onMounted(reload)
 /* Cron 表达式标签用等宽字体，便于阅读 */
 :deep(.ant-table-tbody > tr > td .ant-tag) {
   font-family: var(--font-mono);
+}
+
+/* ============ 用例编排两栏布局 ============ */
+.case-orchestration {
+  display: flex;
+  gap: var(--sp-4);
+  min-height: 360px;
+}
+
+.case-lib {
+  flex: 1;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.case-lib__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--bd-subtle);
+  background: var(--bg-subtle);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.case-lib__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  max-height: 360px;
+}
+
+.case-lib__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--rd-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.case-lib__item:hover {
+  background: var(--bg-active);
+}
+
+.case-lib__name {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--tx-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-selected {
+  flex: 1;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--rd-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.case-selected__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--bd-subtle);
+  background: var(--bg-subtle);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.case-selected__hint {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--tx-4);
+}
+
+.case-selected__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  max-height: 360px;
+}
+
+.case-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--bd-subtle);
+  border-radius: var(--rd-sm);
+  margin-bottom: var(--sp-2);
+  background: var(--bg-card);
+}
+
+.case-row__idx {
+  width: 20px;
+  text-align: center;
+  color: var(--tx-4);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+}
+
+.case-row__name {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--tx-4);
 }
 </style>
