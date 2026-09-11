@@ -1,15 +1,36 @@
 <template>
   <div class="page">
-    <!-- 页头：标题 + 工具栏 -->
+    <!-- 页头：标题 -->
     <div class="page-header">
       <div class="page-title">接口管理</div>
-      <a-space>
-        <a-input-search v-model:value="keyword" placeholder="搜索" style="width: 200px" @search="reload" />
-        <a-select v-model:value="methodFilter" :options="methodOptions" style="width: 120px" @change="reload" />
-        <a-button v-can-write type="primary" @click="openCreate">
-          <plus-outlined />新建
+    </div>
+
+    <!-- 操作栏：新建接口 / Excel 导入模板 / Swagger 示例 / 导入 Swagger -->
+    <div class="action-bar">
+      <a-button v-can-write type="primary" @click="openCreate">
+        <plus-outlined />新建接口
+      </a-button>
+      <a-button v-can-write @click="downloadExcelExample">
+        <file-excel-outlined />Excel 导入模板
+      </a-button>
+      <a-button v-can-write @click="downloadSwaggerExample">
+        <file-text-outlined />Swagger 示例
+      </a-button>
+      <a-upload
+        :show-upload-list="false"
+        accept=".json,.yaml,.yml"
+        :before-upload="handleSwaggerFile"
+      >
+        <a-button v-can-write>
+          <import-outlined />导入 Swagger
         </a-button>
-      </a-space>
+      </a-upload>
+    </div>
+
+    <!-- 搜索 + 筛选 -->
+    <div class="filter-bar">
+      <a-input-search v-model:value="keyword" placeholder="搜索" style="width: 240px" @search="reload" />
+      <a-select v-model:value="methodFilter" :options="methodOptions" style="width: 120px" @change="reload" />
     </div>
 
     <!-- 表格卡片 -->
@@ -75,7 +96,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import {
+  PlusOutlined,
+  FileExcelOutlined,
+  FileTextOutlined,
+  ImportOutlined
+} from '@ant-design/icons-vue'
+import * as XLSX from 'xlsx'
 import { ApiApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
 import type { ApiDefinition } from '@/types'
@@ -175,20 +202,140 @@ async function remove(record: ApiDefinition) {
   await reload()
 }
 
+/* ---------------- 示例下载（Excel 模板 / Swagger 示例） ---------------- */
+
+/** 标准 Swagger/OpenAPI 3.0 示例，便于用户了解导入格式 */
+const SWAGGER_EXAMPLE = {
+  openapi: '3.0.0',
+  info: { title: '示例 API', version: '1.0.0', description: 'Swagger 导入示例文档' },
+  servers: [{ url: 'https://api.example.com' }],
+  tags: [{ name: '用户管理', description: '用户相关接口' }],
+  paths: {
+    '/users': {
+      get: {
+        tags: ['用户管理'],
+        summary: '获取用户列表',
+        parameters: [
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer' }, description: '页码' }
+        ],
+        responses: {
+          '200': {
+            description: '成功',
+            content: { 'application/json': { example: { code: 0, data: [] } } }
+          }
+        }
+      },
+      post: {
+        tags: ['用户管理'],
+        summary: '创建用户',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+              example: { name: '张三', email: 'zhangsan@example.com' }
+            }
+          }
+        },
+        responses: { '200': { description: '成功' } }
+      }
+    },
+    '/users/{id}': {
+      get: {
+        tags: ['用户管理'],
+        summary: '获取用户详情',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: '用户 ID' }
+        ],
+        responses: { '200': { description: '成功' } }
+      }
+    }
+  }
+}
+
+function downloadBlob(content: BlobPart, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/** 下载 Excel 导入模板（格式：请求方式 | URL，含示例行） */
+function downloadExcelExample() {
+  const rows: any[][] = [
+    ['请求方式', 'URL', '名称（可选）'],
+    ['GET', '/api/v1/users', '获取用户列表'],
+    ['POST', '/api/v1/users', '创建用户'],
+    ['PUT', '/api/v1/users/{id}', '更新用户'],
+    ['DELETE', '/api/v1/users/{id}', '删除用户'],
+    ['PATCH', '/api/v1/users/{id}', '部分更新用户']
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  // 设置列宽，提升可读性
+  ws['!cols'] = [{ wch: 12 }, { wch: 32 }, { wch: 24 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '接口导入模板')
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  downloadBlob(out as BlobPart, '接口导入模板.xlsx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  message.success('已下载 Excel 导入模板')
+}
+
+/** 下载 Swagger/OpenAPI 示例 */
+function downloadSwaggerExample() {
+  const json = JSON.stringify(SWAGGER_EXAMPLE, null, 2)
+  downloadBlob(json, 'swagger-示例.json', 'application/json')
+  message.success('已下载 Swagger 示例')
+}
+
+/* ---------------- Swagger 文件导入 ---------------- */
+
+async function handleSwaggerFile(file: File) {
+  if (!projectId.value) {
+    message.warning('请先选择项目')
+    return false
+  }
+  try {
+    const res: any = await ApiApi.importSwaggerFile(projectId.value, file)
+    const total = res?.total ?? 0
+    const inserted = res?.inserted ?? 0
+    message.success(`Swagger 导入完成：解析 ${total} 个接口，新增 ${inserted} 个`)
+    await reload()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || 'Swagger 导入失败')
+  }
+  return false
+}
+
 watch(projectId, reload, { immediate: false })
 onMounted(reload)
 </script>
 
 <style scoped>
-/* 工具栏：搜索 + 下拉同行等高对齐 */
-:deep(.page-header .ant-input-affix-wrapper),
-:deep(.page-header .ant-select) {
-  vertical-align: middle;
-}
 /* 方法列：标签字体等宽以便对齐 */
 :deep(.ant-table-tbody > tr > td .ant-tag) {
   font-family: var(--font-mono);
   min-width: 44px;
   text-align: center;
+}
+/* 顶部操作栏：新建接口 / Excel 导入模板 / Swagger 示例 / 导入 Swagger */
+.action-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+/* 搜索 + 筛选行 */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
 }
 </style>

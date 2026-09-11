@@ -160,7 +160,7 @@ onMounted(async () => {
 
 <style scoped>
 .workbench-root {
-  height: calc(100vh - var(--nav-h) - var(--sp-10));
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;

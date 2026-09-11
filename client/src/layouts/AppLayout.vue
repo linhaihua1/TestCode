@@ -43,18 +43,37 @@
       <!-- 顶部 header -->
       <a-layout-header class="header">
         <div class="header__left">
-          <a-select
+          <!-- 项目名称查询框：可输入搜索，选中即切换项目 -->
+          <a-auto-complete
             v-if="projectStore.projects.length > 0"
-            :value="projectStore.currentProjectId"
-            :options="projectOptions"
             class="header__project"
-            size="middle"
-            :dropdown-match-select-width="240"
-            @change="onProjectChange"
+            :value="currentProjectName"
+            :options="projectSearchOptions"
+            placeholder="搜索 / 切换项目"
+            :filter-option="false"
+            @search="onProjectSearch"
+            @select="onProjectChange"
           >
-            <template #prefixIcon><ProjectOutlined /></template>
-            <template #suffixIcon><SwapOutlined /></template>
-          </a-select>
+            <template #prefix><ProjectOutlined /></template>
+            <template #suffixIcon><SearchOutlined /></template>
+            <template #option="opt">
+              <div class="project-option">
+                <span class="project-option__name">{{ opt.label }}</span>
+                <span v-if="opt.value === projectStore.currentProjectId" class="project-option__tag">当前</span>
+              </div>
+            </template>
+          </a-auto-complete>
+
+          <!-- 新增项目 -->
+          <a-button
+            v-can-write
+            type="text"
+            class="header__add-project"
+            title="新增项目"
+            @click="openCreateProject"
+          >
+            <plus-outlined />新增项目
+          </a-button>
         </div>
 
         <div class="header__right">
@@ -115,6 +134,30 @@
     </a-layout>
   </a-layout>
 
+  <!-- ============ 新增项目 ============ -->
+  <a-modal
+    v-model:open="createProjectModal"
+    title="新增项目"
+    :confirm-loading="creatingProject"
+    width="480"
+    ok-text="创建"
+    cancel-text="取消"
+    @ok="createProject"
+  >
+    <a-form layout="vertical" class="pwd-form">
+      <a-form-item label="项目名称" required>
+        <a-input v-model:value="createProjectForm.name" placeholder="例如 电商主站" />
+      </a-form-item>
+      <a-form-item label="描述">
+        <a-textarea
+          v-model:value="createProjectForm.description"
+          :auto-size="{ minRows: 2, maxRows: 4 }"
+          placeholder="项目用途说明（可选）"
+        />
+      </a-form-item>
+    </a-form>
+  </a-modal>
+
   <!-- ============ 修改密码 ============ -->
   <a-modal
     v-model:open="passwordModal"
@@ -140,26 +183,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   ApiOutlined, RobotOutlined, ThunderboltOutlined, SettingOutlined,
   UserOutlined, AuditOutlined, ProjectOutlined, DownOutlined,
-  LockOutlined, LogoutOutlined, SwapOutlined, QuestionCircleOutlined
+  LockOutlined, LogoutOutlined, SearchOutlined, PlusOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { AuthApi } from '@/api'
+import { AuthApi, ProjectApi } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const projectStore = useProjectStore()
 
-const projectOptions = computed(() =>
-  projectStore.projects.map((p) => ({ value: p.id, label: p.name }))
-)
+/** 当前项目名（显示在查询框里） */
+const currentProjectName = computed(() => projectStore.currentProject?.name ?? '')
+
+/** 项目名搜索：按关键字过滤项目列表，作为下拉候选项 */
+const projectSearchOptions = computed(() => {
+  const kw = projectKeyword.value.trim().toLowerCase()
+  const list = kw
+    ? projectStore.projects.filter((p) => p.name.toLowerCase().includes(kw))
+    : projectStore.projects
+  return list.map((p) => ({ value: p.id, label: p.name }))
+})
+
+const projectKeyword = ref('')
 
 /* ============================================================
    菜单数据：叶子 key → 路由 name（+可选 query）
@@ -174,11 +228,11 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
   reports: { name: 'reports' },
   // UI 自动化
   'ui-tests': { name: 'ui-tests' },
-  'ui-run': { name: 'ui-tests', query: { tab: 'scenarios' } },
+  'ui-run': { name: 'ui-run' },
   'ui-reports': { name: 'ui-reports' },
   // 性能测试
   perf: { name: 'perf' },
-  'perf-reports': { name: 'perf', query: { tab: 'reports' } },
+  'perf-reports': { name: 'perf-reports' },
   // 环境配置
   environments: { name: 'environments' },
   'global-variables': { name: 'global-variables' },
@@ -266,10 +320,6 @@ const menuItems = computed(() => {
 
 const selectedKeys = computed(() => {
   const name = String(route.name)
-  const tab = route.query.tab as string | undefined
-  // 带 query 的菜单项反查
-  if (name === 'ui-tests' && tab === 'scenarios') return ['ui-run']
-  if (name === 'perf' && tab === 'reports') return ['perf-reports']
   // 普通叶子菜单
   for (const [key, target] of Object.entries(ROUTE_MAP)) {
     if (target.name === name && !target.query) return [key]
@@ -303,9 +353,49 @@ function goTo(name: string) {
   router.push({ name })
 }
 
+function onProjectSearch(value: string) {
+  projectKeyword.value = value
+}
+
 function onProjectChange(id: string) {
+  // 点击候选项切换项目：清空关键字，切换后刷新
+  projectKeyword.value = ''
+  if (id === projectStore.currentProjectId) return
   projectStore.switchProject(id)
   router.go(0)
+}
+
+/* ---------------- 新增项目 ---------------- */
+
+const createProjectModal = ref(false)
+const creatingProject = ref(false)
+const createProjectForm = reactive({ name: '', description: '' })
+
+function openCreateProject() {
+  createProjectForm.name = ''
+  createProjectForm.description = ''
+  createProjectModal.value = true
+}
+
+async function createProject() {
+  if (!createProjectForm.name.trim()) {
+    message.warning('请填写项目名称')
+    return
+  }
+  creatingProject.value = true
+  try {
+    const created = await ProjectApi.create({
+      name: createProjectForm.name.trim(),
+      description: createProjectForm.description.trim() || undefined
+    })
+    message.success('项目已创建')
+    createProjectModal.value = false
+    await projectStore.fetchAll()
+    projectStore.switchProject(created.id)
+    router.go(0)
+  } finally {
+    creatingProject.value = false
+  }
 }
 
 function logout() {
@@ -354,7 +444,8 @@ onMounted(async () => {
 
 <style scoped>
 .app-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg-page);
 }
 
@@ -452,6 +543,10 @@ onMounted(async () => {
    ============================================================ */
 .main {
   min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .header {
@@ -463,8 +558,7 @@ onMounted(async () => {
   padding: 0 var(--sp-5);
   background: var(--bg-card);
   border-bottom: 1px solid var(--bd-base);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: var(--z-nav);
 }
 
@@ -477,6 +571,41 @@ onMounted(async () => {
 
 .header__project {
   width: 240px;
+}
+
+.header__add-project {
+  color: var(--tx-2);
+  white-space: nowrap;
+}
+
+.header__add-project:hover {
+  color: var(--c-primary);
+  background: var(--bg-hover);
+}
+
+/* 项目搜索候选项 */
+.project-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.project-option__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-option__tag {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-primary);
+  background: var(--c-primary-bg);
+  border-radius: var(--rd-sm);
+  padding: 0 6px;
+  line-height: 18px;
 }
 
 .header__right {
@@ -556,9 +685,10 @@ onMounted(async () => {
    内容区
    ============================================================ */
 .content {
+  flex: 1;
+  min-height: 0;
   padding: var(--sp-5);
   background: var(--bg-page);
-  min-height: calc(100vh - 56px);
   overflow: auto;
 }
 
