@@ -13,6 +13,9 @@
       </a-space>
     </div>
 
+    <!-- Allure 风格总体概览（跨报告汇总） -->
+    <AllureSummary :stats="summaryStats" />
+
     <!-- 筛选 + 汇总：统一 stat-grid 风格 -->
     <div class="stat-grid">
       <div class="stat-card">
@@ -114,6 +117,7 @@ import {
 import { ReportApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
 import type { Report } from '@/types'
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
 
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
@@ -141,6 +145,18 @@ const totalFailed = computed(() =>
     0
   )
 )
+
+/** Allure 状态汇总（跨报告用例计数聚合） */
+const summaryStats = computed<StatusStat[]>(() => {
+  const sum = (fn: (r: Report) => number) =>
+    reports.value.reduce((acc, r) => acc + (fn(r) || 0), 0)
+  return [
+    { key: 'passed', label: '通过', value: sum((r) => r.passedCases || 0) },
+    { key: 'failed', label: '失败', value: sum((r) => r.failedCases || 0) },
+    { key: 'broken', label: '异常', value: sum((r) => r.errorCases || 0) },
+    { key: 'skipped', label: '跳过', value: sum((r) => r.skippedCases || 0) }
+  ]
+})
 
 const recent7PassRate = computed(() => {
   const cutoff = Date.now() - 7 * 86400_000

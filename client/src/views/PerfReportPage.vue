@@ -16,6 +16,9 @@
       </a-space>
     </header>
 
+    <!-- Allure 风格概览：成功样本 vs 错误样本 -->
+    <AllureSummary :stats="perfStats" />
+
     <!-- 关键指标 -->
     <section class="stat-grid">
       <div class="stat-card">
@@ -99,6 +102,7 @@ import {
 import * as echarts from 'echarts'
 import { PerfApi } from '@/api'
 import type { PerfReport } from '@/types'
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -107,6 +111,18 @@ const report = ref<PerfReport | null>(null)
 const chartEl = ref<HTMLElement | null>(null)
 
 const summary = computed(() => (report.value?.summary as any) || {})
+
+/** Allure 风格状态统计：成功样本 / 错误样本 */
+const perfStats = computed<StatusStat[]>(() => {
+  const sampleCount = summary.value.sampleCount || 0
+  const errorCount = summary.value.errorCount || 0
+  return [
+    { key: 'passed', label: '成功样本', value: sampleCount - errorCount },
+    { key: 'broken', label: '错误样本', value: errorCount },
+    { key: 'failed', label: '失败', value: 0 },
+    { key: 'skipped', label: '跳过', value: 0 }
+  ]
+})
 
 /** TPS 展示值：数值型保留两位小数，非数值型原样输出 */
 const tpsDisplay = computed(() => {

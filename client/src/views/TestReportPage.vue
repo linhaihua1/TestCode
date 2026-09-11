@@ -25,12 +25,11 @@
       </a-space>
     </header>
 
+    <!-- Allure 风格总体概览 -->
+    <AllureSummary v-model:active="statusFilter" :stats="statusStats" @filter="onStatusFilter" />
+
     <!-- 关键指标卡片 -->
     <section class="stat-grid">
-      <div class="stat-card">
-        <div class="label">用例总数</div>
-        <div class="value tabular">{{ report.totalCases || 0 }}</div>
-      </div>
       <div class="stat-card">
         <div class="label">通过率</div>
         <div
@@ -57,6 +56,10 @@
           {{ report.avgResponseTime || 0 }}<span class="unit"> ms</span>
         </div>
       </div>
+      <div class="stat-card">
+        <div class="label">P95 响应</div>
+        <div class="value tabular">{{ report.p95ResponseTime || 0 }}<span class="unit"> ms</span></div>
+      </div>
     </section>
 
     <!-- Tab 切换 -->
@@ -64,9 +67,14 @@
       <a-tabs v-model:active-key="activeTab" class="report-tabs">
         <!-- 步骤明细 -->
         <a-tab-pane key="details" tab="步骤明细">
+          <div v-if="statusFilter" class="filter-banner">
+            <a-tag :color="statusTagColor(statusFilter)" closable @close="clearFilter">
+              筛选：{{ statusLabel(statusFilter) }}（{{ filteredDetails.length }} 条）
+            </a-tag>
+          </div>
           <a-list
             class="report-list"
-            :data-source="details"
+            :data-source="filteredDetails"
             :loading="loadingDetails"
           >
             <template #renderItem="{ item }">
@@ -252,6 +260,7 @@ import {
 } from '@ant-design/icons-vue'
 import { ReportApi } from '@/api'
 import type { Report, ReportDetail, ReportShare as ReportShareType } from '@/types'
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -266,6 +275,9 @@ const loadingDetails = ref(false)
 const loadingShares = ref(false)
 const activeTab = ref<string>('details')
 
+/** 状态过滤（配合 AllureSummary 卡片点击） */
+const statusFilter = ref<string | null>(null)
+
 const shareModal = ref(false)
 const shareForm = reactive({
   expireDays: 30,
@@ -279,6 +291,44 @@ const passRate = computed(() => {
   if (!report.value || !report.value.totalCases) return 0
   return (report.value.passedCases || 0) * 100 / report.value.totalCases
 })
+
+/** Allure 状态统计（来自报告用例计数） */
+const statusStats = computed<StatusStat[]>(() => [
+  { key: 'passed', label: '通过', value: report.value?.passedCases || 0 },
+  { key: 'failed', label: '失败', value: report.value?.failedCases || 0 },
+  { key: 'broken', label: '异常', value: report.value?.errorCases || 0 },
+  { key: 'skipped', label: '跳过', value: report.value?.skippedCases || 0 }
+])
+
+/** 按状态过滤后的步骤明细 */
+const filteredDetails = computed(() => {
+  if (!statusFilter.value) return details.value
+  const key = statusFilter.value
+  const map: Record<string, string> = {
+    passed: 'success',
+    failed: 'failed',
+    broken: 'error',
+    skipped: 'skipped'
+  }
+  const target = map[key]
+  return details.value.filter((d) => (d.status || '').toLowerCase() === target)
+})
+
+function onStatusFilter(key: string | null) {
+  statusFilter.value = key
+}
+
+function clearFilter() {
+  statusFilter.value = null
+}
+
+function statusLabel(key: string) {
+  return ({ passed: '通过', failed: '失败', broken: '异常', skipped: '跳过' } as Record<string, string>)[key] || key
+}
+
+function statusTagColor(key: string) {
+  return ({ passed: 'green', failed: 'red', broken: 'orange', skipped: 'default' } as Record<string, string>)[key] || 'blue'
+}
 
 function statusColor(s: string) {
   return s === 'success' ? 'green'
@@ -422,6 +472,11 @@ onMounted(async () => {
 .report-panel {
   padding: 0;
   overflow: hidden;
+}
+
+/* 状态过滤提示条 */
+.filter-banner {
+  margin-bottom: var(--sp-3);
 }
 
 .report-tabs {
