@@ -3,6 +3,7 @@ package com.apiweb.controller;
 import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
+import com.apiweb.engine.EngineDtos;
 import com.apiweb.entity.PerfCaseEntity;
 import com.apiweb.entity.PerfReportEntity;
 import com.apiweb.mapper.PerfCaseMapper;
@@ -10,8 +11,10 @@ import com.apiweb.mapper.PerfReportMapper;
 import com.apiweb.mq.TaskProducer;
 import com.apiweb.service.JmxImportExportService;
 import com.apiweb.service.OssService;
+import com.apiweb.service.PerfExecutionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +37,13 @@ public class PerfController {
     private final TaskProducer taskProducer;
     private final OssService ossService;
     private final JmxImportExportService jmxImportExportService;
+    private final PerfExecutionService perfExecutionService;
+
+    /**
+     * 是否启用 RabbitMQ 消费端。localdev 下为 false，此时 run 接口改为 @Async 异步执行。
+     */
+    @Value("${apiweb.mq.enabled:true}")
+    private boolean mqListenerEnabled;
 
     // ---------------- 用例 ----------------
 
@@ -179,7 +189,13 @@ public class PerfController {
         report.setLabels("[]");
         report.setErrors("[]");
         perfReportMapper.insert(report);
-        taskProducer.sendPerfTask(report.getId(), c.getProjectId(), id);
+        if (mqListenerEnabled) {
+            taskProducer.sendPerfTask(report.getId(), c.getProjectId(), id);
+        } else {
+            // localdev：消费端关闭，改用 @Async 异步执行（嵌入式 JMeter 在当前 JVM 内跑）
+            perfExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                    "perf", report.getId(), c.getProjectId(), id, null, null, null));
+        }
         return Result.ok(report);
     }
 

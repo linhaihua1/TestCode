@@ -79,6 +79,10 @@ apiweb:
   jwt:
     secret: ${JWT_SECRET:change-me-in-production-0123456789abcdef}
     expire-hours: 24
+  mq:
+    # 是否启用 RabbitMQ 消费端（@RabbitListener）。localdev 单机调试时关闭，
+    # 此时 UI/性能任务改用 @Async 本地异步执行。
+    enabled: ${MQ_ENABLED:true}
   security:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步

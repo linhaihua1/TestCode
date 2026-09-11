@@ -38,3 +38,7 @@ apiweb:
   jwt:
     # dev 环境使用固定 JWT secret，避免每次启动变掉导致旧 token 失效
     secret: dev-secret-key-not-for-production-32bytes-min
+  mq:
+    # localdev：彻底关闭 RabbitMQ 消费端（@RabbitListener 组件不注册），
+    # UI/性能任务改为 @Async 本地异步执行
+    enabled: false

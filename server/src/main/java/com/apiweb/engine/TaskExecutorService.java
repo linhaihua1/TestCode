@@ -2,11 +2,14 @@ package com.apiweb.engine;
 
 import com.apiweb.common.BizException;
 import com.apiweb.engine.variable.VariableMerger;
+import com.apiweb.entity.CaseEntity;
 import com.apiweb.entity.TestTaskEntity;
 import com.apiweb.entity.TestTaskRunEntity;
+import com.apiweb.mapper.CaseMapper;
 import com.apiweb.mapper.TestTaskMapper;
 import com.apiweb.mapper.TestTaskRunMapper;
 import com.apiweb.service.ExecutionSupportService;
+import com.apiweb.service.ReportGenerationService;
 import com.apiweb.util.JsonUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.PostConstruct;
@@ -52,6 +55,8 @@ public class TaskExecutorService {
     /** 用 ObjectProvider 避免与 CaseRunner 循环依赖 */
     private final ObjectProvider<CaseRunner> caseRunnerProvider;
     private final ExecutionSupportService executionSupport;
+    private final CaseMapper caseMapper;
+    private final ReportGenerationService reportGenerationService;
 
     /** 并行执行池（懒初始化,首次使用时按 parallelPoolSize 创建） */
     private volatile ExecutorService parallelExecutor;
@@ -107,7 +112,33 @@ public class TaskExecutorService {
         } else {
             executeSequential(task, runs, strategy);
         }
+
+        // 执行完成后汇总生成接口测试报告（t_report + t_report_detail），
+        // 否则「测试报告」页将无数据。
+        try {
+            generateReport(task, runs);
+        } catch (Exception e) {
+            log.error("生成任务报告失败: taskId={}", task.getId(), e);
+        }
         return runs;
+    }
+
+    /**
+     * 汇总本轮 runs 生成一条接口测试报告。
+     */
+    private void generateReport(TestTaskEntity task, List<TestTaskRunEntity> runs) {
+        // 组装 runId -> 用例名 映射
+        java.util.List<String> caseIds = JsonUtils.fromJson(
+                task.getCaseIds() == null ? "[]" : task.getCaseIds(), List.class);
+        java.util.Map<String, String> runNameMap = new java.util.LinkedHashMap<>();
+        // runs 与 caseIds 顺序一致（execute 中按顺序创建 run）
+        for (int i = 0; i < runs.size() && i < caseIds.size(); i++) {
+            CaseEntity c = caseMapper.selectById(caseIds.get(i));
+            runNameMap.put(runs.get(i).getId(), c == null ? caseIds.get(i) : c.getName());
+        }
+        reportGenerationService.generateFromRuns(
+                task.getProjectId(), task.getId(), task.getName(),
+                "manual", null, runNameMap, runs);
     }
 
     // ============== 顺序执行 ==============

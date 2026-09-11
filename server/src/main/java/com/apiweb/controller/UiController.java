@@ -3,6 +3,7 @@ package com.apiweb.controller;
 import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
+import com.apiweb.engine.EngineDtos;
 import com.apiweb.entity.UiReportEntity;
 import com.apiweb.entity.UiScenarioEntity;
 import com.apiweb.entity.UiScenarioStepEntity;
@@ -13,9 +14,11 @@ import com.apiweb.mapper.UiScenarioStepMapper;
 import com.apiweb.mapper.UiTestCaseMapper;
 import com.apiweb.mq.TaskProducer;
 import com.apiweb.service.OssService;
+import com.apiweb.service.UiExecutionService;
 import com.apiweb.util.JsonUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +40,14 @@ public class UiController {
     private final UiReportMapper uiReportMapper;
     private final TaskProducer taskProducer;
     private final OssService ossService;
+    private final UiExecutionService uiExecutionService;
+
+    /**
+     * 是否启用 RabbitMQ 消费端。localdev 下为 false，此时 run 接口改为 @Async 异步执行，
+     * 避免报告永远停留在 pending。
+     */
+    @Value("${apiweb.mq.enabled:true}")
+    private boolean mqListenerEnabled;
 
     // ---------------- UI 测试用例 ----------------
 
@@ -187,7 +198,13 @@ public class UiController {
         report.setStartedAt(Instant.now());
         report.setDetails("[]");
         uiReportMapper.insert(report);
-        taskProducer.sendUiTask(report.getId(), t.getProjectId(), id);
+        if (mqListenerEnabled) {
+            taskProducer.sendUiTask(report.getId(), t.getProjectId(), id);
+        } else {
+            // localdev：消费端关闭，改用 @Async 异步执行，保证报告能被回写且不阻塞请求
+            uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                    "ui", report.getId(), t.getProjectId(), id, null, null, null));
+        }
         return Result.ok(report);
     }
 
@@ -237,8 +254,14 @@ public class UiController {
             report.setStartedAt(Instant.now());
             report.setDetails("[]");
             uiReportMapper.insert(report);
-            taskProducer.sendUiTask(report.getId(), scenario.getProjectId(), t.getId(),
-                    scenario.getEnvironmentId(), extra);
+            if (mqListenerEnabled) {
+                taskProducer.sendUiTask(report.getId(), scenario.getProjectId(), t.getId(),
+                        scenario.getEnvironmentId(), extra);
+            } else {
+                uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                        "ui", report.getId(), scenario.getProjectId(), t.getId(),
+                        null, scenario.getEnvironmentId(), extra));
+            }
             reports.add(report);
         }
         return Result.ok(reports);

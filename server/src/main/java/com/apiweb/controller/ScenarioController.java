@@ -133,9 +133,19 @@ public class ScenarioController {
         report.setScenarioId(id);
         report.setName(scenario.getName());
         report.setStartedAt(Instant.now());
+        report.setTriggerType("manual");
+        // 先插入 report 拿到主键，否则明细的 reportId 会是 null
+        reportMapper.insert(report);
 
         long start = System.currentTimeMillis();
         boolean allPass = true;
+        int passedSteps = 0;
+        int failedSteps = 0;
+        int errorSteps = 0;
+        int totalAssertions = 0;
+        int passedAssertions = 0;
+        int failedAssertions = 0;
+
         for (ScenarioStepEntity step : steps) {
             EngineDtos.ExecutionResult result = executionSupport.caseRunner()
                     .run(JsonUtils.toJson(Map.of(
@@ -147,18 +157,45 @@ public class ScenarioController {
             detail.setStepName(step.getName() == null ? "步骤" : step.getName());
             EngineDtos.StepResult last = result.getSteps().isEmpty() ? null
                     : result.getSteps().get(result.getSteps().size() - 1);
-            detail.setStatus(last == null ? "error" : last.getStatus());
+            String status = last == null ? "error" : last.getStatus();
+            detail.setStatus(status);
             detail.setError(last == null ? "无执行结果" : last.getError());
             detail.setAssertions(last == null ? "[]" : JsonUtils.toJson(last.getAssertions()));
             detail.setExtracts(last == null ? "[]" : JsonUtils.toJson(last.getExtracts()));
             reportDetailMapper.insert(detail);
-            if (!"success".equals(detail.getStatus())) {
+
+            // 汇总统计
+            if ("success".equals(status)) {
+                passedSteps++;
+            } else if ("error".equals(status)) {
+                errorSteps++;
+            } else {
+                failedSteps++;
                 allPass = false;
             }
+            if (last != null && last.getAssertions() != null) {
+                for (EngineDtos.AssertionResult a : last.getAssertions()) {
+                    totalAssertions++;
+                    if (a.isPassed()) {
+                        passedAssertions++;
+                    } else {
+                        failedAssertions++;
+                    }
+                }
+            }
         }
-        report.setStatus(allPass ? "success" : "failed");
+        report.setStatus(allPass ? "success" : (errorSteps > 0 ? "error" : "failed"));
+        report.setTotalCases(steps.size());
+        report.setPassedCases(passedSteps);
+        report.setFailedCases(failedSteps);
+        report.setErrorCases(errorSteps);
+        report.setSkippedCases(0);
+        report.setTotalAssertions(totalAssertions);
+        report.setPassedAssertions(passedAssertions);
+        report.setFailedAssertions(failedAssertions);
         report.setDuration((int) (System.currentTimeMillis() - start));
-        reportMapper.insert(report);
+        report.setFinishedAt(Instant.now());
+        reportMapper.updateById(report);
         return Result.ok(report);
     }
 
