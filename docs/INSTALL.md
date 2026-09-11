@@ -132,7 +132,7 @@ npm install && npm run dev
 - 旧库升级时执行幂等迁移：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
 - 对象存储（MinIO）在 localdev 下自动降级为本地文件系统（`C:\dev\apiweb-oss` 或 `/tmp/apiweb-oss`）
 - 登录账号：`admin / admin@123`
-```
+- localdev 下 `apiweb.mq.enabled=false`，RabbitMQ 消费者不注册；UI / 性能任务改由进程内 `@Async` 直接执行，仍可正常生成报告
 
 ---
 
@@ -388,6 +388,19 @@ spring.datasource.url: jdbc:mysql://localhost:3306/api_web?serverTimezone=UTC&us
 ### Q7: Windows 下 `mvn spring-boot:run` 报端口占用
 
 A: 检查 8080 端口是否被其他进程占用，或在 `application.yml` 中修改 `server.port`。
+
+### Q8: UI 自动化执行失败，提示 Chrome / ChromeDriver 版本不匹配
+
+A: ChromeDriver 版本必须与执行机安装的 Chrome 浏览器版本一致。若不一致，下载匹配版本的 chromedriver 后通过环境变量指定：
+
+```bash
+# Linux / macOS
+export WEBDRIVER_CHROME_DRIVER=/path/to/chromedriver
+# Windows (cmd)
+set WEBDRIVER_CHROME_DRIVER=C:\path\to\chromedriver.exe
+```
+
+后端启动后，UI 用例执行将优先使用该路径的驱动。
 
 ---
 

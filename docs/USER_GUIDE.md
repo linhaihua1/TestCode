@@ -279,10 +279,13 @@ user03,wrongpwd,fail
 ### 4.2 任务执行
 
 任务提交后异步执行：
+
 1. 任务进入 RabbitMQ 队列 `apiweb.task.api.queue`
 2. 后端消费者从队列取出，调用 `CaseRunner`
 3. 执行机（也可能在主进程内）按步骤执行用例
 4. 实时进度通过 SSE 推送到前端（每完成一个步骤推送一次）
+
+> 说明：在 localdev 单机模式（未启用 RabbitMQ）下，UI 与性能任务会由后端进程内直接执行，无需 MQ，仍会正常生成报告。接口任务与场景始终在主进程内执行。
 
 ### 4.3 报告查看
 
@@ -293,7 +296,9 @@ user03,wrongpwd,fail
 - **失败原因聚合**：相同错误聚合展示
 - **明细列表**：每条用例的执行结果，可点击展开请求/响应/断言/提取
 
-报告支持导出 PDF（`@ant-design/plots` 渲染图表）。
+报告支持导出 PDF（图表由 ECharts / vue-echarts 渲染）。
+
+三类报告分别对应：接口自动化 → 接口报告；UI 自动化 → UI 报告；性能测试 → 性能报告。三者均按当前项目（projectId）过滤展示，若页面无数据，请先确认该报告对应的执行确实已完成（而非仍在 pending/执行中）。
 
 ---
 
@@ -340,6 +345,7 @@ user03,wrongpwd,fail
 > 模块：左侧菜单「**UI 自动化**」
 
 > ⚠️ 执行机需预装 Chrome 浏览器（版本匹配 ChromeDriver）。
+> 若 Chrome 与默认 ChromeDriver 版本不一致，可由管理员通过环境变量 `WEBDRIVER_CHROME_DRIVER` 指定匹配版本的 chromedriver 路径（详见 INSTALL.md Q8）。
 
 ### 6.1 UI 用例结构
 

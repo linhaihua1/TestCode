@@ -18,7 +18,7 @@
 
 | 层 | 技术 |
 |---|---|
-| 前端 | Vue 3 · Vite · TypeScript · Ant Design Vue 4 · Pinia · vue-router · vue-draggable-plus · Monaco Editor · ECharts |
+| 前端 | Vue 3 · Vite · TypeScript · Ant Design Vue 4 · Pinia · vue-router · vuedraggable · Monaco Editor · ECharts |
 | 后端 | Java 17 · Spring Boot 3 · MyBatis-Plus |
 | 数据库 | MySQL 8.0 |
 | 缓存 | Redis 7.x（登录会话、执行机心跳、分布式锁） |
@@ -62,6 +62,16 @@ mvn spring-boot:run
 
 后端启动在 `http://localhost:8080`。
 
+> **localdev 模式（无 Docker / RabbitMQ / MinIO 的单机调试）**：本机只有 MySQL + Redis 时，用 `localdev` profile 拉起后端，会自动禁用 RabbitMQ 消费端、Quartz 集群、MinIO（对象存储降级为本地文件系统），并改由进程内 `@Async` 直接执行 UI / 性能任务：
+>
+> ```bash
+> cd server
+> mvn -DskipTests package
+> java -jar target/api-web-server-*.jar --spring.profiles.active=localdev
+> ```
+>
+> 旧库升级时先执行幂等迁移：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`。
+
 ### 3. 启动前端（Vue 3 + Vite）
 
 ```bash
@@ -97,14 +107,14 @@ codex-apiweb/
 │   │   ├── audit/           # @AuditLog 注解 + AOP 切面
 │   │   ├── common/          # Result / BizException / BaseEntity
 │   │   ├── config/          # MybatisPlus / Redis / RabbitMQ / MinIO / Web / Quartz / Password
-│   │   ├── controller/      # 14 个 RESTful Controller
+│   │   ├── controller/      # 19 个 RESTful Controller
 │   │   ├── engine/          # 变量解析、断言评估、提取、HTTP 执行、用例执行器、控制器
 │   │   ├── entity/          # 24 个 MyBatis-Plus 实体
 │   │   ├── job/             # Quartz 定时任务
 │   │   ├── mapper/          # 24 个 BaseMapper
 │   │   ├── mq/              # TaskProducer / ApiTaskConsumer / UiTaskConsumer / PerfTaskConsumer
 │   │   ├── security/        # JwtUtil / AuthInterceptor / UserContext / CurrentUser
-│   │   ├── service/         # 业务服务（ExecutionSupport / OssService / UiExecutionService / PerfExecutionService / ExecutorHeartbeatService / TaskScheduleService）
+│   │   ├── service/         # 业务服务（ExecutionSupportService / OssService / UiExecutionService / PerfExecutionService / ReportGenerationService / JmxImportExportService / ExecutorHeartbeatService / TaskScheduleService / RecycleBinScheduleService）
 │   │   └── util/            # JsonUtils
 │   └── src/main/resources/
 │       ├── application.yml  # MySQL / Redis / RabbitMQ / MinIO / Quartz 配置

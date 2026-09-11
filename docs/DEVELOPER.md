@@ -48,7 +48,7 @@ api-web/                                # 仓库根
 │   │   │   ├── audit/                  # 审计日志（AOP 自动落库）
 │   │   │   ├── common/                 # 通用：Result、错误码、异常、基类
 │   │   │   ├── config/                 # 配置：MyBatis-Plus / Redis / RabbitMQ / MinIO / 初始化
-│   │   │   ├── controller/             # RESTful Controller 层
+│   │   │   ├── controller/             # RESTful Controller 层（19 个）
 │   │   │   ├── engine/                 # 执行引擎核心（变量/断言/HTTP/场景/JMeter）
 │   │   │   ├── entity/                 # MyBatis-Plus 实体（每张表一个）
 │   │   │   ├── mapper/                 # MyBatis-Plus Mapper 接口
@@ -178,6 +178,8 @@ mvn spring-boot:run
 > ```
 >
 > 该 profile 会禁用 RabbitMQ 消费端、Quartz 集群、MinIO（对象存储降级为本地文件系统），并排除相应自动配置，避免无 MQ 时反复重连刷屏。
+>
+> **任务执行回退机制（关键）**：三个 MQ 消费者（`ApiTaskConsumer` / `UiTaskConsumer` / `PerfTaskConsumer`）均标注 `@ConditionalOnProperty(name = "apiweb.mq.enabled", havingValue = "true", matchIfMissing = true)`。当 `apiweb.mq.enabled=false`（localdev 下）时，消费者 Bean 不会注册，`UiController` / `PerfController` 的 run 接口会改走 `@Value("${apiweb.mq.enabled:true}")` 判断，false 时直接调用 `uiExecutionService.executeAsync` / `perfExecutionService.executeAsync`（`@Async`）在进程内同步执行，避免 UI / 性能任务因无 MQ 消费端而永远停在 pending。`@EnableAsync` 已在 `ApiWebApplication` 上开启。
 
 ### 3.5 启动前端（开发模式）
 
@@ -366,6 +368,8 @@ public void onMessage(EngineDtos.TaskMessage message) {
 
 新增队列：编辑 `config/RabbitMQConfig.java`，声明 `Queue` / `Exchange` / `Binding` Bean。
 
+> **MQ 开关**：三个消费者均标注 `@ConditionalOnProperty(name = "apiweb.mq.enabled", havingValue = "true", matchIfMissing = true)`。`application.yml` 默认 `apiweb.mq.enabled: true`，`application-localdev.yml` 置为 `false`。关闭后消费者不注册，UI / 性能任务由 Controller 改走进程内 `@Async` 回退执行（见 §3.4）。
+
 ### 4.7 Quartz 定时任务
 
 1. 实现 `Job` 接口：`job/MyJob.java implements Job`
@@ -384,6 +388,34 @@ sb.append("      </CookieManager>\n      <hashTree/>\n");
 ```
 
 字段对应关系参考 JMeter 源码：`TestElementGUI.getStringValue()` 输出的 `.jmx` XML。
+
+> **JMX 关键字段约定**（已踩坑记录）：
+> - ThreadGroup 必须包含 `elementProp name="ThreadGroup.main_controller" elementType="LoopController"`（含 loops / scheduler），否则 JMeter 执行时抛异常。
+> - `HTTPSamplerProxy` 中 URL 用 `stringProp name="HTTPSampler.domain"` 里的 `host` 字段（**不是** `domain`）；Query / Body 作为 `elementProp name="HTTPsampler.Arguments"` 属性；`boolProp name="HTTPSampler.postBodyRaw"` 必须放在 HTTPSamplerProxy 内部；HeaderManager 作为其 hashTree 子节点。
+> - `.jmx` 导入导出由 `service/JmxImportExportService.java` 统一处理，修改节点结构时务必同步该服务。
+
+### 4.8.1 报告生成（ReportGenerationService）
+
+接口任务执行完成后，`service/ReportGenerationService.java` 负责从本次运行结果汇总生成 `t_report` + `t_report_detail` 并回填统计字段（total / passed / failed / skipped 等）。三类报告对应关系：
+
+| 报告类型 | 数据表 | 生成入口 |
+|---|---|---|
+| 接口报告 | `t_report` / `t_report_detail` | `ReportGenerationService`（任务执行后调用） |
+| 场景报告 | `t_report` / `t_report_detail` | `ScenarioController.execute`（先插 report 再插 detail） |
+| UI 报告 | `t_ui_report` | `UiExecutionService` |
+| 性能报告 | `t_perf_report` | `PerfExecutionService` |
+
+> 注意：场景报告插入前必须显式设置 `status` 与统计默认值，否则 `t_report.status` 的 NOT NULL 约束会抛异常。
+
+### 4.9 UI 自动化执行（UiExecutionService）
+
+`service/UiExecutionService.java` 基于 Selenium 驱动真实 Chrome。ChromeDriver 版本需与执行机安装的 Chrome 浏览器版本匹配，否则会报 session 创建失败。若执行机 Chrome 与默认驱动版本不一致，可通过环境变量指定匹配的 chromedriver 路径：
+
+```bash
+export WEBDRIVER_CHROME_DRIVER=/path/to/chromedriver   # Windows: set WEBDRIVER_CHROME_DRIVER=C:\path\to\chromedriver.exe
+```
+
+读取优先级：环境变量 `WEBDRIVER_CHROME_DRIVER` > 系统属性 `webdriver.chrome.driver`。
 
 ---
 
@@ -606,7 +638,7 @@ if (responseBody.length() > 1024 * 1024) {
 
 ### 7.3 新增报告图表
 
-1. 在 `client/src/views/TestReportPage.vue` 引入 `@antv/g2` 或 G2Plot
+1. 在 `client/src/views/TestReportPage.vue` 引入 ECharts（配 `vue-echarts`）
 2. 复用 `report.series` / `report.labels` 数据
 
 ### 7.4 新增任务类型
@@ -783,6 +815,10 @@ A: 检查 `logs/backend.log`，常见原因：
 | JMeter 如何集成 | `server/src/main/java/com/apiweb/engine/JmeterBootstrapper.java` |
 | JWT 如何校验 | `server/src/main/java/com/apiweb/security/AuthInterceptor.java` |
 | 审计如何记录 | `server/src/main/java/com/apiweb/audit/AuditAspect.java` |
+| 接口报告如何生成 | `server/src/main/java/com/apiweb/service/ReportGenerationService.java` |
+| 步骤如何同步落库 | `server/src/main/java/com/apiweb/controller/CaseController.java`（`syncStepsFromJson`） |
+| 场景如何执行 | `server/src/main/java/com/apiweb/controller/ScenarioController.java` |
+| .jmx 导入导出 | `server/src/main/java/com/apiweb/service/JmxImportExportService.java` |
 | 三栏工作台如何联动 | `client/src/views/Workbench.vue` + `client/src/components/workbench/*.vue` |
 | Monaco 如何集成 | `client/src/components/Monaco.vue` |
 | 虚拟滚动树如何实现 | `client/src/components/VirtualTree.vue` |
