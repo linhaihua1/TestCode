@@ -7,10 +7,12 @@ import com.apiweb.engine.EngineDtos;
 import com.apiweb.engine.VariablesResolver;
 import com.apiweb.entity.CaseEntity;
 import com.apiweb.entity.CaseReviewEntity;
+import com.apiweb.entity.CaseStepEntity;
 import com.apiweb.entity.CaseVersionEntity;
 import com.apiweb.entity.DebugRecordEntity;
 import com.apiweb.mapper.CaseMapper;
 import com.apiweb.mapper.CaseReviewMapper;
+import com.apiweb.mapper.CaseStepMapper;
 import com.apiweb.mapper.CaseVersionMapper;
 import com.apiweb.mapper.DebugRecordMapper;
 import com.apiweb.security.UserContext;
@@ -38,6 +40,7 @@ public class CaseController {
     private final CaseMapper caseMapper;
     private final CaseVersionMapper caseVersionMapper;
     private final CaseReviewMapper caseReviewMapper;
+    private final CaseStepMapper caseStepMapper;
     private final DebugRecordMapper debugRecordMapper;
     private final ExecutionSupportService executionSupport;
     private final OssService ossService;
@@ -88,6 +91,8 @@ public class CaseController {
         }
         c.setVersion(1);
         caseMapper.insert(c);
+        // 同步步骤到 t_case_step 表（任务执行器 runCaseSteps 读取此表）
+        syncStepsFromJson(c.getId(), c.getSteps());
         saveVersion(c, "初始版本");
         return Result.ok(c);
     }
@@ -102,6 +107,8 @@ public class CaseController {
         c.setId(id);
         c.setVersion(existing.getVersion() + 1);
         caseMapper.updateById(c);
+        // 同步步骤到 t_case_step 表
+        syncStepsFromJson(id, c.getSteps());
         saveVersion(c, "更新");
         return Result.ok();
     }
@@ -291,6 +298,63 @@ public class CaseController {
     }
 
     // ---------------- 内部 ----------------
+
+    /**
+     * 把前端编辑器的扁平步骤 JSON 同步到 t_case_step 表。
+     *
+     * <p>前端 {@code steps} 字段为数组，每项含：
+     * {@code {type, name, position, enabled, failStrategy, method, url, headers, query, body,
+     * assertions, extracts, ...}}。此处转换为 {@link CaseStepEntity}（stepType + config JSON），
+     * 使任务执行器 {@code runCaseSteps} 能读取到步骤。</p>
+     */
+    @SuppressWarnings("unchecked")
+    private void syncStepsFromJson(String caseId, String stepsJson) {
+        // 先清理旧步骤
+        caseStepMapper.delete(new LambdaQueryWrapper<CaseStepEntity>()
+                .eq(CaseStepEntity::getCaseId, caseId));
+        if (stepsJson == null || stepsJson.isBlank()) {
+            return;
+        }
+        List<Map<String, Object>> steps;
+        try {
+            steps = JsonUtils.fromJson(stepsJson, List.class);
+        } catch (Exception e) {
+            return;
+        }
+        if (steps == null || steps.isEmpty()) {
+            return;
+        }
+        int order = 0;
+        for (Map<String, Object> raw : steps) {
+            CaseStepEntity step = new CaseStepEntity();
+            step.setCaseId(caseId);
+            String type = raw.get("type") == null ? null : String.valueOf(raw.get("type"));
+            step.setStepType(type == null || type.isBlank() ? "HTTP_REQUEST" : type);
+            step.setName(raw.get("name") == null ? "步骤 " + (order + 1) : String.valueOf(raw.get("name")));
+            String position = raw.get("position") == null ? "TEST" : String.valueOf(raw.get("position"));
+            step.setPosition(position);
+            step.setSortOrder(order++);
+            step.setEnabled(!(raw.get("enabled") instanceof Boolean b) || b);
+            step.setFailStrategy(raw.get("failStrategy") == null ? "stop" : String.valueOf(raw.get("failStrategy")));
+            step.setRemark(raw.get("remark") == null ? null : String.valueOf(raw.get("remark")));
+
+            // config：把扁平字段打包成 config JSON
+            Map<String, Object> config = new LinkedHashMap<>();
+            config.put("method", raw.getOrDefault("method", "GET"));
+            config.put("url", raw.getOrDefault("url", ""));
+            config.put("headers", raw.getOrDefault("headers", List.of()));
+            config.put("query", raw.getOrDefault("query", List.of()));
+            config.put("body", raw.getOrDefault("body", ""));
+            config.put("assertions", raw.getOrDefault("assertions", List.of()));
+            config.put("extracts", raw.getOrDefault("extracts", List.of()));
+            // 兼容旧字段名（若前端用 protocol/domain/path 组合）
+            if (raw.containsKey("path") && !raw.containsKey("url")) {
+                config.put("url", raw.get("path"));
+            }
+            step.setConfig(JsonUtils.toJson(config));
+            caseStepMapper.insert(step);
+        }
+    }
 
     private void saveVersion(CaseEntity c, String summary) {
         CaseVersionEntity version = new CaseVersionEntity();

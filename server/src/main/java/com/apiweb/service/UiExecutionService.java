@@ -61,6 +61,15 @@ public class UiExecutionService {
             ChromeOptions options = new ChromeOptions();
             options.addArguments("--headless=new", "--no-sandbox", "--disable-gpu",
                     "--window-size=1920,1080");
+            // 允许通过环境变量指定 chromedriver 路径（解决不同环境 chromedriver 版本不匹配的问题）。
+            // 优先读取 WEBDRIVER_CHROME_DRIVER，其次 system property。
+            String driverPath = System.getenv("WEBDRIVER_CHROME_DRIVER");
+            if (driverPath == null || driverPath.isBlank()) {
+                driverPath = System.getProperty("webdriver.chrome.driver");
+            }
+            if (driverPath != null && !driverPath.isBlank()) {
+                System.setProperty("webdriver.chrome.driver", driverPath);
+            }
             driver = new ChromeDriver(options);
             // 页面加载超时 + 隐式等待兜底（具体交互步骤另有显式等待 + 重试）
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));

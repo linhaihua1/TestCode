@@ -332,6 +332,9 @@ public class PerfExecutionService {
             int rampUp = c.getRampUp();
             // 阶梯加压：threads 为峰值，按 5 级阶梯到达
             int steps = "stepping".equals(loadProfile) ? 5 : 1;
+            int loops = c.getLoops() != null && c.getLoops() > 0 ? c.getLoops() : 1;
+            int duration = c.getDuration() != null ? c.getDuration() : 0;
+            boolean scheduled = duration > 0;
 
             sb.append(indent).append("<ThreadGroup guiclass=\"ThreadGroupGui\" testclass=\"ThreadGroup\" ");
             sb.append("testname=\"").append(escape(c.getName())).append("\">\n");
@@ -339,16 +342,24 @@ public class PerfExecutionService {
                     .append(threads).append("</stringProp>\n");
             sb.append(indent).append("  <stringProp name=\"ThreadGroup.ramp_time\">")
                     .append(Math.max(rampUp, steps)).append("</stringProp>\n");
+            sb.append(indent).append("  <boolProp name=\"ThreadGroup.scheduler\">")
+                    .append(scheduled).append("</boolProp>\n");
             sb.append(indent).append("  <stringProp name=\"ThreadGroup.on_sample_error\">")
-                    .append(c.getOnSampleError()).append("</stringProp>\n");
-            if (c.getDuration() > 0) {
+                    .append(c.getOnSampleError() == null ? "continue" : c.getOnSampleError())
+                    .append("</stringProp>\n");
+            if (scheduled) {
                 sb.append(indent).append("  <stringProp name=\"ThreadGroup.duration\">")
-                        .append(c.getDuration()).append("</stringProp>\n");
-                sb.append(indent).append("  <stringProp name=\"ThreadGroup.scheduler\">true</stringProp>\n");
-            } else {
-                sb.append(indent).append("  <stringProp name=\"LoopController.loops\">")
-                        .append(c.getLoops()).append("</stringProp>\n");
+                        .append(duration).append("</stringProp>\n");
             }
+            // main_controller（LoopController）：ThreadGroup 必需，缺失会导致
+            // "Property ThreadGroup.main_controller is unset" 异常
+            sb.append(indent).append("  <elementProp name=\"ThreadGroup.main_controller\" ")
+                    .append("elementType=\"LoopController\" guiclass=\"LoopControlPanel\" ")
+                    .append("testclass=\"LoopController\" testname=\"循环控制器\">\n");
+            sb.append(indent).append("    <boolProp name=\"LoopController.continue_forever\">false</boolProp>\n");
+            sb.append(indent).append("    <stringProp name=\"LoopController.loops\">")
+                    .append(scheduled ? -1 : loops).append("</stringProp>\n");
+            sb.append(indent).append("  </elementProp>\n");
             sb.append(indent).append("</ThreadGroup>\n");
             sb.append(indent).append("<hashTree>\n");
 
@@ -398,9 +409,16 @@ public class PerfExecutionService {
                 sb.append("        <boolProp name=\"HTTPSampler.use_keepalive\">")
                         .append(Boolean.parseBoolean(str(step.getOrDefault("useKeepAlive", "true"))))
                         .append("</boolProp>\n");
-                sb.append("        <elementProp name=\"HTTPsampler.Arguments\" elementType=\"Arguments\">\n");
+
+                // 请求参数/请求体都放在 HTTPsampler.Arguments 里（作为 HTTPSamplerProxy 的属性）
+                List<Map<String, Object>> queryParams = kvList(step.get("queryParams"));
+                String body = str(step.getOrDefault("body", ""));
+                boolean hasBody = !body.isBlank();
+                sb.append("        <elementProp name=\"HTTPsampler.Arguments\" elementType=\"Arguments\"")
+                        .append(hasBody ? " guiclass=\"HTTPArgumentsPanel\"" : "")
+                        .append(" testclass=\"Arguments\" testname=\"用户定义的变量\">\n");
                 sb.append("          <collectionProp name=\"Arguments.arguments\">\n");
-                for (Map<String, Object> q : kvList(step.get("queryParams"))) {
+                for (Map<String, Object> q : queryParams) {
                     sb.append("            <elementProp name=\"")
                             .append(escape(str(q.get("key")))).append("\" elementType=\"HTTPArgument\">\n");
                     sb.append("              <boolProp name=\"HTTPArgument.always_encode\">false</boolProp>\n");
@@ -412,13 +430,24 @@ public class PerfExecutionService {
                     sb.append("              <boolProp name=\"HTTPArgument.use_equals\">true</boolProp>\n");
                     sb.append("            </elementProp>\n");
                 }
+                if (hasBody) {
+                    sb.append("            <elementProp name=\"\" elementType=\"HTTPArgument\">\n");
+                    sb.append("              <boolProp name=\"HTTPArgument.always_encode\">false</boolProp>\n");
+                    sb.append("              <stringProp name=\"Argument.value\">")
+                            .append(escape(body)).append("</stringProp>\n");
+                    sb.append("              <stringProp name=\"Argument.metadata\">=</stringProp>\n");
+                    sb.append("            </elementProp>\n");
+                }
                 sb.append("          </collectionProp>\n        </elementProp>\n");
+                if (hasBody) {
+                    sb.append("        <boolProp name=\"HTTPSampler.postBodyRaw\">true</boolProp>\n");
+                }
+                sb.append("      </HTTPSamplerProxy>\n");
 
-                // 请求头（HeaderManager）
+                // HeaderManager 作为 HTTPSamplerProxy 的子节点（放在 hashTree 里）
                 List<Map<String, Object>> headers = kvList(step.get("headers"));
-                String body = str(step.getOrDefault("body", ""));
-                if (!headers.isEmpty() || !body.isBlank()) {
-                    sb.append("      </HTTPSamplerProxy>\n");
+                boolean hasChildren = !headers.isEmpty() || c.getThinkTime() > 0;
+                if (hasChildren) {
                     sb.append("      <hashTree>\n");
                     if (!headers.isEmpty()) {
                         sb.append("        <HeaderManager guiclass=\"HeaderPanel\" testclass=\"HeaderManager\" ")
@@ -434,32 +463,16 @@ public class PerfExecutionService {
                         }
                         sb.append("          </collectionProp>\n        </HeaderManager>\n        <hashTree/>\n");
                     }
-                    if (!body.isBlank()) {
-                        // 用 RawPostBody 承载原始请求体
-                        sb.append("        <elementProp name=\"HTTPsampler.Arguments\" ")
-                                .append("elementType=\"Arguments\" guiclass=\"HTTPArgumentsPanel\" ")
-                                .append("testclass=\"Arguments\" testname=\"用户定义的变量\">\n");
-                        sb.append("          <collectionProp name=\"Arguments.arguments\">\n");
-                        sb.append("            <elementProp name=\"\" elementType=\"HTTPArgument\">\n");
-                        sb.append("              <boolProp name=\"HTTPArgument.always_encode\">false</boolProp>\n");
-                        sb.append("              <stringProp name=\"Argument.value\">")
-                                .append(escape(body)).append("</stringProp>\n");
-                        sb.append("              <stringProp name=\"Argument.metadata\">=</stringProp>\n");
-                        sb.append("            </elementProp>\n");
-                        sb.append("          </collectionProp>\n        </elementProp>\n");
-                        sb.append("        <boolProp name=\"HTTPSampler.postBodyRaw\">true</boolProp>\n");
+                    if (c.getThinkTime() > 0) {
+                        sb.append("        <ConstantTimer guiclass=\"ConstantTimerGui\" ")
+                                .append("testclass=\"ConstantTimer\" testname=\"思考时间\">\n");
+                        sb.append("          <stringProp name=\"ConstantTimer.delay\">")
+                                .append(c.getThinkTime()).append("</stringProp>\n");
+                        sb.append("        </ConstantTimer>\n        <hashTree/>\n");
                     }
                     sb.append("      </hashTree>\n");
                 } else {
-                    sb.append("      </HTTPSamplerProxy>\n      <hashTree/>\n");
-                }
-
-                if (c.getThinkTime() > 0) {
-                    sb.append("      <ConstantTimer guiclass=\"ConstantTimerGui\" ")
-                            .append("testclass=\"ConstantTimer\" testname=\"思考时间\">\n");
-                    sb.append("        <stringProp name=\"ConstantTimer.delay\">")
-                            .append(c.getThinkTime()).append("</stringProp>\n");
-                    sb.append("      </ConstantTimer>\n      <hashTree/>\n");
+                    sb.append("      <hashTree/>\n");
                 }
             }
             sb.append(indent).append("</hashTree>\n");

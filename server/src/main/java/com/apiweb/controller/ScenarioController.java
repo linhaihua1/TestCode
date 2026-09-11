@@ -134,6 +134,12 @@ public class ScenarioController {
         report.setName(scenario.getName());
         report.setStartedAt(Instant.now());
         report.setTriggerType("manual");
+        report.setStatus("running");
+        report.setTotalCases(0);
+        report.setPassedCases(0);
+        report.setFailedCases(0);
+        report.setErrorCases(0);
+        report.setSkippedCases(0);
         // 先插入 report 拿到主键，否则明细的 reportId 会是 null
         reportMapper.insert(report);
 
@@ -147,11 +153,18 @@ public class ScenarioController {
         int failedAssertions = 0;
 
         for (ScenarioStepEntity step : steps) {
-            EngineDtos.ExecutionResult result = executionSupport.caseRunner()
-                    .run(JsonUtils.toJson(Map.of(
-                            "type", "http", "name", step.getName() == null ? "步骤" : step.getName(),
-                            "url", "", "assertions", JsonUtils.toList(step.getAssertions()),
-                            "extracts", JsonUtils.toList(step.getExtracts()))), resolver);
+            EngineDtos.ExecutionResult result;
+            if (step.getApiCaseId() != null && !step.getApiCaseId().isBlank()) {
+                // 关联了用例：直接执行该用例的步骤（读取 t_case_step 表）
+                result = executionSupport.caseRunner().runCaseSteps(step.getApiCaseId(), resolver);
+            } else {
+                // 未关联用例：执行步骤自身配置（url 来自步骤的 apiCaseId 为空时的兜底）
+                result = executionSupport.caseRunner()
+                        .run(JsonUtils.toJson(Map.of(
+                                "type", "http", "name", step.getName() == null ? "步骤" : step.getName(),
+                                "url", "", "assertions", JsonUtils.toList(step.getAssertions()),
+                                "extracts", JsonUtils.toList(step.getExtracts()))), resolver);
+            }
             ReportDetailEntity detail = new ReportDetailEntity();
             detail.setReportId(report.getId());
             detail.setStepName(step.getName() == null ? "步骤" : step.getName());
