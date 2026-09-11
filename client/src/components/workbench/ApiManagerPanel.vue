@@ -23,7 +23,7 @@
       <div class="module-head">
         <span class="module-title">接口目录</span>
         <a-tooltip title="新建目录">
-          <a-button size="small" type="text" @click="createModule">
+          <a-button v-can-write size="small" type="text" @click="createModule">
             <folder-add-outlined />
           </a-button>
         </a-tooltip>
@@ -77,7 +77,7 @@
 
     <!-- 底部操作 -->
     <div class="footer-actions">
-      <a-button size="small" type="primary" @click="openCreate">
+      <a-button v-can-write size="small" type="primary" @click="openCreate">
         <plus-outlined />新建接口
       </a-button>
       <a-upload
@@ -85,12 +85,12 @@
         :show-upload-list="false"
         accept=".xlsx,.xls"
       >
-        <a-button size="small">
+        <a-button v-can-write size="small">
           <file-excel-outlined />Excel 导入
         </a-button>
       </a-upload>
       <a-popconfirm title="批量导入 Swagger JSON？" @confirm="importSwagger">
-        <a-button size="small">
+        <a-button v-can-write size="small">
           <import-outlined />Swagger
         </a-button>
       </a-popconfirm>

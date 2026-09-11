@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="page-title">UI 自动化</div>
       <a-space>
-        <a-button type="primary" @click="openCreate">
+        <a-button v-can-write type="primary" @click="openCreate">
           <plus-outlined />新建用例
         </a-button>
       </a-space>
@@ -25,11 +25,11 @@
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'action'" @click.stop>
                   <a-space>
-                    <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
+                    <a-button v-can-write size="small" type="link" @click="run(record)" :loading="runningId === record.id">
                       <play-circle-outlined />运行
                     </a-button>
                     <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                      <a-button size="small" type="link" danger @click.stop>删除</a-button>
+                      <a-button v-can-write size="small" type="link" danger @click.stop>删除</a-button>
                     </a-popconfirm>
                   </a-space>
                 </template>
@@ -43,7 +43,7 @@
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'action'">
                   <a-space>
-                    <a-button size="small" type="link" @click="runScenario(record)" :loading="runningScenarioId === record.id">
+                    <a-button v-can-write size="small" type="link" @click="runScenario(record)" :loading="runningScenarioId === record.id">
                       <play-circle-outlined />运行
                     </a-button>
                   </a-space>

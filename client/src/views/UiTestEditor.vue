@@ -10,10 +10,10 @@
         <span class="ellipsis">{{ testCase.name }}</span>
       </div>
       <a-space>
-        <a-button @click="save" :loading="saving">
+        <a-button v-can-write @click="save" :loading="saving">
           <save-outlined />保存
         </a-button>
-        <a-button type="primary" @click="run" :loading="running">
+        <a-button v-can-write type="primary" @click="run" :loading="running">
           <play-circle-outlined />运行
         </a-button>
       </a-space>

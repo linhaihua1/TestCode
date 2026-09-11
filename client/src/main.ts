@@ -20,10 +20,14 @@ import './styles/tokens.css'
 import './styles/global.css'
 import App from './App.vue'
 import router from './router'
+import { canWrite } from './directives/canWrite'
 import { useAuthStore } from './stores/auth'
 
 // 创建 Vue 应用实例
 const app = createApp(App)
+
+// 注册权限指令：查看者自动禁用写操作按钮
+app.directive('can-write', canWrite)
 
 // 全局注册所有 Ant Design 图标（按需引用，例如 <HomeOutlined />）
 // 注意：完整注册会增大打包体积，如对包大小敏感可改为按需 import

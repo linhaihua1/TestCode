@@ -19,7 +19,7 @@
         @search="reloadCases"
         style="flex: 1"
       />
-      <a-button size="small" type="primary" @click="openCreate">
+      <a-button v-can-write size="small" type="primary" @click="openCreate">
         <plus-outlined />新建
       </a-button>
     </div>
@@ -37,7 +37,7 @@
           />
           <a-empty v-else description="暂无模块" />
           <div class="tree-actions">
-            <a-button size="small" type="dashed" block @click="createModule()">
+            <a-button v-can-write size="small" type="dashed" block @click="createModule()">
               <folder-add-outlined />新建模块
             </a-button>
           </div>

@@ -21,13 +21,13 @@
         <span class="config-bar__title">接口用例</span>
       </div>
       <div class="config-bar__right">
-        <a-button type="text" size="small" @click="goTo('global-variables')">
+        <a-button v-can-write type="text" size="small" @click="goTo('global-variables')">
           <global-outlined />设置全局变量
         </a-button>
         <a-button type="text" size="small" @click="goTo('debug-records')">
           <file-search-outlined />调试记录
         </a-button>
-        <a-button type="text" size="small" @click="goTo('recycle-bin')">
+        <a-button v-can-write type="text" size="small" @click="goTo('recycle-bin')">
           <delete-outlined />回收站
         </a-button>
       </div>

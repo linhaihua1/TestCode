@@ -6,7 +6,7 @@
       <a-space>
         <a-input-search v-model:value="keyword" placeholder="搜索" style="width: 200px" @search="reload" />
         <a-select v-model:value="methodFilter" :options="methodOptions" style="width: 120px" @change="reload" />
-        <a-button type="primary" @click="openCreate">
+        <a-button v-can-write type="primary" @click="openCreate">
           <plus-outlined />新建
         </a-button>
       </a-space>
@@ -26,9 +26,9 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button v-can-write size="small" type="link" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                <a-button size="small" type="link" danger>删除</a-button>
+                <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>

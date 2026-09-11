@@ -20,14 +20,14 @@
         size="large"
       />
       <a-space class="editor-actions">
-        <a-button @click="save" :loading="saving">
+        <a-button v-can-write @click="save" :loading="saving">
           <save-outlined />保存
         </a-button>
-        <a-button type="primary" @click="debug" :loading="debugging">
+        <a-button v-can-write type="primary" @click="debug" :loading="debugging">
           <play-circle-outlined />调试
         </a-button>
         <a-popconfirm title="确认删除该用例？" @confirm="remove">
-          <a-button danger>
+          <a-button v-can-write danger>
             <delete-outlined />
           </a-button>
         </a-popconfirm>
@@ -62,7 +62,7 @@
             </template>
           </draggable>
           <a-empty v-if="!preSteps.length" description="暂无前置步骤" :image-style="{ height: '40px' }" />
-          <a-button block type="dashed" size="small" @click="addStep('PRE')">
+          <a-button v-can-write block type="dashed" size="small" @click="addStep('PRE')">
             <plus-outlined />新增前置步骤
           </a-button>
         </section>
@@ -84,7 +84,7 @@
             </template>
           </draggable>
           <a-empty v-if="!testSteps.length" description="暂无测试步骤" :image-style="{ height: '40px' }" />
-          <a-button block type="dashed" size="small" @click="addStep('TEST')">
+          <a-button v-can-write block type="dashed" size="small" @click="addStep('TEST')">
             <plus-outlined />新增测试步骤
           </a-button>
         </section>
@@ -106,7 +106,7 @@
             </template>
           </draggable>
           <a-empty v-if="!postSteps.length" description="暂无后置步骤" :image-style="{ height: '40px' }" />
-          <a-button block type="dashed" size="small" @click="addStep('POST')">
+          <a-button v-can-write block type="dashed" size="small" @click="addStep('POST')">
             <plus-outlined />新增后置步骤
           </a-button>
         </section>

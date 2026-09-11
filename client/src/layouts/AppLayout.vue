@@ -87,8 +87,8 @@
               <a-menu class="user-menu">
                 <div class="user-menu__head">
                   <div class="user-menu__name">{{ auth.user?.username }}</div>
-                  <a-tag :color="auth.isAdmin() ? 'blue' : 'default'" class="user-menu__role">
-                    {{ auth.isAdmin() ? '管理员' : '普通成员' }}
+                  <a-tag :color="auth.isAdmin() ? 'blue' : auth.isMember() ? 'green' : 'default'" class="user-menu__role">
+                    {{ auth.roleLabel }}
                   </a-tag>
                 </div>
                 <a-menu-divider />
@@ -200,6 +200,8 @@ const GROUP_OF: Record<string, string> = {
 }
 
 const menuItems = computed(() => {
+  // 查看者：仅接口自动化 + UI 自动化（只读，操作按钮由各页面禁用）
+  const isViewer = auth.isViewer()
   const items: any[] = [
     {
       key: 'g-api',
@@ -221,28 +223,34 @@ const menuItems = computed(() => {
         { key: 'ui-run', label: 'UI 用例执行' },
         { key: 'ui-reports', label: '测试报告' }
       ]
-    },
-    {
-      key: 'g-perf',
-      icon: () => h(ThunderboltOutlined),
-      label: '性能测试',
-      children: [
-        { key: 'perf', label: '创建用例' },
-        { key: 'perf-reports', label: '测试报告' }
-      ]
-    },
-    {
-      key: 'g-env',
-      icon: () => h(SettingOutlined),
-      label: '环境配置',
-      children: [
-        { key: 'environments', label: '环境管理' },
-        { key: 'global-variables', label: '全局变量' },
-        { key: 'environment-config', label: '变量与模块' },
-        { key: 'recycle-bin', label: '回收站' }
-      ]
     }
   ]
+  // 成员/管理员：额外显示性能测试 + 环境配置
+  if (!isViewer) {
+    items.push(
+      {
+        key: 'g-perf',
+        icon: () => h(ThunderboltOutlined),
+        label: '性能测试',
+        children: [
+          { key: 'perf', label: '创建用例' },
+          { key: 'perf-reports', label: '测试报告' }
+        ]
+      },
+      {
+        key: 'g-env',
+        icon: () => h(SettingOutlined),
+        label: '环境配置',
+        children: [
+          { key: 'environments', label: '环境管理' },
+          { key: 'global-variables', label: '全局变量' },
+          { key: 'environment-config', label: '变量与模块' },
+          { key: 'recycle-bin', label: '回收站' }
+        ]
+      }
+    )
+  }
+  // 仅管理员：用户管理 + 操作日志
   if (auth.isAdmin()) {
     items.push(
       { key: 'users', icon: () => h(UserOutlined), label: '用户管理' },
