@@ -1,7 +1,9 @@
 package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
+import com.apiweb.util.JsonStringDeserializer;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -22,6 +24,7 @@ public class UiScenarioEntity extends BaseEntity {
     /** 执行环境 ID（来自 t_environment 表，执行时合并其变量） */
     private String environmentId;
     /** 任务级执行参数 JSON：[{key,value}]，优先于环境变量 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
     /** 执行机完整地址（如 http://192.168.1.10:9515），可选 */
     private String executorUrl;

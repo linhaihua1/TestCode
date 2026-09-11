@@ -1,7 +1,9 @@
 package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
+import com.apiweb.util.JsonStringDeserializer;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -28,6 +30,7 @@ public class TestTaskEntity extends BaseEntity {
     private String name;
     private String description;
     /** JSON: string[] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String caseIds;
     private String environmentId;
     /** sequential / parallel */
@@ -42,6 +45,7 @@ public class TestTaskEntity extends BaseEntity {
     private Boolean enabled;
     private String notifyUrl;
     /** JSON: [{key,value}] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
     private String baseUrl;
     private String createdBy;
@@ -65,5 +69,6 @@ public class TestTaskEntity extends BaseEntity {
 
     // ----- 通知配置 -----
     /** 失败时通知（JSON 数组:[{type:email/dingtalk/feishu/webhook,target,secret}]） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String notifyChannels;
 }

@@ -1,7 +1,9 @@
 package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
+import com.apiweb.util.JsonStringDeserializer;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -15,7 +17,10 @@ public class UiTestCaseEntity extends BaseEntity {
     private String description;
     private String baseUrl;
     /** JSON: 浏览器操作步骤数组 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String setupSteps;
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String steps;
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String teardownSteps;
 }

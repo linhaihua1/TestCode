@@ -288,6 +288,7 @@ public class PerfExecutionService {
             appendTestPlan(sb, c.getName());
             sb.append("    <hashTree>\n");
             appendThreadGroup(sb, c, "    ");
+            sb.append("    </hashTree>\n");
             sb.append("  </hashTree>\n</jmeterTestPlan>\n");
             return sb.toString();
         }

@@ -50,6 +50,23 @@ public final class JsonUtils {
         return fromJson(json, new TypeReference<List<Map<String, Object>>>() {});
     }
 
+    /**
+     * 宽容解析：把 JSON 字符串解析为通用对象（List/Map/String/Number）。
+     *
+     * <p>用于处理结构未知或混合类型的 JSON 字段（如 tags 是字符串数组、steps 是对象数组），
+     * 避免 {@link #toList(String)} 强转 {@code List<Map<String,Object>>} 时对字符串数组抛异常。
+     */
+    public static Object parseObject(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return MAPPER.readValue(json, Object.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("JSON 反序列化失败", e);
+        }
+    }
+
     public static Map<String, Object> toMap(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();

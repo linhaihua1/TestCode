@@ -1,8 +1,10 @@
 package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
+import com.apiweb.util.JsonStringDeserializer;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -29,24 +31,31 @@ public class ApiDefinitionEntity extends BaseEntity {
     private String method;
     private String path;
     /** 路径参数定义：JSON [{key,value,description}]（如 /users/{id} → [{key:id,description:用户ID}]） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String pathParams;
     /** Query 参数定义：JSON [{key,value,enabled,description,required}] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String query;
     /** 请求头定义：JSON [{key,value,enabled,description}] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String headers;
     /** 请求体类型：NONE/FORM_DATA/X_WWW_FORM_URLENCODED/JSON/XML/BINARY */
     private String bodyType;
     /** 请求体 Schema：JSON（OpenAPI schema 风格） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String bodySchema;
     /** 请求体示例：JSON 字符串 */
     private String body;
     /** 响应示例：JSON { "200": {...}, "400": {...}, "default": {...} } */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String responseExamples;
     /** 响应头：JSON {key:value} */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String responseHeaders;
     private String description;
     private String moduleId;
     /** 标签：JSON ["用户管理","订单"] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String tags;
 
     // ----- Mock -----
@@ -66,6 +75,7 @@ public class ApiDefinitionEntity extends BaseEntity {
     /** Mock 响应体(BASIC 类型) */
     private String mockResponse;
     /** Mock 规则(CONDITIONAL 类型)：JSON [{when:{key,op,value}, response:{}, status:200}] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String mockRules;
     /** Mock 脚本(DYNAMIC 类型)：JS 代码 */
     private String mockScript;

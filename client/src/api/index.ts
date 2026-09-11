@@ -4,7 +4,7 @@ import type {
   ApiDefinition, Scenario, TestTask, TestTaskRun, Report, ReportDetail,
   ReportShare, TrendBucket, TrendSummary,
   PerfCase, PerfReport, UiTestCase, UiScenario, UiReport, AuditLog, ExecutorNode,
-  CaseVersion, CaseReview, DebugRecord
+  CaseVersion, CaseReview, DebugRecord, KeyValueItem
 } from '@/types'
 
 export const AuthApi = {
@@ -31,11 +31,49 @@ export const ProjectApi = {
   remove: (id: string) => axios.delete(`/projects/${id}`)
 }
 
+/**
+ * 环境变量/公共 Header 前后端类型适配：
+ * 后端 EnvironmentEntity.variables / headers 为 JSON 字符串（"[{key,value}]"），
+ * 前端统一以 KeyValueItem[] 数组形式使用。此处做双向转换。
+ */
+function parseKvJson(v: unknown): KeyValueItem[] {
+  if (Array.isArray(v)) return v as KeyValueItem[]
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const arr = JSON.parse(v)
+      return Array.isArray(arr) ? arr : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function parseEnv<T extends Partial<Environment>>(env: T): T {
+  if (!env) return env
+  return {
+    ...env,
+    variables: parseKvJson(env.variables),
+    headers: parseKvJson(env.headers)
+  }
+}
+
+function serializeEnv<T extends Partial<Environment>>(env: T): T {
+  if (!env) return env
+  return {
+    ...env,
+    variables: JSON.stringify(env.variables ?? []) as unknown as T['variables'],
+    headers: JSON.stringify(env.headers ?? []) as unknown as T['headers']
+  }
+}
+
 export const EnvironmentApi = {
-  list: (projectId: string) =>
-    axios.get<Environment[]>('/environments', { params: { projectId } }),
-  create: (data: Partial<Environment>) => axios.post<Environment>('/environments', data),
-  update: (id: string, data: Partial<Environment>) => axios.put(`/environments/${id}`, data),
+  list: async (projectId: string) => {
+    const list = await axios.get<Environment[]>('/environments', { params: { projectId } })
+    return (list ?? []).map(parseEnv)
+  },
+  create: (data: Partial<Environment>) => axios.post<Environment>('/environments', serializeEnv(data)),
+  update: (id: string, data: Partial<Environment>) => axios.put(`/environments/${id}`, serializeEnv(data)),
   remove: (id: string) => axios.delete(`/environments/${id}`)
 }
 

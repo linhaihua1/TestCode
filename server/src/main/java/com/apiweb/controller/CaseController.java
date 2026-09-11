@@ -301,8 +301,8 @@ public class CaseController {
         snapshot.put("description", c.getDescription());
         snapshot.put("status", c.getStatus());
         snapshot.put("priority", c.getPriority());
-        snapshot.put("tags", JsonUtils.toList(c.getTags()));
-        snapshot.put("steps", JsonUtils.toList(c.getSteps()));
+        snapshot.put("tags", JsonUtils.parseObject(c.getTags()));
+        snapshot.put("steps", JsonUtils.parseObject(c.getSteps()));
         version.setSnapshot(JsonUtils.toJson(snapshot));
         version.setChangeSummary(summary);
         version.setCreatedBy(UserContext.username());
