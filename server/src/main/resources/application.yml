@@ -82,7 +82,7 @@ apiweb:
   security:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步
-    permit-paths: /api/v1/auth/login,/api/v1/auth/register,/actuator/health
+    permit-paths: /api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger
   executor:
     # 执行机心跳超时（秒），超时视为离线，从资源池剔除
     heartbeat-timeout: 60

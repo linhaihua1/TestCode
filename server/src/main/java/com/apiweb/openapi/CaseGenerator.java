@@ -64,6 +64,7 @@ public class CaseGenerator {
         caseEntity.setPriority("P1");
         caseEntity.setVersion(1);
         caseEntity.setTags(api.getTags());
+        caseEntity.setSteps("[]");
         caseEntity.setCreatedAt(Instant.now());
 
         CaseStepEntity step = new CaseStepEntity();

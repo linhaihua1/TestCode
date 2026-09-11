@@ -69,11 +69,13 @@ public class TestTaskController {
     @AuditLog(action = "update", entityType = "test_task")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable String id, @RequestBody TestTaskEntity task) {
-        if (testTaskMapper.selectById(id) == null) {
+        TestTaskEntity origin = testTaskMapper.selectById(id);
+        if (origin == null) {
             throw BizException.notFound("任务不存在");
         }
         task.setId(id);
-        initDefaults(task);
+        // 未传字段回填原值，避免 updateById 时被默认值覆盖清空
+        mergeDefaults(task, origin);
         validate(task);
         testTaskMapper.updateById(task);
         taskScheduleService.schedule(task);
@@ -168,7 +170,8 @@ public class TestTaskController {
         }
         String token = randomToken(32);
         task.setWebhookToken(token);
-        if (task.getWebhookEnabled() == null) task.setWebhookEnabled(true);
+        // rotate 即意图启用 webhook：强制开启，避免此前 disable 后无法重新启用
+        task.setWebhookEnabled(true);
         if (task.getWebhookAutoExecute() == null) task.setWebhookAutoExecute(true);
         testTaskMapper.updateById(task);
         WebhookTokenResponse resp = new WebhookTokenResponse();
@@ -222,6 +225,26 @@ public class TestTaskController {
         if (task.getEnabled() == null) task.setEnabled(true);
         if (task.getWebhookEnabled() == null) task.setWebhookEnabled(false);
         if (task.getWebhookAutoExecute() == null) task.setWebhookAutoExecute(true);
+    }
+
+    /**
+     * 更新时合并：未传字段回填原值（区别于 initDefaults 的"填默认值"）。
+     * 避免前端只传部分字段时，被 initDefaults 用空默认值覆盖清空原有数据。
+     */
+    private void mergeDefaults(TestTaskEntity task, TestTaskEntity origin) {
+        if (task.getCaseIds() == null) task.setCaseIds(origin.getCaseIds());
+        if (task.getVariables() == null) task.setVariables(origin.getVariables());
+        if (task.getNotifyChannels() == null) task.setNotifyChannels(origin.getNotifyChannels());
+        if (task.getExecuteMode() == null) task.setExecuteMode(origin.getExecuteMode());
+        if (task.getFailStrategy() == null) task.setFailStrategy(origin.getFailStrategy());
+        if (task.getParallelPoolSize() == null) task.setParallelPoolSize(origin.getParallelPoolSize());
+        if (task.getRetryCount() == null) task.setRetryCount(origin.getRetryCount());
+        if (task.getTimeoutMs() == null) task.setTimeoutMs(origin.getTimeoutMs());
+        if (task.getEnabled() == null) task.setEnabled(origin.getEnabled());
+        if (task.getWebhookEnabled() == null) task.setWebhookEnabled(origin.getWebhookEnabled());
+        if (task.getWebhookAutoExecute() == null) task.setWebhookAutoExecute(origin.getWebhookAutoExecute());
+        if (task.getEnvironmentId() == null) task.setEnvironmentId(origin.getEnvironmentId());
+        if (task.getCronExpr() == null) task.setCronExpr(origin.getCronExpr());
     }
 
     private void validate(TestTaskEntity task) {

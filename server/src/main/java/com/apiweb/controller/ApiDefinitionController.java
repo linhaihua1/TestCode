@@ -129,6 +129,28 @@ public class ApiDefinitionController {
     }
 
     /**
+     * 从 Swagger JSON 对象导入（前端工作台「批量导入 Swagger JSON」直接传 JSON 对象）。
+     * 接收任意 JSON 对象，内部序列化为字符串后调用 importFromJson。
+     */
+    @AuditLog(action = "import_swagger", entityType = "api")
+    @PostMapping("/import-swagger")
+    public Result<ImportResult> importFromSwagger(@RequestBody Map<String, Object> swagger,
+                                                  @RequestParam String projectId,
+                                                  @RequestParam(required = false) String moduleId) {
+        try {
+            String json = com.apiweb.util.JsonUtils.toJson(swagger);
+            List<SwaggerImporter.ApiDefinitionDraft> drafts = swaggerImporter.importFromJson(json);
+            ImportUrlRequest req = new ImportUrlRequest();
+            req.setProjectId(projectId);
+            req.setModuleId(moduleId);
+            int inserted = saveDrafts(drafts, req);
+            return Result.ok(new ImportResult(drafts.size(), inserted));
+        } catch (Exception e) {
+            throw BizException.badRequest("Swagger 导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 从上传的文件导入。
      */
     @AuditLog(action = "import_file", entityType = "api")
