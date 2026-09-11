@@ -3,6 +3,7 @@ package com.apiweb.controller;
 import com.apiweb.common.Result;
 import com.apiweb.entity.AuditLogEntity;
 import com.apiweb.mapper.AuditLogMapper;
+import com.apiweb.security.RequireRole;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/audit-logs")
+@RequireRole("admin")
 @RequiredArgsConstructor
 public class AuditLogController {
 

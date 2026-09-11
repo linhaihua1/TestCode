@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.function.Supplier;
 
 /**
  * UI 自动化执行服务：基于 Selenium 驱动真实 Chrome。
@@ -58,7 +62,9 @@ public class UiExecutionService {
             options.addArguments("--headless=new", "--no-sandbox", "--disable-gpu",
                     "--window-size=1920,1080");
             driver = new ChromeDriver(options);
-            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+            // 页面加载超时 + 隐式等待兜底（具体交互步骤另有显式等待 + 重试）
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(3));
 
             runSegment(driver, test.getSetupSteps(), "setup", details);
             runSegment(driver, test.getSteps(), "test", details);
@@ -148,21 +154,56 @@ public class UiExecutionService {
     }
 
     /**
-     * 8 种定位方式。
+     * 8 种定位方式 → By 对象。
+     */
+    private By by(WebDriver driver, Map<String, Object> step) {
+        String locator = str(step.get("locator"), "css");
+        String selector = str(step.get("selector"), "");
+        return switch (locator) {
+            case "id" -> By.id(selector);
+            case "name" -> By.name(selector);
+            case "css" -> By.cssSelector(selector);
+            case "xpath" -> By.xpath(selector);
+            case "class" -> By.className(selector);
+            case "tag" -> By.tagName(selector);
+            case "link_text" -> By.linkText(selector);
+            case "partial_link_text" -> By.partialLinkText(selector);
+            default -> throw new IllegalArgumentException("未知定位方式: " + locator);
+        };
+    }
+
+    /**
+     * 查找元素：显式等待元素可见 + 定位失败重试，提升稳定性。
+     *
+     * <p>区别于 Selenium 隐式等待（只保证元素存在 DOM），这里用
+     * {@link ExpectedConditions#visibilityOfElementLocated} 等待元素真正可见、
+     * 可交互，更贴近真实用户操作时序。</p>
      */
     private WebElement findElement(WebDriver driver, Map<String, Object> step) {
-        By by = switch (str(step.get("locator"), "css")) {
-            case "id" -> By.id(str(step.get("selector"), ""));
-            case "name" -> By.name(str(step.get("selector"), ""));
-            case "css" -> By.cssSelector(str(step.get("selector"), ""));
-            case "xpath" -> By.xpath(str(step.get("selector"), ""));
-            case "class" -> By.className(str(step.get("selector"), ""));
-            case "tag" -> By.tagName(str(step.get("selector"), ""));
-            case "link_text" -> By.linkText(str(step.get("selector"), ""));
-            case "partial_link_text" -> By.partialLinkText(str(step.get("selector"), ""));
-            default -> throw new IllegalArgumentException("未知定位方式");
-        };
-        return driver.findElement(by);
+        long timeoutMs = step.get("timeoutMs") instanceof Number n ? n.longValue() : 5000L;
+        Duration wait = Duration.ofMillis(Math.max(timeoutMs, 1000L));
+        By by = by(driver, step);
+        return retry(() -> new WebDriverWait(driver, wait)
+                .until(ExpectedConditions.visibilityOfElementLocated(by)),
+                "等待元素可见超时: " + by);
+    }
+
+    /**
+     * 带重试的执行：元素类操作偶发 StaleElementReference 或瞬时不可见，重试一次。
+     */
+    private <T> T retry(Supplier<T> action, String failMsg) {
+        try {
+            return action.get();
+        } catch (NoSuchElementException | StaleElementReferenceException
+                 | org.openqa.selenium.TimeoutException first) {
+            // 瞬时失败重试一次，仍失败则抛原始异常
+            return action.get();
+        } catch (Exception e) {
+            if (failMsg != null && (e.getMessage() == null || e.getMessage().isBlank())) {
+                throw new IllegalStateException(failMsg, e);
+            }
+            throw e;
+        }
     }
 
     /**
