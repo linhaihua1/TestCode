@@ -200,7 +200,7 @@ import {
   ApiOutlined, RobotOutlined, ThunderboltOutlined, SettingOutlined,
   UserOutlined, AuditOutlined, ProjectOutlined, DownOutlined,
   LockOutlined, LogoutOutlined, SearchOutlined, PlusOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined, BranchesOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -248,6 +248,9 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
   'global-variables': { name: 'global-variables' },
   'environment-config': { name: 'environment-config' },
   'recycle-bin': { name: 'recycle-bin' },
+  // CI/CD
+  'ci-pipelines': { name: 'ci-pipelines' },
+  'ci-jenkins': { name: 'ci-jenkins' },
   // 顶层叶子
   users: { name: 'users' },
   'audit-logs': { name: 'audit-logs' }
@@ -260,7 +263,8 @@ const GROUP_OF: Record<string, string> = {
   'ui-tests': 'g-ui', 'ui-run': 'g-ui', 'ui-reports': 'g-ui',
   perf: 'g-perf', 'perf-reports': 'g-perf',
   environments: 'g-env', 'global-variables': 'g-env',
-  'environment-config': 'g-env', 'recycle-bin': 'g-env'
+  'environment-config': 'g-env', 'recycle-bin': 'g-env',
+  'ci-pipelines': 'g-ci', 'ci-jenkins': 'g-ci'
 }
 
 const menuItems = computed(() => {
@@ -314,6 +318,17 @@ const menuItems = computed(() => {
       }
     )
   }
+  // CI/CD：流水线所有登录用户可见（写操作按角色拦截）；Jenkins 服务器仅管理员可维护
+  const ciChildren: any[] = [{ key: 'ci-pipelines', label: '流水线' }]
+  if (auth.isAdmin()) {
+    ciChildren.push({ key: 'ci-jenkins', label: 'Jenkins 服务器' })
+  }
+  items.push({
+    key: 'g-ci',
+    icon: () => h(BranchesOutlined),
+    label: 'CI/CD',
+    children: ciChildren
+  })
   // 仅管理员：用户管理 + 操作日志
   if (auth.isAdmin()) {
     items.push(

@@ -16,7 +16,8 @@ import type {
   ApiDefinition, Scenario, TestTask, TestTaskRun, Report, ReportDetail,
   ReportShare, TrendBucket, TrendSummary,
   PerfCase, PerfReport, UiTestCase, UiScenario, UiReport, AuditLog, ExecutorNode,
-  CaseVersion, CaseReview, DebugRecord, KeyValueItem
+  CaseVersion, CaseReview, DebugRecord, KeyValueItem,
+  CiPipeline, CiPipelineRun, CiTarget, JenkinsServer, PipelineTestTypeCode
 } from '@/types'
 
 /** 认证相关：登录、获取当前用户、修改密码 */
@@ -348,4 +349,65 @@ export const RecycleBinApi = {
     axios.get<RecycleBinConfig>('/recycle-bin/config', { params: { projectId } }),
   updateConfig: (cfg: RecycleBinConfig) =>
     axios.put<void>('/recycle-bin/config', cfg)
+}
+/* ============================================================
+ * CI/CD 流水线
+ * ============================================================ */
+
+/**
+ * 流水线与执行记录接口。
+ *
+ * <p>qualityGate / jenkinsParams 等字段在传输层是 JSON 字符串，
+ * 前端表单中用对象数组编辑，保存前自行 JSON.stringify。</p>
+ */
+export const CiApi = {
+  /** 项目下的流水线列表 */
+  list: (projectId: string) =>
+    axios.get<CiPipeline[]>('/ci/pipelines', { params: { projectId } }),
+  /** 流水线详情 */
+  get: (id: string) => axios.get<CiPipeline>(`/ci/pipelines/${id}`),
+  /** 某测试类型下可选的执行目标 */
+  targets: (projectId: string, testType: PipelineTestTypeCode) =>
+    axios.get<CiTarget[]>('/ci/pipelines/targets', { params: { projectId, testType } }),
+  /** 新建流水线 */
+  create: (data: CiPipeline) => axios.post<CiPipeline>('/ci/pipelines', data),
+  /** 更新流水线（未传字段保持原值） */
+  update: (id: string, data: Partial<CiPipeline>) =>
+    axios.put<CiPipeline>(`/ci/pipelines/${id}`, data),
+  /** 删除流水线（软删除） */
+  remove: (id: string) => axios.delete<void>(`/ci/pipelines/${id}`),
+  /** 启用 / 停用 */
+  toggle: (id: string) => axios.post<CiPipeline>(`/ci/pipelines/${id}/toggle`),
+  /** 触发执行；wait=true 阻塞等待结果，false 立即返回 runId 供轮询 */
+  trigger: (id: string, payload?: { wait?: boolean; triggerBy?: string }) =>
+    axios.post<CiPipelineRun>(`/ci/pipelines/${id}/trigger`, payload),
+  /** 流水线的执行记录列表 */
+  runs: (id: string, limit?: number) =>
+    axios.get<CiPipelineRun[]>(`/ci/pipelines/${id}/runs`, { params: { limit } }),
+  /** 单条执行记录详情 */
+  run: (runId: string) => axios.get<CiPipelineRun>(`/ci/pipelines/runs/${runId}`),
+  /** 生成 / 重置 CI 触发 Token，返回触发地址与 curl 示例 */
+  rotateWebhook: (id: string) =>
+    axios.post<{ token: string; url: string; curl: string }>(`/ci/pipelines/${id}/webhook/rotate`),
+  /** 生成 Jenkins Pipeline 脚本 */
+  jenkinsfile: (id: string) =>
+    axios.get<{ content: string; curl: string; pipelineId: string }>(`/ci/pipelines/${id}/jenkinsfile`)
+}
+
+/** Jenkins 服务器配置接口（管理员） */
+export const JenkinsApi = {
+  /** 服务器列表（不含 API Token） */
+  list: () => axios.get<JenkinsServer[]>('/ci/jenkins-servers'),
+  get: (id: string) => axios.get<JenkinsServer>(`/ci/jenkins-servers/${id}`),
+  create: (data: JenkinsServer) => axios.post<JenkinsServer>('/ci/jenkins-servers', data),
+  update: (id: string, data: Partial<JenkinsServer>) =>
+    axios.put<void>(`/ci/jenkins-servers/${id}`, data),
+  remove: (id: string) => axios.delete<void>(`/ci/jenkins-servers/${id}`),
+  /** 连通性测试：返回是否成功与 Jenkins 版本号 */
+  test: (id: string) =>
+    axios.post<{ success: boolean; version: string | null; message: string }>(
+      `/ci/jenkins-servers/${id}/test`
+    ),
+  /** 拉取该 Jenkins 上的 Job 名称列表 */
+  jobs: (id: string) => axios.get<string[]>(`/ci/jenkins-servers/${id}/jobs`)
 }

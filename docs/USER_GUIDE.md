@@ -17,7 +17,8 @@
 8. [用户与权限](#8-用户与权限)
 9. [审计日志](#9-审计日志)
 10. [执行机资源池](#10-执行机资源池)
-11. [常见使用问题](#11-常见使用问题)
+11. [CI/CD 流水线（Jenkins）](#11-cicd-流水线jenkins)
+12. [常见使用问题](#12-常见使用问题)
 
 ---
 
@@ -439,7 +440,80 @@ POST /api/executors/heartbeat
 
 ---
 
-## 11. 常见使用问题
+## 11. CI/CD 流水线（Jenkins）
+
+接口自动化、UI 自动化、性能测试都可以接入 Jenkins：把「执行目标 + 质量门禁」配成一条流水线，
+Jenkins 构建时触发它，构建结果由质量门禁决定成功或失败。
+
+### 11.1 前置：配置 Jenkins 服务器（管理员）
+
+进入 **CI/CD → Jenkins 服务器 → 新增服务器**：
+
+| 字段 | 说明 |
+| --- | --- |
+| 名称 | 便于区分多套 Jenkins（如「测试环境 Jenkins」） |
+| Jenkins 地址 | 形如 `http://jenkins.example.com:8080`，结尾不要带 `/` |
+| 认证方式 | `Basic`（用户名 + API Token）或 `Bearer`（仅 Token） |
+| 用户名 / API Token | Jenkins 用户 → 设置 → API Token。Token 加密存储，不会回显 |
+
+保存后可用 **测试连接** 验证地址与凭据（成功会显示 Jenkins 版本号）；**Job 列表** 用于确认能否读到任务。
+
+### 11.2 新建流水线
+
+进入 **CI/CD → 流水线 → 新建流水线**：
+
+1. **测试类型**：接口自动化 / UI 自动化 / 性能测试
+2. **执行目标**：
+   - 接口自动化 → 测试任务（`t_test_task`）
+   - UI 自动化 → UI 场景或 UI 用例
+   - 性能测试 → 性能用例
+3. **执行方式**
+   - **平台执行**：平台直接跑用例，生成报告并按门禁判定
+   - **Jenkins 执行**：平台调用 Jenkins Remote API 触发 Job，跟踪构建结果（需选择服务器与 Job）
+4. **质量门禁**：点击「添加规则」配置，例如：
+   - 失败率 > 5%
+   - 通过率 < 95%
+   - P95 响应时间 > 2000ms
+   - 错误率 > 1%（性能测试常用）
+   - 吞吐量 < 50 tps（性能测试常用）
+
+> 规则语义：**指标值 操作符 阈值 成立即判定违规**，流水线状态变为「未通过」，CI 构建随之失败。
+
+### 11.3 在 Jenkins 中使用
+
+流水线保存后点击 **CI Token**，平台会生成触发地址与 curl 示例；点击 **Jenkinsfile** 可一键复制
+Jenkins Pipeline 脚本。典型用法：
+
+- **方式一（推荐）**：新建 Jenkins「Pipeline」任务，把生成的 Jenkinsfile 粘贴进去。
+  脚本会自动：触发流水线 → 轮询执行结果 → 门禁未通过时让构建失败。
+- **方式二（Shell 步骤）**：在任意 Jenkins 任务的 Shell 中粘贴 curl 命令触发，自行根据返回状态判断。
+
+也可在命令行直接触发：
+
+```bash
+# 触发（立即返回 runId）
+curl -s -X POST 'http://<平台地址>/api/v1/webhook/ci/pipelines/trigger?token=<CI_TOKEN>&triggerBy=jenkins-1&wait=false'
+
+# 轮询结果，status 变为 success/failed/error 即结束
+curl -s 'http://<平台地址>/api/v1/webhook/ci/runs/<runId>?token=<CI_TOKEN>'
+```
+
+返回体中的 `gatePassed`（1=通过 / 0=未通过）即质量门禁结论，`summary` 是本次执行统计。
+
+### 11.4 配置项（运维）
+
+| 配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `apiweb.ci.public-base-url` | `http://localhost:8080` | 生成 Jenkinsfile / curl 示例时使用的平台外网地址 |
+| `apiweb.ci.trigger-min-interval-seconds` | `5` | 同一流水线最小触发间隔，防 CI 重复触发 |
+| `apiweb.ci.jenkins.*` | — | Jenkins Remote API 的超时、队列解析与构建轮询参数 |
+
+> 免登录触发路径默认为 `/api/v1/webhook/ci/**`，已放进 `apiweb.security.permit-paths` 白名单；
+> 若自定义了该白名单，请把上述路径一并加上。
+
+---
+
+## 12. 常见使用问题
 
 ### Q1: 调试时提示"环境变量 xxx 未定义"
 

@@ -14,7 +14,9 @@ public enum TriggerType {
     /** CI/CD webhook 触发 */
     WEBHOOK("webhook"),
     /** 开放 API 触发 */
-    API("api");
+    API("api"),
+    /** Jenkins 流水线触发（平台调用 Jenkins Job，或 Jenkins 回调平台） */
+    JENKINS("jenkins");
 
     private final String code;
 

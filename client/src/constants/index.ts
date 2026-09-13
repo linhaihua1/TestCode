@@ -426,3 +426,147 @@ export function httpMethodColor(method?: string | null): string {
   if (!method) return STATUS_COLOR_FALLBACK
   return HTTP_METHOD_COLORS[method.toUpperCase()] ?? STATUS_COLOR_FALLBACK
 }
+
+/* ============================================================
+ * CI/CD 流水线
+ * ============================================================ */
+
+/** 流水线测试类型（与后端 PipelineTestType 枚举一致） */
+export const PIPELINE_TEST_TYPES = {
+  API: 'api',
+  UI: 'ui',
+  PERF: 'perf'
+} as const
+
+/** 测试类型 → 中文名 */
+export const PIPELINE_TEST_TYPE_LABELS: Record<string, string> = {
+  api: '接口自动化',
+  ui: 'UI 自动化',
+  perf: '性能测试'
+}
+
+/** 测试类型下拉选项 */
+export const PIPELINE_TEST_TYPE_OPTIONS = Object.entries(PIPELINE_TEST_TYPE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/** 流水线执行方式（与后端 PipelineExecMode 枚举一致） */
+export const PIPELINE_EXEC_MODES = {
+  LOCAL: 'local',
+  JENKINS: 'jenkins'
+} as const
+
+/** 执行方式 → 中文名 */
+export const PIPELINE_EXEC_MODE_LABELS: Record<string, string> = {
+  local: '平台执行',
+  jenkins: 'Jenkins 执行'
+}
+
+/** 执行方式下拉选项 */
+export const PIPELINE_EXEC_MODE_OPTIONS = Object.entries(PIPELINE_EXEC_MODE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/** 执行目标类型 → 中文名 */
+export const PIPELINE_TARGET_TYPE_LABELS: Record<string, string> = {
+  test_task: '测试任务',
+  ui_scenario: 'UI 场景',
+  ui_test: 'UI 用例',
+  perf_case: '性能用例'
+}
+
+/** 流水线执行状态（与后端 PipelineRunStatus 枚举一致） */
+export const PIPELINE_RUN_STATUS = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+  ERROR: 'error'
+} as const
+
+/** 执行状态 → 中文名 */
+export const PIPELINE_STATUS_LABELS: Record<string, string> = {
+  pending: '等待中',
+  running: '执行中',
+  success: '通过',
+  failed: '未通过',
+  error: '执行异常'
+}
+
+/** 执行状态 → 标签颜色 */
+export const PIPELINE_STATUS_COLORS: Record<string, string> = {
+  pending: 'default',
+  running: 'processing',
+  success: 'success',
+  failed: 'error',
+  error: 'error'
+}
+
+/** 取执行状态标签颜色 */
+export function pipelineStatusColor(status?: string | null): string {
+  if (!status) return STATUS_COLOR_FALLBACK
+  return PIPELINE_STATUS_COLORS[status] ?? STATUS_COLOR_FALLBACK
+}
+
+/** 取执行状态中文名 */
+export function pipelineStatusLabel(status?: string | null): string {
+  if (!status) return '-'
+  return PIPELINE_STATUS_LABELS[status] ?? status
+}
+
+/** 是否为终态（CI 轮询到此即可结束） */
+export function isPipelineTerminal(status?: string | null): boolean {
+  return status === PIPELINE_RUN_STATUS.SUCCESS
+    || status === PIPELINE_RUN_STATUS.FAILED
+    || status === PIPELINE_RUN_STATUS.ERROR
+}
+
+/** 质量门禁指标（与后端 QualityGateMetric 枚举一致） */
+export const QUALITY_GATE_METRICS = {
+  PASS_RATE: 'pass_rate',
+  FAIL_RATE: 'fail_rate',
+  ERROR_RATE: 'error_rate',
+  AVG_RESPONSE_TIME: 'avg_response_time',
+  P95_RESPONSE_TIME: 'p95_response_time',
+  ERROR_COUNT: 'error_count',
+  TPS: 'tps'
+} as const
+
+/** 门禁指标 → 中文名（含单位） */
+export const QUALITY_GATE_METRIC_LABELS: Record<string, string> = {
+  pass_rate: '通过率(%)',
+  fail_rate: '失败率(%)',
+  error_rate: '错误率(%)',
+  avg_response_time: '平均响应时间(ms)',
+  p95_response_time: 'P95 响应时间(ms)',
+  error_count: '错误样本数(个)',
+  tps: '吞吐量(tps)'
+}
+
+/** 门禁指标下拉选项 */
+export const QUALITY_GATE_METRIC_OPTIONS = Object.entries(QUALITY_GATE_METRIC_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/** 门禁比较操作符（与后端 QualityGateOperator 枚举一致；命中即违规） */
+export const QUALITY_GATE_OPERATORS = {
+  GT: 'gt',
+  GTE: 'gte',
+  LT: 'lt',
+  LTE: 'lte',
+  EQ: 'eq'
+} as const
+
+/** 操作符 → 数学符号 */
+export const QUALITY_GATE_OPERATOR_LABELS: Record<string, string> = {
+  gt: '大于 >',
+  gte: '大于等于 >=',
+  lt: '小于 <',
+  lte: '小于等于 <=',
+  eq: '等于 ='
+}
+
+/** 操作符下拉选项 */
+export const QUALITY_GATE_OPERATOR_OPTIONS = Object.entries(QUALITY_GATE_OPERATOR_LABELS).map(
+  ([value, label]) => ({ value, label })
+)

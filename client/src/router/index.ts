@@ -66,6 +66,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'ui/run', name: 'ui-run', component: () => import('@/views/UiScenarioList.vue'), meta: { writeOnly: true } },
       { path: 'ui/:id', name: 'ui-test-editor', component: () => import('@/views/UiTestEditor.vue'), meta: { writeOnly: true } },
       { path: 'ui/reports', name: 'ui-reports', component: () => import('@/views/UiReportList.vue') },
+      { path: 'ci/pipelines', name: 'ci-pipelines', component: () => import('@/views/CiPipelineList.vue'), meta: { writeOnly: true } },
+      { path: 'ci/jenkins', name: 'ci-jenkins', component: () => import('@/views/JenkinsServerPage.vue'), meta: { adminOnly: true } },
       { path: 'users', name: 'users', component: () => import('@/views/UserManagement.vue'), meta: { adminOnly: true } },
       { path: 'audit-logs', name: 'audit-logs', component: () => import('@/views/AuditLogPage.vue'), meta: { adminOnly: true } }
     ]

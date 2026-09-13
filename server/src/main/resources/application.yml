@@ -107,7 +107,7 @@ apiweb:
   security:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步
-    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger}
+    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**}
     # 密码最小长度（注册 / 改密 / 管理员建号共用）
     min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
   bootstrap:
@@ -124,6 +124,25 @@ apiweb:
     redis-key-prefix: ${EXECUTOR_REDIS_KEY_PREFIX:apiweb:executor:heartbeat:}
     # 注册时未声明能力时的默认能力
     default-capabilities: ${EXECUTOR_DEFAULT_CAPABILITIES:api}
+  ci:
+    # 平台对外访问地址（生成 Jenkinsfile / curl 触发示例时使用），结尾不带 /
+    public-base-url: ${CI_PUBLIC_BASE_URL:http://localhost:8080}
+    # 同一流水线的最小触发间隔（秒），防止 CI 重复触发；0=不限制
+    trigger-min-interval-seconds: ${CI_TRIGGER_MIN_INTERVAL_SECONDS:5}
+    # 执行记录列表返回条数上限
+    list-max-limit: ${CI_LIST_MAX_LIMIT:100}
+    jenkins:
+      # HTTP 连接 / 读取超时（毫秒）
+      connect-timeout-ms: ${CI_JENKINS_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-ms: ${CI_JENKINS_READ_TIMEOUT_MS:15000}
+      # 触发后解析"队列项 → 构建号"的轮询间隔与超时
+      queue-poll-interval-ms: ${CI_JENKINS_QUEUE_POLL_INTERVAL_MS:2000}
+      queue-poll-timeout-ms: ${CI_JENKINS_QUEUE_POLL_TIMEOUT_MS:60000}
+      # 轮询构建状态的间隔与最大时长
+      build-poll-interval-ms: ${CI_JENKINS_BUILD_POLL_INTERVAL_MS:5000}
+      build-poll-timeout-minutes: ${CI_JENKINS_BUILD_POLL_TIMEOUT_MINUTES:120}
+      # 回写控制台日志的最大字符数（超出截断）
+      console-max-chars: ${CI_JENKINS_CONSOLE_MAX_CHARS:20000}
   recycle-bin:
     # 回收站自动清理 cron（Quartz 风格：秒 分 时 日 月 周）
     clean-cron: ${RECYCLE_BIN_CLEAN_CRON:0 0 3 * * ?}

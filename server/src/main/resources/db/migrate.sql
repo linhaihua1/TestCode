@@ -203,6 +203,82 @@ CALL add_column_if_missing('t_ui_scenario', 'timeout_ms',
     '`timeout_ms` INT NOT NULL DEFAULT 0 COMMENT ''用例执行超时(毫秒)''');
 
 -- ----------------------------------------------------------------------------
+-- 2.x CI/CD 流水线（Jenkins 集成）
+-- ----------------------------------------------------------------------------
+-- Jenkins 服务器配置、流水线、流水线执行记录三张表，供接口/UI/性能三类测试接入 Jenkins。
+CREATE TABLE IF NOT EXISTS t_ci_jenkins_server (
+    id          VARCHAR(32) NOT NULL PRIMARY KEY,
+    name        VARCHAR(128) NOT NULL COMMENT 'Jenkins 显示名',
+    base_url    VARCHAR(512) NOT NULL COMMENT 'Jenkins 根地址,结尾不带 /',
+    username    VARCHAR(128) COMMENT '调用 API 的用户名',
+    api_token   VARCHAR(1024) COMMENT 'API Token（AES-GCM 密文）',
+    auth_type   VARCHAR(16) NOT NULL DEFAULT 'basic' COMMENT 'basic/token',
+    enabled     TINYINT(1) NOT NULL DEFAULT 1,
+    description VARCHAR(1024),
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at  DATETIME
+) ENGINE = InnoDB COMMENT 'CI/CD-Jenkins 服务器配置';
+
+CREATE TABLE IF NOT EXISTS t_ci_pipeline (
+    id                VARCHAR(32) NOT NULL PRIMARY KEY,
+    project_id        VARCHAR(32) NOT NULL,
+    name              VARCHAR(256) NOT NULL,
+    description       VARCHAR(1024),
+    test_type         VARCHAR(16) NOT NULL DEFAULT 'api' COMMENT 'api/ui/perf',
+    target_type       VARCHAR(32) NOT NULL DEFAULT 'test_task' COMMENT 'test_task/ui_scenario/ui_test/perf_case',
+    target_id         VARCHAR(32) COMMENT '执行目标 ID',
+    exec_mode         VARCHAR(16) NOT NULL DEFAULT 'local' COMMENT 'local/jenkins',
+    jenkins_server_id VARCHAR(32) COMMENT 'Jenkins 服务器 ID',
+    jenkins_job_name  VARCHAR(256) COMMENT 'Jenkins Job 名称（支持 folder/job）',
+    jenkins_params    JSON COMMENT 'Jenkins 构建参数 {key:value}',
+    quality_gate      JSON COMMENT '质量门禁 [{metric,operator,threshold}]',
+    notify_channels   JSON COMMENT '通知渠道 [{type,target,secret}]',
+    enabled           TINYINT(1) NOT NULL DEFAULT 1,
+    webhook_token     VARCHAR(64) COMMENT 'CI 免登录触发 Token',
+    webhook_enabled   TINYINT(1) NOT NULL DEFAULT 0,
+    created_by        VARCHAR(64),
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at        DATETIME,
+    KEY idx_project (project_id),
+    KEY idx_webhook (webhook_token)
+) ENGINE = InnoDB COMMENT 'CI/CD 流水线';
+
+CREATE TABLE IF NOT EXISTS t_ci_pipeline_run (
+    id                VARCHAR(32) NOT NULL PRIMARY KEY,
+    pipeline_id       VARCHAR(32) NOT NULL,
+    project_id        VARCHAR(32) NOT NULL,
+    pipeline_name     VARCHAR(256) COMMENT '流水线名称快照',
+    test_type         VARCHAR(16) COMMENT 'api/ui/perf',
+    target_type       VARCHAR(32) COMMENT 'test_task/ui_scenario/ui_test/perf_case',
+    target_id         VARCHAR(32) COMMENT '执行目标 ID',
+    exec_mode         VARCHAR(16) COMMENT 'local/jenkins',
+    status            VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT 'pending/running/success/failed/error',
+    trigger_type      VARCHAR(16) NOT NULL DEFAULT 'manual' COMMENT 'manual/webhook/api/schedule/jenkins',
+    trigger_by        VARCHAR(128) COMMENT '触发者标识',
+    report_ids        JSON COMMENT '本次执行产生的报告 ID',
+    summary           JSON COMMENT '执行统计',
+    gate_result       JSON COMMENT '门禁判定明细',
+    gate_passed       TINYINT(1) COMMENT '1=通过 0=未通过',
+    log               TEXT COMMENT '执行日志/异常堆栈',
+    jenkins_server_id VARCHAR(32),
+    jenkins_job_name  VARCHAR(256),
+    jenkins_queue_url VARCHAR(512),
+    jenkins_build_no  INT,
+    jenkins_build_url VARCHAR(512),
+    jenkins_result    VARCHAR(32) COMMENT 'SUCCESS/FAILURE/UNSTABLE/ABORTED',
+    duration          INT NOT NULL DEFAULT 0 COMMENT '耗时(毫秒)',
+    started_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at          DATETIME,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_pipeline (pipeline_id),
+    KEY idx_project (project_id),
+    KEY idx_started (started_at)
+) ENGINE = InnoDB COMMENT 'CI/CD 流水线执行记录';
+
+-- ----------------------------------------------------------------------------
 -- 3. 收尾
 -- ----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS add_column_if_missing;

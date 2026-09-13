@@ -526,3 +526,120 @@ export interface ExecutorNode {
   lastHeartbeat: string
   currentTask?: string
 }
+/* ============================================================
+ * CI/CD 流水线
+ * ============================================================ */
+
+/** 流水线测试类型：接口自动化 / UI 自动化 / 性能测试 */
+export type PipelineTestTypeCode = 'api' | 'ui' | 'perf'
+
+/** 流水线执行方式：平台本地执行 / 调用 Jenkins Job 执行 */
+export type PipelineExecModeCode = 'local' | 'jenkins'
+
+/** 流水线执行状态 */
+export type PipelineRunStatusCode = 'pending' | 'running' | 'success' | 'failed' | 'error'
+
+/** 流水线执行目标类型 */
+export type PipelineTargetTypeCode = 'test_task' | 'ui_scenario' | 'ui_test' | 'perf_case'
+
+/** 质量门禁规则：指标值 操作符 阈值 成立即判定违规（门禁不通过） */
+export interface QualityGateRule {
+  metric: string
+  operator: string
+  threshold: number
+}
+
+/** 门禁判定明细（后端执行后回填） */
+export interface QualityGateResult extends QualityGateRule {
+  metricLabel?: string
+  operatorSymbol?: string
+  actual?: number
+  passed?: boolean
+}
+
+/** CI/CD 流水线：把一类测试目标包装成可被 Jenkins 触发的流水线 */
+export interface CiPipeline {
+  id?: string
+  projectId: string
+  name: string
+  description?: string
+  /** 测试类型 */
+  testType: PipelineTestTypeCode
+  /** 目标类型（由测试类型推导，也可显式指定） */
+  targetType?: PipelineTargetTypeCode
+  /** 执行目标 ID */
+  targetId?: string
+  /** 执行方式 */
+  execMode?: PipelineExecModeCode
+  /** Jenkins 服务器 ID（execMode=jenkins 时必填） */
+  jenkinsServerId?: string
+  /** Jenkins Job 名称（支持 folder/job） */
+  jenkinsJobName?: string
+  /** Jenkins 构建参数（JSON 字符串） */
+  jenkinsParams?: string
+  /** 质量门禁规则（JSON 字符串数组） */
+  qualityGate?: string
+  /** 通知渠道（JSON 字符串数组） */
+  notifyChannels?: string
+  enabled?: boolean
+  /** CI 免登录触发 Token（仅 rotate 接口返回） */
+  webhookToken?: string
+  webhookEnabled?: boolean
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+/** 流水线执行记录 */
+export interface CiPipelineRun {
+  id: string
+  pipelineId: string
+  projectId: string
+  pipelineName?: string
+  testType?: PipelineTestTypeCode
+  targetType?: PipelineTargetTypeCode
+  targetId?: string
+  execMode?: PipelineExecModeCode
+  status: PipelineRunStatusCode
+  triggerType?: string
+  triggerBy?: string
+  /** 本次执行产生的报告 ID（JSON 字符串数组） */
+  reportIds?: string
+  /** 执行统计（JSON 字符串对象） */
+  summary?: string
+  /** 门禁判定明细（JSON 字符串数组） */
+  gateResult?: string
+  /** 1=通过 0=未通过 null=未判定 */
+  gatePassed?: number | null
+  log?: string
+  jenkinsServerId?: string
+  jenkinsJobName?: string
+  jenkinsQueueUrl?: string
+  jenkinsBuildNo?: number
+  jenkinsBuildUrl?: string
+  jenkinsResult?: string
+  duration?: number
+  startedAt?: string
+  endedAt?: string
+}
+
+/** Jenkins 服务器配置（apiToken 不在接口返回中） */
+export interface JenkinsServer {
+  id?: string
+  name: string
+  baseUrl: string
+  username?: string
+  /** 仅入参有效：填写即覆盖；出参恒为空 */
+  apiToken?: string
+  /** basic=用户名+Token 的 Basic 认证；token=仅 Token */
+  authType?: 'basic' | 'token'
+  enabled?: boolean
+  description?: string
+}
+
+/** 流水线可选执行目标（测试任务 / UI 场景 / UI 用例 / 性能用例） */
+export interface CiTarget {
+  id: string
+  name: string
+  targetType: PipelineTargetTypeCode
+}
