@@ -2,6 +2,8 @@ package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
 import com.apiweb.util.JsonStringDeserializer;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
@@ -61,7 +63,13 @@ public class TestTaskEntity extends BaseEntity {
     private String baseUrl;
     /** 创建人 */
     private String createdBy;
-    /** 软删除时间：null 表示未删除 */
+    /**
+     * 软删除时间：null 表示未删除。
+     *
+     * <p>声明 updateStrategy=ALWAYS：默认 NOT_NULL 策略会让回收站还原时的
+     * setDeletedAt(null) 无法落库。</p>
+     */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Instant deletedAt;
 
     // ----- 执行机参数 -----

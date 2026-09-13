@@ -2,6 +2,7 @@ package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
 import com.apiweb.util.JsonStringDeserializer;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -92,8 +93,12 @@ public class ApiDefinitionEntity extends BaseEntity {
     /** 来源内容的 SHA-256(同步差异用) */
     private String sourceHash;
 
-    /** 软删除时间：null 表示未删除，进入回收站时设置 */
-    /** 软删除时间：null 表示未删除 */
-    @TableField("deleted_at")
+    /**
+     * 软删除时间：null 表示未删除，进入回收站时设置。
+     *
+     * <p>声明 updateStrategy=ALWAYS：默认 NOT_NULL 策略会让回收站还原时的
+     * setDeletedAt(null) 无法落库。</p>
+     */
+    @TableField(value = "deleted_at", updateStrategy = FieldStrategy.ALWAYS)
     private Instant deletedAt;
 }

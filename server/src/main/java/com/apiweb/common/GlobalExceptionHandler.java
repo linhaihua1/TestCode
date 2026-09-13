@@ -2,11 +2,15 @@ package com.apiweb.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingPathVariableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 全局异常处理器。
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * <ol>
  *   <li>{@link BizException}：业务异常 → 用业务码 + 用户可见 message</li>
  *   <li>{@link MethodArgumentNotValidException}：{@code @Valid} 校验失败 → 取首个字段错误</li>
+ *   <li>参数绑定类异常（必填参数缺失、路径变量缺失、类型不匹配、请求体不可解析）→ 400 并指出具体参数</li>
  *   <li>{@link Exception}：其它未预料异常 → 500 + 通用错误信息 + 服务端日志</li>
  * </ol>
  *
@@ -49,6 +54,45 @@ public class GlobalExceptionHandler {
         FieldError fe = e.getBindingResult().getFieldError();
         String msg = fe == null ? "参数校验失败" : fe.getField() + ": " + fe.getDefaultMessage();
         return Result.fail(ErrorCode.BAD_REQUEST, msg);
+    }
+
+    /**
+     * 处理 {@code @RequestParam} 必填参数缺失。
+     *
+     * <p>若不单独处理，会被兜底分支转成 500「服务器内部错误」，
+     * 让调用方误以为服务端故障；实际这是客户端请求问题，应返回 400 并指出缺哪个参数。</p>
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Result<Void> handleMissingParam(MissingServletRequestParameterException e) {
+        return Result.fail(ErrorCode.BAD_REQUEST, "缺少必填参数: " + e.getParameterName());
+    }
+
+    /**
+     * 处理路径变量缺失（如 {@code /cases/{id}} 未传 id）。
+     */
+    @ExceptionHandler(MissingPathVariableException.class)
+    public Result<Void> handleMissingPathVar(MissingPathVariableException e) {
+        return Result.fail(ErrorCode.BAD_REQUEST, "缺少路径参数: " + e.getVariableName());
+    }
+
+    /**
+     * 处理参数类型不匹配（如把 version 传成非数字、把布尔值传成字符串）。
+     *
+     * <p>提示中带上参数名与期望类型，方便调用方自查。</p>
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public Result<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        String expect = e.getRequiredType() == null ? "" : e.getRequiredType().getSimpleName();
+        return Result.fail(ErrorCode.BAD_REQUEST,
+                "参数类型不匹配: " + e.getName() + "，期望 " + expect + "，实际 " + e.getValue());
+    }
+
+    /**
+     * 处理请求体不可解析（JSON 语法错误、字段类型写错等）。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<Void> handleUnreadableBody(HttpMessageNotReadableException e) {
+        return Result.fail(ErrorCode.BAD_REQUEST, "请求体格式错误，无法解析为 JSON");
     }
 
     /**

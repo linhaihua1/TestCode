@@ -92,12 +92,21 @@ public class AuthController {
      *
      * <p>新用户默认角色为 {@code member}（普通成员），无管理权限。</p>
      *
+     * <p>密码长度下限由 {@code apiweb.security.min-password-length} 决定，
+     * 与「修改密码」「管理员建号」共用同一配置，避免弱密码账号被创建。</p>
+     *
      * @param req 注册请求（用户名 + 密码，均非空校验）
      * @return 无业务数据
-     * @throws BizException 用户名已存在时抛 badRequest(400)
+     * @throws BizException 用户名已存在、用户名或密码为空、密码过短时抛 badRequest(400)
      */
     @PostMapping("/register")
     public Result<Void> register(@RequestBody @Validated LoginRequest req) {
+        if (req.getUsername() == null || req.getUsername().isBlank()) {
+            throw BizException.badRequest("用户名必填");
+        }
+        if (req.getPassword() == null || req.getPassword().length() < minPasswordLength) {
+            throw BizException.badRequest("密码长度至少 " + minPasswordLength + " 位");
+        }
         Long exists = userMapper.selectCount(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserEntity>()
                         .eq(UserEntity::getUsername, req.getUsername()));

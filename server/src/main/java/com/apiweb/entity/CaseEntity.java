@@ -2,6 +2,8 @@ package com.apiweb.entity;
 
 import com.apiweb.common.BaseEntity;
 import com.apiweb.util.JsonStringDeserializer;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
@@ -42,6 +44,12 @@ public class CaseEntity extends BaseEntity {
     private Integer version;
     /** 排序号（升序） */
     private Integer sortOrder;
-    /** 软删除时间：null 表示未删除 */
+    /**
+     * 软删除时间：null 表示未删除。
+     *
+     * <p>必须显式声明 updateStrategy=ALWAYS：MyBatis-Plus 默认策略为 NOT_NULL，
+     * updateById 会忽略 null 值字段，导致「回收站还原」时 setDeletedAt(null) 无法落库。</p>
+     */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Instant deletedAt;
 }
