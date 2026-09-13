@@ -29,6 +29,12 @@ public class WhileStepExecutor implements StepExecutor {
     private final ObjectProvider<CaseRunner> caseRunnerProvider;
     private final EngineProperties engine;
 
+    /**
+     * 延迟获取 CaseRunner（通过 ObjectProvider 避免构造期循环依赖）。
+     *
+     * @return 可用的 CaseRunner 实例
+     * @throws IllegalStateException 容器尚未就绪
+     */
     private CaseRunner runner() {
         CaseRunner r = caseRunnerProvider.getIfAvailable();
         if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");

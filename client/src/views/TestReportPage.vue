@@ -247,6 +247,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 测试报告详情页：查看报告概览、步骤明细、断言与变量提取结果，并支持导出。
+ *
+ * <p>报告体量较大时，明细数据可能存放在对象存储中，前端按引用地址再取一次；
+ * 页面同时展示 Allure 风格的状态汇总卡片。</p>
+ */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'

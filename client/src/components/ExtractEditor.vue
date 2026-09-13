@@ -31,6 +31,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 变量提取编辑组件：配置"提取方式 + 表达式 + 保存到的变量名"，支持拖拽排序。
+ *
+ * <p>提取方式（JSONPath / 正则 / Header / Cookie / XPath）取自 constants，
+ * 与后端 ExtractType 枚举一一对应。</p>
+ */
 import draggable from 'vuedraggable'
 import { watch } from 'vue'
 import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'

@@ -92,6 +92,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * UI 测试报告列表页：查看历次 UI 执行结果与步骤截图。
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import { UiApi } from '@/api'

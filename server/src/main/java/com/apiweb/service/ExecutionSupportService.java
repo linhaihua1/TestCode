@@ -36,13 +36,23 @@ public class ExecutionSupportService {
     private final CaseRunner caseRunnerBean;
     private final VariableMerger variableMerger;
 
-    /** 供消费者复用的用例执行器（Spring 管理的 Bean） */
+    /**
+     * 供 MQ 消费者复用的用例执行器（Spring 管理的 Bean）。
+     *
+     * <p>执行器本身有状态依赖（HTTP 客户端等），由 Spring 单例托管并复用，
+     * 避免在每次消费消息时重复创建。</p>
+     *
+     * @return 用例执行器实例
+     */
     public CaseRunner caseRunner() {
         return caseRunnerBean;
     }
 
     /**
-     * 任务变量 JSON（[{key,value}]）转 Map。
+     * 将任务变量 JSON（形如 {@code [{key,value}]}）转为 Map，便于后续变量替换。
+     *
+     * @param kvJson 变量 JSON 数组字符串（为空的字段按空列表处理）
+     * @return key -> value 映射（value 为 null 时归一为 ""）
      */
     public Map<String, String> kvToMap(String kvJson) {
         Map<String, String> map = new LinkedHashMap<>();
@@ -58,6 +68,12 @@ public class ExecutionSupportService {
 
     /**
      * 组装环境变量（含 baseUrl）。
+     *
+     * <p>副作用：读取数据库环境配置；{@code environmentId} 为空或环境不存在时返回空 Map，
+     * 不抛异常（环境为可选项）。</p>
+     *
+     * @param environmentId 环境 ID（可为 null）
+     * @return 变量名 -> 变量值 映射，固定含 {@code baseUrl}（若存在）
      */
     public Map<String, String> buildEnvironmentVariables(String environmentId) {
         Map<String, String> map = new LinkedHashMap<>();
@@ -70,7 +86,13 @@ public class ExecutionSupportService {
     }
 
     /**
-     * 组装项目全局变量（SECRET 自动解密）。
+     * 组装项目全局变量（SECRET 类型自动 AES 解密）。
+     *
+     * <p>副作用：读取 {@code t_global_variable}。对 {@code type=SECRET} 的变量调用
+     * {@link AesGcm#decrypt} 还原明文；解密失败时记警告并置空，保证其它变量不受影响。</p>
+     *
+     * @param projectId 项目 ID
+     * @return 全局变量名 -> 值 映射
      */
     public Map<String, String> buildGlobalVariables(String projectId) {
         Map<String, String> map = new LinkedHashMap<>();

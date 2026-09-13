@@ -35,6 +35,10 @@ public class RecycleBinScheduleService {
     @Value("${apiweb.recycle-bin.clean-cron:0 0 3 * * ?}")
     private String cleanCron;
 
+    /**
+     * 惰性获取 Quartz Scheduler；未启用（localdev）时返回 null，
+     * 上层据此跳过回收站清理 Job 的注册（与 {@link TaskScheduleService} 同款降级策略）。
+     */
     private Scheduler scheduler() {
         return schedulerProvider.getIfAvailable();
     }

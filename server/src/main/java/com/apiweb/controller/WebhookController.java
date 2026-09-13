@@ -47,11 +47,14 @@ public class WebhookController {
     private final TaskExecutorService taskExecutorService;
 
     /**
-     * 触发任务执行。
+     * 触发任务执行（供 CI/CD 系统调用，免登录，仅凭 token 校验）。
+     * <p>同步本地执行（不走 RabbitMQ，直接走本地并行池）。同一任务 5 秒内限制触发一次防误触发。
      *
-     * @param token  任务的 webhook token（query 参数,方便命令行调用）
-     * @param triggerBy 触发者标识（CI job id / commit sha 等,可选）
-     * @return 创建的 run 列表
+     * @param token     任务的 webhook token（query 参数，方便命令行调用，必填）
+     * @param triggerBy 触发者标识（CI job id / commit sha 等，可选）
+     * @return 触发响应：含 execId 会话 ID 与 runIds 列表，便于 CI 后续轮询报告
+     * @throws BizException token 缺失抛 badRequest；token 无效抛 notFound；未启用 webhook 抛 forbidden；触发过于频繁抛 badRequest
+     * @audit 写审计日志：action=webhook_trigger, entityType=test_task
      */
     @PostMapping("/test-tasks/trigger")
     @AuditLog(action = "webhook_trigger", entityType = "test_task")

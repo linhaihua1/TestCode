@@ -1,3 +1,9 @@
+/**
+ * 项目状态（Pinia）：保存项目列表与当前项目 ID，提供切换与持久化。
+ *
+ * <p>currentProjectId 是各业务页取数的前提，为空时页面不发请求；
+ * 首次进入会自动选中缓存中的项目或第一个项目。</p>
+ */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ProjectApi } from '@/api'

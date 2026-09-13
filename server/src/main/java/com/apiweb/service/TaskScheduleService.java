@@ -29,6 +29,15 @@ public class TaskScheduleService {
         this.testTaskMapper = testTaskMapper;
     }
 
+    /**
+     * 惰性获取 Quartz Scheduler（集群模式由 Spring 注入）。
+     *
+     * <p>使用 {@link ObjectProvider#getIfAvailable()} 而非直接注入，是为了兼容
+     * localdev profile 下 Quartz 自动配置被排除、Scheduler bean 不存在的场景：
+     * 此时返回 null，上层方法据此静默跳过调度相关逻辑。</p>
+     *
+     * @return Quartz Scheduler，未启用时返回 null
+     */
     private Scheduler scheduler() {
         return schedulerProvider.getIfAvailable();
     }
@@ -59,7 +68,19 @@ public class TaskScheduleService {
     }
 
     /**
-     * 注册/更新一个任务的调度。
+     * 注册或更新一个测试任务的 Quartz 定时调度。
+     *
+     * <p>行为：
+     * <ul>
+     *   <li>cron 为空、或任务未启用、或任务已软删除 → 调用 {@link #remove} 取消已有调度（幂等）；</li>
+     *   <li>否则以 {@code test-task-{id}} 为 JobKey 注册 CronTrigger，
+     *       使用 {@code FireAndProceed} 处理错过触发（misfire 时立即补跑一次）；</li>
+     *   <li>集群模式下重复注册会覆盖原 Trigger，天然幂等，可安全在 @PostConstruct 与任务保存时重复调用。</li>
+     * </ul>
+     *
+     * <p>副作用：向 Quartz 写入/更新 JobDetail 与 Trigger；Scheduler 不可用时（localdev）直接返回。</p>
+     *
+     * @param task 测试任务实体（需含 id / name / cronExpr / enabled）
      */
     public void schedule(TestTaskEntity task) {
         Scheduler scheduler = scheduler();
@@ -89,7 +110,12 @@ public class TaskScheduleService {
     }
 
     /**
-     * 移除调度（任务删除/停用时）。
+     * 移除某任务的 Quartz 调度（任务删除 / 停用 / cron 清空时调用）。
+     *
+     * <p>副作用：从 Quartz 删除该 Job（含其 Trigger），不再触发；
+     * Scheduler 不可用时（localdev）或删除失败仅告警，不影响主流程。</p>
+     *
+     * @param taskId 测试任务 ID
      */
     public void remove(String taskId) {
         Scheduler scheduler = scheduler();

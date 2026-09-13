@@ -141,6 +141,16 @@ public class OssService {
         return SCHEME_LOCALFS + objectKey;
     }
 
+    /**
+     * 判断给定内容是否为对象存储引用（而非原始文本）。
+     *
+     * <p>业务侧据此区分「内容已转存 OSS」与「内容直接内嵌在库字段中」两种形态，
+     * 例如报告明细超过 1MB 阈值后 {@link #putIfLarge} 会返回 {@code minio://} 或
+     * {@code localfs://} 前缀的引用，读取时需先经过 {@link #get} 还原。</p>
+     *
+     * @param value 数据库字段值（可能是原始 JSON，也可能是 OSS 引用）
+     * @return 是否为 OSS 引用
+     */
     public boolean isOffloaded(String value) {
         if (value == null) return false;
         return value.startsWith(SCHEME_MINIO) || value.startsWith(SCHEME_LOCALFS);
@@ -170,6 +180,15 @@ public class OssService {
         }
     }
 
+    /**
+     * 删除对象存储中的内容（清理收尾用）。
+     *
+     * <p>仅当 reference 为 {@code minio://} / {@code localfs://} 引用时执行删除；
+     * 普通文本（未转存）直接忽略。删除失败仅告警，不影响主流程（OSS 残留可由后续
+     * 生命周期/清理策略回收）。</p>
+     *
+     * @param reference OSS 引用路径（可为 null 或非引用，此时方法无操作）
+     */
     public void delete(String reference) {
         if (!isOffloaded(reference)) {
             return;

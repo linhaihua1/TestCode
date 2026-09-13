@@ -53,6 +53,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 场景列表页：场景的创建、执行与删除。
+ *
+ * <p>新建场景后直接跳转到场景编辑器继续编排步骤（步骤为空的场景执行无意义），
+ * 执行为同步调用，完成后提示报告状态。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -92,6 +98,7 @@ function openCreate() {
   modal.value = true
 }
 
+/** 新建场景：创建成功后立即跳转编辑器编排步骤 */
 async function save() {
   if (!form.name) {
     message.warning('请填写名称')
@@ -106,6 +113,7 @@ async function save() {
   router.push({ name: 'scenario-editor', params: { id: created.id } })
 }
 
+/** 同步执行整个场景，返回执行后的报告状态 */
 async function execute(record: Scenario) {
   const r = await ScenarioApi.execute(record.id)
   message.success(`执行完成：${r.status}`)

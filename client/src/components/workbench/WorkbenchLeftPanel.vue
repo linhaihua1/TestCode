@@ -112,6 +112,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 工作台左栏：用例目录树 + 用例列表（支持关键字与状态筛选）与新建用例入口。
+ *
+ * <p>交互：选中目录自动切到"列表"页签并重新加载；点击用例通过 emit('open') 交给父组件
+ * （Workbench）载入右侧编辑器。目录树用 VirtualTree 渲染，避免大量节点卡顿。</p>
+ */
 import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, FolderAddOutlined } from '@ant-design/icons-vue'
@@ -135,16 +141,20 @@ const emit = defineEmits<{
 }>()
 
 const keyword = ref('')
+/** 状态筛选：all 表示不过滤 */
 const statusFilter = ref<string>('all')
+/** 左栏页签：tree=目录树 / list=用例列表 */
 const activeTab = ref<'tree' | 'list'>('list')
 
 const moduleTree = ref<ModuleNode[]>([])
+/** 当前选中的目录节点 key；空串表示全部 */
 const selectedModuleKey = ref<string>('')
 
 const cases = ref<CaseInfo[]>([])
 const loading = ref(false)
 
 const createOpen = ref(false)
+/** 新建用例表单 */
 const form = reactive<Partial<CaseInfo>>({
   name: '',
   priority: 'P2',
@@ -165,11 +175,13 @@ function statusColor(s: string | undefined) {
   return caseStatusColor(s)
 }
 
+/** 加载用例目录树 */
 async function loadModules() {
   if (!props.projectId) return
   moduleTree.value = await ModuleApi.tree(props.projectId, 'case')
 }
 
+/** 按关键字 + 目录 + 状态重新拉取用例列表 */
 async function reloadCases() {
   if (!props.projectId) return
   loading.value = true
@@ -189,6 +201,7 @@ function onModuleSelect(key: string) {
   reloadCases()
 }
 
+/** 在当前选中目录下新建子模块（未选中则建在根级） */
 async function createModule() {
   const name = prompt('模块名称')
   if (!name) return
@@ -210,6 +223,7 @@ function openCreate() {
   createOpen.value = true
 }
 
+/** 新建用例：固定初始状态为 draft，步骤为空数组，保存后由用户继续编排 */
 async function create() {
   if (!form.name?.trim()) {
     message.warning('用例名称不能为空')

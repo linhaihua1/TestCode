@@ -82,6 +82,19 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 接口用例工作台：三栏布局（左侧用例树/列表 + 中间用例编辑 + 右侧接口管理）。
+ *
+ * <p>本页是"编排执行"的主入口，负责三块面板之间的联动：</p>
+ * <ul>
+ *   <li>左栏选中用例 → 中间编辑器加载该用例；</li>
+ *   <li>编辑器触发调试 → 本页弹出 DebugModal；</li>
+ *   <li>调试结束 → 通知编辑器切到"调试记录"页签展示结果。</li>
+ * </ul>
+ *
+ * <p>快捷键 Ctrl+S 保存、Ctrl+Enter 调试（见 hooks/useShortcuts），
+ * 实际动作通过 editorRef 调用子组件暴露的方法完成。</p>
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -99,11 +112,14 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const projectId = computed(() => projectStore.currentProjectId)
 
+/** 当前正在编辑的用例；为 null 时中间面板显示空态 */
 const currentCase = ref<CaseInfo | null>(null)
 
 const debugModalOpen = ref(false)
+/** 正在调试的用例 ID */
 const debuggingCaseId = ref('')
 
+/** 编辑器组件实例，用于调用其暴露的 save / debug / showDebugRecords 方法 */
 const editorRef = ref<InstanceType<typeof CaseEditorPanel> | null>(null)
 
 // 全局快捷键：Ctrl+S 保存、Ctrl+Enter 调试
@@ -124,14 +140,17 @@ useShortcuts({
   }
 })
 
+/** 顶栏跳转（如前往环境配置） */
 function goTo(name: string) {
   router.push({ name })
 }
 
+/** 左栏选中用例 */
 function openCase(c: CaseInfo) {
   currentCase.value = c
 }
 
+/** 编辑器保存成功后的回调提示 */
 function onCaseSaved() {
   message.success('已保存')
 }
@@ -148,6 +167,7 @@ function onDebugFinished(caseId: string) {
   editorRef.value?.showDebugRecords?.(caseId)
 }
 
+/** 切换项目时清空当前用例，避免把 A 项目的用例内容误存到 B 项目 */
 watch(projectId, () => {
   currentCase.value = null
 })

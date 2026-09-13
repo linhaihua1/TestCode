@@ -96,6 +96,15 @@ public class HttpRequestExecutor implements StepExecutor {
         return sr;
     }
 
+    /**
+     * 从步骤 config 的 assertions 字段解析断言列表。
+     *
+     * <p>每个元素需是含 type/source/property/operator/expected/message 的 Map；
+     * 缺失字段用默认值（operator 默认 equals）补齐，保证后续评估不抛 NPE。
+     *
+     * @param raw 步骤 config 中的 assertions 字段
+     * @return 解析后的断言列表（非 List 时返回空列表）
+     */
     @SuppressWarnings("unchecked")
     private List<EngineDtos.Assertion> readAssertions(Object raw) {
         List<EngineDtos.Assertion> out = new ArrayList<>();
@@ -115,6 +124,12 @@ public class HttpRequestExecutor implements StepExecutor {
         return out;
     }
 
+    /**
+     * 从步骤 config 的 extracts 字段解析变量提取列表。
+     *
+     * @param raw 步骤 config 中的 extracts 字段
+     * @return 解析后的提取列表（非 List 时返回空列表）
+     */
     @SuppressWarnings("unchecked")
     private List<EngineDtos.Extract> readExtracts(Object raw) {
         List<EngineDtos.Extract> out = new ArrayList<>();

@@ -48,6 +48,20 @@ public class CaseController {
 
     // ---------------- CRUD ----------------
 
+    /**
+     * 分页查询用例列表。
+     * <p>支持按模块、状态、关键字（名称模糊）、标签过滤；仅返回未删除用例；
+     * 排序先按 sortOrder 升序（保持手工排序），再按更新时间倒序。
+     *
+     * @param projectId 所属项目 ID（必填）
+     * @param moduleId  模块 ID（可选）
+     * @param status    用例状态（可选，如 draft/reviewing/pass）
+     * @param keyword   关键字（可选），按用例名模糊匹配
+     * @param tag       标签（可选），按标签过滤
+     * @param page      页码，默认 1
+     * @param size      每页条数，默认 50，上限 200（防止单页拉取过多）
+     * @return 当前页用例列表（不含已软删除记录）
+     */
     @GetMapping
     public Result<List<CaseEntity>> list(
             @RequestParam String projectId,
@@ -57,10 +71,11 @@ public class CaseController {
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "50") long size) {
+        // 单页上限 200，避免大页查询拖垮 DB
         Page<CaseEntity> result = caseMapper.selectPage(new Page<>(page, Math.min(size, 200)),
                 new LambdaQueryWrapper<CaseEntity>()
                         .eq(CaseEntity::getProjectId, projectId)
-                        .isNull(CaseEntity::getDeletedAt)
+                        .isNull(CaseEntity::getDeletedAt) // 过滤软删除用例
                         .eq(moduleId != null && !moduleId.isBlank(), CaseEntity::getModuleId, moduleId)
                         .eq(status != null && !status.isBlank(), CaseEntity::getStatus, status)
                         .like(keyword != null && !keyword.isBlank(), CaseEntity::getName, keyword)
@@ -69,6 +84,13 @@ public class CaseController {
         return Result.ok(result.getRecords());
     }
 
+    /**
+     * 获取单个用例详情。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 用例实体（含 steps/tags 等全量字段）
+     * @throws BizException 用例不存在时抛 notFound
+     */
     @GetMapping("/{id}")
     public Result<CaseEntity> get(@PathVariable String id) {
         CaseEntity c = caseMapper.selectById(id);
@@ -78,6 +100,16 @@ public class CaseController {
         return Result.ok(c);
     }
 
+    /**
+     * 新建用例。
+     * <p>创建时：补齐 steps/tags 默认空数组、初始化版本号为 1；
+     * 同步扁平步骤 JSON 到 t_case_step 表（任务执行器读取该表），并落一条初始版本快照。
+     *
+     * @param c 用例实体（请求体），name 必填
+     * @return 已落库的用例实体
+     * @throws BizException 用例名称为空时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=case
+     */
     @AuditLog(action = "create", entityType = "case")
     @PostMapping
     public Result<CaseEntity> create(@RequestBody CaseEntity c) {
@@ -98,6 +130,16 @@ public class CaseController {
         return Result.ok(c);
     }
 
+    /**
+     * 更新用例。
+     * <p>版本号自增后落库，重新同步步骤到 t_case_step 表，并记录一条版本快照。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @param c  用例实体（请求体）
+     * @return 无业务数据
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=case
+     */
     @AuditLog(action = "update", entityType = "case")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable String id, @RequestBody CaseEntity c) {
@@ -106,6 +148,7 @@ public class CaseController {
             throw BizException.notFound("用例不存在");
         }
         c.setId(id);
+        // 每次更新版本号自增，配合 saveVersion 形成可回溯的版本历史
         c.setVersion(existing.getVersion() + 1);
         caseMapper.updateById(c);
         // 同步步骤到 t_case_step 表
@@ -114,12 +157,20 @@ public class CaseController {
         return Result.ok();
     }
 
+    /**
+     * 软删除用例到回收站：打 deletedAt 并将状态置为 trash（便于恢复，不在列表中展示）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 无业务数据（用例不存在时静默成功）
+     * @audit 写审计日志：action=delete, entityType=case
+     */
     @AuditLog(action = "delete", entityType = "case")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
         CaseEntity c = caseMapper.selectById(id);
         if (c != null) {
             c.setDeletedAt(Instant.now());
+            // 软删除同时置状态为 trash，使前端列表与统计按状态过滤时自动隐藏
             c.setStatus("trash");
             caseMapper.updateById(c);
         }
@@ -128,6 +179,13 @@ public class CaseController {
 
     // ---------------- 版本历史 ----------------
 
+    /**
+     * 获取用例的版本历史列表（按版本号倒序）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 版本快照列表，每条含名称/步骤/状态的版本化快照
+     * @throws BizException 用例不存在时抛 notFound
+     */
     @GetMapping("/{id}/versions")
     public Result<List<CaseVersionEntity>> versions(@PathVariable String id) {
         return Result.ok(caseVersionMapper.selectList(
@@ -136,6 +194,14 @@ public class CaseController {
                         .orderByDesc(CaseVersionEntity::getVersion)));
     }
 
+    /**
+     * 从指定历史版本恢复用例：覆盖名称与步骤，并生成一条新版本快照。
+     *
+     * @param id      用例 ID（路径参数，必填）
+     * @param version 目标版本号（路径参数，必填）
+     * @return 无业务数据
+     * @throws BizException 用例不存在或版本不存在时抛 notFound
+     */
     @PostMapping("/{id}/versions/{version}/restore")
     public Result<Void> restoreVersion(@PathVariable String id, @PathVariable Integer version) {
         CaseEntity c = caseMapper.selectById(id);
@@ -164,6 +230,15 @@ public class CaseController {
 
     // ---------------- 评审流 ----------------
 
+    /**
+     * 用例评审动作：提交/通过/驳回，驱动状态流转并记录评审流水。
+     * <p>状态机：submit→reviewing、approve→pass、reject→draft；非法动作抛 badRequest。
+     *
+     * @param id   用例 ID（路径参数，必填）
+     * @param body 请求体，含 action（submit/approve/reject，默认 submit）与 comment（评审意见，可选）
+     * @return 无业务数据
+     * @throws BizException 用例不存在抛 notFound；动作非法抛 badRequest
+     */
     @PostMapping("/{id}/review")
     public Result<Void> review(@PathVariable String id, @RequestBody Map<String, String> body) {
         CaseEntity c = caseMapper.selectById(id);
@@ -194,6 +269,12 @@ public class CaseController {
         return Result.ok();
     }
 
+    /**
+     * 获取某用例的评审流水记录（按时间倒序）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 评审记录列表（含动作、评审人、前后状态、意见）
+     */
     @GetMapping("/{id}/reviews")
     public Result<List<CaseReviewEntity>> reviews(@PathVariable String id) {
         return Result.ok(caseReviewMapper.selectList(
@@ -205,7 +286,14 @@ public class CaseController {
     // ---------------- 调试执行 ----------------
 
     /**
-     * 用例调试：同步执行并保存调试记录（大请求/响应体转存 MinIO）。
+     * 用例调试：在当前线程同步执行用例步骤并保存调试记录。
+     * <p>步骤明细超过阈值（默认 1MB）时转存对象存储，数据库仅保留引用（requestBodyRef），避免大报文撑大表。
+     *
+     * @param id   用例 ID（路径参数，必填）
+     * @param body 请求体（可选），可携带 environmentId 指定调试环境；为空则用默认环境
+     * @return 调试记录实体（含每步请求/响应摘要、断言结果、提取变量等）
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=debug, entityType=case
      */
     @AuditLog(action = "debug", entityType = "case")
     @PostMapping("/{id}/debug")
@@ -257,11 +345,20 @@ public class CaseController {
         return Result.ok(record);
     }
 
+    /**
+     * 分页查询用例的调试记录列表（按创建时间倒序）。
+     *
+     * @param id   用例 ID（路径参数，必填）
+     * @param page 页码，默认 1
+     * @param size 每页条数，默认 20，上限 100
+     * @return 当前页调试记录列表
+     */
     @GetMapping("/{id}/debug-records")
     public Result<List<DebugRecordEntity>> debugRecords(@PathVariable String id,
                                                         @RequestParam(defaultValue = "1") long page,
                                                         @RequestParam(defaultValue = "20") long size) {
         Page<DebugRecordEntity> result = debugRecordMapper.selectPage(
+                // 单页上限 100，防止大页查询
                 new Page<>(page, Math.min(size, 100)),
                 new LambdaQueryWrapper<DebugRecordEntity>()
                         .eq(DebugRecordEntity::getCaseId, id)
@@ -271,6 +368,12 @@ public class CaseController {
 
     // ---------------- 回收站 ----------------
 
+    /**
+     * 查询回收站中指定项目的已软删除用例（按删除时间倒序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 已删除用例列表
+     */
     @GetMapping("/recycle-bin")
     public Result<List<CaseEntity>> recycleBin(@RequestParam String projectId) {
         return Result.ok(caseMapper.selectList(
@@ -280,6 +383,13 @@ public class CaseController {
                         .orderByDesc(CaseEntity::getDeletedAt)));
     }
 
+    /**
+     * 从回收站恢复用例：清除 deletedAt 并置状态为 draft（重新进入正常列表）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 无业务数据
+     * @throws BizException 用例不存在时抛 notFound
+     */
     @PostMapping("/{id}/restore")
     public Result<Void> restore(@PathVariable String id) {
         CaseEntity c = caseMapper.selectById(id);
@@ -292,6 +402,12 @@ public class CaseController {
         return Result.ok();
     }
 
+    /**
+     * 物理删除回收站中的用例（不可恢复，区别于软删除 delete）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 无业务数据
+     */
     @DeleteMapping("/{id}/purge")
     public Result<Void> purge(@PathVariable String id) {
         caseMapper.deleteById(id);

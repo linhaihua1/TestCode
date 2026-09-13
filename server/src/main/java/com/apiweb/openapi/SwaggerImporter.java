@@ -86,6 +86,17 @@ public class SwaggerImporter {
     // 解析主流程
     // ============================================================
 
+    /**
+     * 解析 Swagger/OpenAPI 文档主流程：遍历 {@code paths} 下每个 HTTP operation，
+     * 提取为一条 {@link ApiDefinitionDraft}。
+     *
+     * <p>同时兼容 OpenAPI 3.x（顶层 {@code openapi}）与 Swagger 2.x（顶层 {@code swagger}）；
+     * 仅处理标准 HTTP 方法（GET/POST/...），非方法键（如 parameters/summary）会被 isHttpMethod 过滤。</p>
+     *
+     * @param content   JSON 文本（已 fetch 或来自文件）
+     * @param sourceUrl 来源 URL（用于草稿的 sourceUrl，便于后续同步差异），可为 null
+     * @return 接口定义草稿列表（无 paths 时返回空列表）
+     */
     @SuppressWarnings("unchecked")
     private List<ApiDefinitionDraft> parse(String content, String sourceUrl) {
         Map<String, Object> spec;
@@ -115,6 +126,19 @@ public class SwaggerImporter {
         return result;
     }
 
+    /**
+     * 将单个 operation 转换为 {@link ApiDefinitionDraft}。
+     *
+     * <p>依次处理三类来源：parameters（path/query/header/body）、requestBody（OpenAPI 3 的
+     * content.application/json）、responses（示例与响应头）。Swagger 2 的 body/formData
+     * 出现在 parameters 中，OpenAPI 3 出现在 requestBody 中，这里分别分支处理以保证兼容。</p>
+     *
+     * @param path      接口路径（如 /users/{id}）
+     * @param method    HTTP 方法（大写）
+     * @param op        operation 对象（summary/parameters/requestBody/responses 等）
+     * @param sourceUrl 来源 URL（透传）
+     * @return 单个接口定义草稿
+     */
     private ApiDefinitionDraft toDraft(String path, String method, Map<String, Object> op, String sourceUrl) {
         ApiDefinitionDraft.ApiDefinitionDraftBuilder b = ApiDefinitionDraft.builder()
                 .name(orDefault(op, "summary", op, "operationId", path + " " + method))

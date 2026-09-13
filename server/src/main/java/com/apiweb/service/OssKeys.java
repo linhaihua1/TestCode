@@ -24,23 +24,43 @@ public final class OssKeys {
     /** 步骤文件名 */
     private static final String STEPS_FILE = "steps.json";
 
-    /** 接口报告明细 key：reports/{runId}/details.json */
+    /**
+     * 接口报告明细 key：reports/{runId}/details.json
+     *
+     * @param runId 测试运行 ID
+     * @return 对象存储 key
+     */
     public static String reportDetails(String runId) {
         return REPORTS + runId + "/" + DETAILS_FILE;
     }
 
-    /** UI 报告明细 key：ui-reports/{runId}/details.json */
+    /**
+     * UI 报告明细 key：ui-reports/{runId}/details.json
+     *
+     * @param runId UI 运行 ID
+     * @return 对象存储 key
+     */
     public static String uiReportDetails(String runId) {
         return UI_REPORTS + runId + "/" + DETAILS_FILE;
     }
 
-    /** 性能报告数据 key：perf-reports/{runId}/summary.json */
+    /**
+     * 性能报告数据 key：perf-reports/{runId}/{fileName}
+     *
+     * @param runId   性能运行 ID
+     * @param fileName 数据文件名（如 summary.json / series.json）
+     * @return 对象存储 key
+     */
     public static String perfReportData(String runId, String fileName) {
         return PERF_REPORTS + runId + "/" + fileName;
     }
 
     /**
      * 调试记录步骤 key：debug-records/{recordId}/{时间戳}/steps.json
+     *
+     * @param recordId 调试记录 ID
+     * @param timestamp 时间戳（毫秒），用于区分同一记录的多次调试
+     * @return 对象存储 key
      */
     public static String debugRecordSteps(String recordId, long timestamp) {
         return DEBUG_RECORDS + recordId + "/" + timestamp + "/" + STEPS_FILE;

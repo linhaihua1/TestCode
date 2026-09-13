@@ -137,6 +137,14 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 接口管理面板（工作台右栏）：接口定义的目录树 + 列表 + 新建/编辑，并支持 Excel 导入导出。
+ *
+ * <p>数据：接口列表按"当前选中目录 + 关键字 + 请求方法"过滤后从后端拉取；
+ * 目录树使用 VirtualTree 渲染（接口数量多时避免一次性渲染卡顿）。</p>
+ *
+ * <p>Excel 导入导出基于 xlsx，模板列与后端导入器约定一致，改动列顺序需同步后端解析逻辑。</p>
+ */
 import { onMounted, reactive, ref, watch, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import {
@@ -149,16 +157,22 @@ import VirtualTree from '@/components/VirtualTree.vue'
 
 const props = defineProps<{ projectId: string }>()
 
+/** 接口列表 */
 const apis = ref<ApiDefinition[]>([])
 const loading = ref(false)
+/** 名称关键字过滤 */
 const keyword = ref('')
+/** 请求方法过滤，undefined 表示全部 */
 const methodFilter = ref<string | undefined>()
 
+/** 接口目录树（type=api） */
 const moduleTree = ref<ModuleNode[]>([])
+/** 当前选中的目录；空串表示全部 */
 const selectedModuleId = ref<string>('')
 
 const createOpen = ref(false)
 const saving = ref(false)
+/** 新建/编辑接口的表单 */
 const form = reactive<Partial<ApiDefinition>>({
   method: 'GET',
   name: '',
@@ -178,6 +192,7 @@ const methodFilters = [
   ...methodOptions
 ]
 
+/** 把目录树拉平成下拉选项，子级用全角空格缩进体现层级 */
 const moduleOptions = computed(() => {
   const flat: { value: string; label: string }[] = []
   const walk = (nodes: ModuleNode[], depth = 0) => {
@@ -190,10 +205,12 @@ const moduleOptions = computed(() => {
   return flat
 })
 
+/** HTTP 方法 -> 标签颜色（GET 蓝 / POST 绿 / PUT 橙 / 其它红） */
 function methodColor(m: string) {
   return m === 'GET' ? 'blue' : m === 'POST' ? 'green' : m === 'PUT' ? 'orange' : 'red'
 }
 
+/** 按当前筛选条件重新拉取接口列表 */
 async function reload() {
   if (!props.projectId) return
   loading.value = true
@@ -209,16 +226,19 @@ async function reload() {
   }
 }
 
+/** 加载接口目录树 */
 async function loadModules() {
   if (!props.projectId) return
   moduleTree.value = await ModuleApi.tree(props.projectId, 'api')
 }
 
+/** 选中目录后按该目录过滤列表 */
 function onModuleSelect(key: string) {
   selectedModuleId.value = key
   reload()
 }
 
+/** 在根目录新建一个接口目录（名称用原生 prompt 输入） */
 async function createModule() {
   const name = window.prompt('目录名称')
   if (!name) return
@@ -233,6 +253,7 @@ async function createModule() {
   message.success('目录已创建')
 }
 
+/** 打开新建接口弹窗：表单重置，默认归属当前选中目录 */
 function openCreate() {
   Object.assign(form, {
     id: undefined,
@@ -247,11 +268,13 @@ function openCreate() {
   createOpen.value = true
 }
 
+/** 打开编辑弹窗：直接把整条接口数据拷进表单 */
 function openEdit(item: ApiDefinition) {
   Object.assign(form, item)
   createOpen.value = true
 }
 
+/** 保存新建或编辑结果（按 form.id 是否存在判断） */
 async function save() {
   if (!form.name || !form.path) {
     message.warning('请填写名称与路径')

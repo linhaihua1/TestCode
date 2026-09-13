@@ -21,6 +21,14 @@ public class StepExecutorRegistry {
 
     private final Map<StepType, StepExecutor> executors = new EnumMap<>(StepType.class);
 
+    /**
+     * Spring 启动时自动收集所有 {@link StepExecutor} Bean 并按 {@code type()} 建索引。
+     *
+     * <p>通过 {@code @Autowired} 注入 List 触发 Spring 把所有 StepExecutor 实现收集进来，
+     * 多个执行器实现同一 {@code type()} 时，后注册的会覆盖先注册的（日志中可见）。
+     *
+     * @param all Spring 容器中的全部 StepExecutor Bean
+     */
     @Autowired
     public void register(List<StepExecutor> all) {
         for (StepExecutor e : all) {

@@ -3,6 +3,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Monaco 编辑器封装：以 v-model 暴露代码文本，支持语言、主题、只读与高度配置。
+ *
+ * <p>内容变化即向外同步；外部传入值与编辑器当前值不同才回写，避免光标跳动；
+ * 组件卸载时销毁编辑器实例。</p>
+ */
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as monaco from 'monaco-editor'
 

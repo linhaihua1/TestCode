@@ -39,6 +39,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 键值对编辑组件（请求头、Query 参数、环境变量通用），支持 v-model 双向绑定。
+ *
+ * <p>内部为每行生成 rowKey 供表格与动画使用，输出时剔除该字段；
+ * 删除最后一行时自动补一个空行，保证用户始终能继续输入。</p>
+ */
 import { computed, ref, watch } from 'vue'
 import type { KeyValueItem } from '@/types'
 

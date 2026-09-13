@@ -40,6 +40,12 @@ public class GlobalVariableController {
 
     private final GlobalVariableMapper globalVariableMapper;
 
+    /**
+     * 查询项目的全局变量列表（按变量名升序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 变量列表；SECRET 类型的值已替换为掩码 {@code **********}，不向外部泄漏明文
+     */
     @GetMapping
     public Result<List<GlobalVariableEntity>> list(@RequestParam String projectId) {
         List<GlobalVariableEntity> vars = globalVariableMapper.selectList(
@@ -72,6 +78,16 @@ public class GlobalVariableController {
         return v.getValue();
     }
 
+    /**
+     * 新建全局变量。
+     * <p>TIMESTAMP/RANDOM 类型的值由后端生成（忽略前端传入值）；SECRET 类型入库前用 AES-256-GCM 加密，
+     * 返回给前端时脱敏为掩码，避免密钥外泄。
+     *
+     * @param variable 变量实体（请求体），name 必填
+     * @return 已落库的变量（SECRET 值已脱敏为掩码）
+     * @throws BizException 变量名缺失时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=global_variable
+     */
     @AuditLog(action = "create", entityType = "global_variable")
     @PostMapping
     public Result<GlobalVariableEntity> create(@RequestBody GlobalVariableEntity variable) {
@@ -85,6 +101,17 @@ public class GlobalVariableController {
         return Result.ok(variable);
     }
 
+    /**
+     * 更新全局变量。
+     * <p>SECRET 类型更新时保留原库密文（前端只回传掩码，避免对掩码二次加密）；
+     * 非 SECRET 类型按规则重新生成/加密后入库。
+     *
+     * @param id       变量 ID（路径参数，必填）
+     * @param variable 变量实体（请求体）
+     * @return 无业务数据
+     * @throws BizException 变量不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=global_variable
+     */
     @AuditLog(action = "update", entityType = "global_variable")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable String id, @RequestBody GlobalVariableEntity variable) {
@@ -102,6 +129,13 @@ public class GlobalVariableController {
         return Result.ok();
     }
 
+    /**
+     * 删除全局变量（物理删除）。
+     *
+     * @param id 变量 ID（路径参数，必填）
+     * @return 无业务数据
+     * @audit 写审计日志：action=delete, entityType=global_variable
+     */
     @AuditLog(action = "delete", entityType = "global_variable")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {

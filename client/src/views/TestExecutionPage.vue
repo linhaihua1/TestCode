@@ -374,18 +374,37 @@ import {
 import { useProjectStore } from '@/stores/project'
 import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from '@/types'
 
+/**
+ * 测试任务管理页：任务的增删改查、用例编排、执行策略/执行机/通知配置，以及运行与历史记录查看。
+ *
+ * <p>页面结构：</p>
+ * <ul>
+ *   <li>主表格：任务列表，展开行显示该任务的历史运行记录；</li>
+ *   <li>新建/编辑弹窗：按"基础信息 / 用例编排 / 执行策略 / 执行机 / 通知渠道"分页签组织；</li>
+ *   <li>运行方式分两种：异步投递（立即返回，后台执行）与同步执行（等待全部用例跑完）。</li>
+ * </ul>
+ *
+ * <p>所有数据都按当前项目（projectStore.currentProjectId）隔离，切换项目时自动重新加载。</p>
+ */
 const projectStore = useProjectStore()
+/** 当前选中的项目 ID；为空时不发起任何请求 */
 const projectId = computed(() => projectStore.currentProjectId)
 
 const tasks = ref<TestTask[]>([])
+/** 任务 ID -> 该任务的历史运行记录（展开行时按需加载） */
 const runsByTask = ref<Record<string, TestTaskRun[]>>({})
+/** 已展开的行 key 集合 */
 const expandedKeys = ref<string[]>([])
 const loading = ref(false)
+/** 弹窗保存中标记，防重复提交 */
 const saving = ref(false)
+/** 正在运行的任务标记：任务 ID + 'a'(异步)/'s'(同步)，用于按钮 loading */
 const runningId = ref<string>('')
+/** 弹窗内当前激活的页签 */
 const activeTab = ref<string>('basic')
 
 const modal = ref(false)
+/** 新建/编辑表单（与 TestTask 字段一一对应） */
 const form = reactive<Partial<TestTask>>({
   name: '',
   description: '',
@@ -404,10 +423,13 @@ const form = reactive<Partial<TestTask>>({
   parallelPoolSize: 5,
   notifyChannels: []
 })
+/** 用例级变量的 JSON 文本（表单里以文本编辑，保存时 parse 成数组） */
 const variablesJson = ref('[]')
 
 // ---- 用例编排状态 ----
+/** 项目下全部接口用例（作为可选用例池） */
 const allCases = ref<CaseInfo[]>([])
+/** 用例库搜索关键词 */
 const caseKeyword = ref('')
 /** 已选用例（有序） */
 const selectedCases = ref<CaseInfo[]>([])
@@ -415,10 +437,12 @@ const selectedCases = ref<CaseInfo[]>([])
 // ---- 环境 ----
 const environments = ref<Environment[]>([])
 
+/** 环境下拉选项 */
 const environmentOptions = computed(() =>
   environments.value.map((e) => ({ value: e.id, label: e.name }))
 )
 
+/** 主表格列定义 */
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '用例数', key: 'caseCount', width: 100 },
@@ -447,14 +471,17 @@ const filteredAvailableCases = computed(() => {
   })
 })
 
+/** 失败策略编码 -> 中文标签；未知编码兜底为"失败即停" */
 function strategyLabel(s?: string) {
   return FAIL_STRATEGY_LABELS[s ?? ''] ?? FAIL_STRATEGY_LABELS[FAIL_STRATEGIES.STOP_ON_FAIL]
 }
 
+/** 环境 ID -> 环境名称；查不到返回空串（表格会显示"默认环境"） */
 function envName(id?: string) {
   return environments.value.find((e) => e.id === id)?.name || ''
 }
 
+/** 不同通知渠道的目标输入框提示语 */
 function targetPlaceholder(t: string) {
   switch (t) {
     case 'email': return 'user@example.com'
@@ -465,6 +492,7 @@ function targetPlaceholder(t: string) {
   }
 }
 
+/** ISO 时间串 -> 本地时间字符串 */
 function formatDate(iso?: string) {
   if (!iso) return ''
   return new Date(iso).toLocaleString()
@@ -472,10 +500,12 @@ function formatDate(iso?: string) {
 
 /* ---------------- 用例编排操作 ---------------- */
 
+/** 从左侧用例库添加用例到已选列表（追加到末尾） */
 function addCase(c: CaseInfo) {
   selectedCases.value.push(c)
 }
 
+/** 从已选列表移除指定下标的用例 */
 function removeCase(index: number) {
   selectedCases.value.splice(index, 1)
 }
@@ -503,6 +533,7 @@ function moveCase(index: number, dir: 'up' | 'down' | 'top' | 'bottom') {
 
 /* ---------------- 数据加载 ---------------- */
 
+/** 加载当前项目的任务列表 */
 async function reload() {
   if (!projectId.value) return
   loading.value = true
@@ -513,6 +544,7 @@ async function reload() {
   }
 }
 
+/** 加载接口用例库（编排弹窗的左侧候选池；失败时降级为空列表，不阻塞页面） */
 async function loadCases() {
   if (!projectId.value) return
   try {
@@ -522,6 +554,7 @@ async function loadCases() {
   }
 }
 
+/** 加载环境列表，用于下拉与表格环境列显示 */
 async function loadEnvironments() {
   if (!projectId.value) return
   try {
@@ -531,6 +564,7 @@ async function loadEnvironments() {
   }
 }
 
+/** 展开行时按需拉取该任务的历史运行记录（收起不重复请求） */
 async function onExpand(expanded: boolean, record: TestTask) {
   if (expanded) {
     runsByTask.value[record.id] = await TestTaskApi.runs(record.id)
@@ -539,6 +573,7 @@ async function onExpand(expanded: boolean, record: TestTask) {
 
 /* ---------------- 弹窗打开/关闭 ---------------- */
 
+/** 打开新建弹窗：把表单重置为默认值 */
 function openCreate() {
   Object.assign(form, {
     id: undefined,
@@ -566,6 +601,11 @@ function openCreate() {
   modal.value = true
 }
 
+/**
+ * 打开编辑弹窗：把任务字段回填到表单。
+ * <p>已选用例要按 record.caseIds 的顺序还原（顺序即执行顺序），
+ * 因此先建 id->用例 的映射再按序取值；用例已被删除时过滤掉。</p>
+ */
 function openEdit(record: TestTask) {
   Object.assign(form, {
     id: record.id,
@@ -598,12 +638,21 @@ function openEdit(record: TestTask) {
   modal.value = true
 }
 
+/** 关闭弹窗（关闭前引导用户先保存，此处直接丢弃未保存内容） */
 function onCancel() {
   modal.value = false
 }
 
 /* ---------------- 保存/运行 ---------------- */
 
+/**
+ * 保存任务；runAfter=true 时保存后立即异步运行。
+ *
+ * <p>校验顺序与页签联动：名称为空跳到"基础信息"，未选用例跳到"用例编排"，
+ * 变量 JSON 解析失败跳到"执行策略"，方便用户直接看到出错位置。</p>
+ *
+ * @param runAfter 保存后是否立即运行
+ */
 async function save(runAfter: boolean) {
   if (!form.name) {
     message.warning('请填写任务名称')
@@ -656,6 +705,7 @@ async function save(runAfter: boolean) {
   }
 }
 
+/** 异步运行：投递到 MQ 后立即返回，结果通过展开行刷新 */
 async function runAsync(record: TestTask) {
   runningId.value = record.id + 'a'
   try {
@@ -668,6 +718,7 @@ async function runAsync(record: TestTask) {
   }
 }
 
+/** 同步运行：阻塞等待全部用例执行完成，用于快速验证（长任务建议用异步） */
 async function runSync(record: TestTask) {
   runningId.value = record.id + 's'
   const hide = message.loading('同步执行中...', 0)
@@ -683,21 +734,25 @@ async function runSync(record: TestTask) {
   }
 }
 
+/** 启用/停用任务（停用的定时任务不会被调度） */
 async function toggle(record: TestTask) {
   await TestTaskApi.toggle(record.id)
   await reload()
 }
 
+/** 删除任务 */
 async function remove(record: TestTask) {
   await TestTaskApi.remove(record.id)
   await reload()
 }
 
+/** 追加一条空的通知渠道配置，默认邮件 */
 function addNotifyChannel() {
   if (!form.notifyChannels) form.notifyChannels = []
   form.notifyChannels.push({ type: 'email', target: '', secret: '' } as NotifyChannel)
 }
 
+/** 切换项目时重新加载全部数据（immediate=false：挂载时由 onMounted 触发） */
 watch(projectId, () => { reload(); loadCases(); loadEnvironments() }, { immediate: false })
 onMounted(() => { reload(); loadCases(); loadEnvironments() })
 </script>

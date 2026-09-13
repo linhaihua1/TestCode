@@ -98,6 +98,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 回收站页：按类型查看已删除对象、还原、彻底删除与保留策略配置。
+ *
+ * <p>删除均为软删除（设置 deleted_at）；配置 cleanupDays 后由后端定时任务
+ * 按天数自动清理，0 表示不自动清理。</p>
+ */
 import { onMounted, reactive, ref, watch, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -172,6 +178,7 @@ async function loadConfig() {
   Object.assign(config, cfg)
 }
 
+/** 保存自动清理天数配置：0 = 不自动清理 */
 async function saveConfig() {
   config.projectId = projectId.value
   await RecycleBinApi.updateConfig({ ...config })
@@ -179,12 +186,14 @@ async function saveConfig() {
   message.success('配置已保存')
 }
 
+/** 还原单条：后端返回实际还原数量与可能的重命名提示 */
 async function restore(record: RecycleBinItem) {
   const result = await RecycleBinApi.restore([record.id], record.type)
   message.success(`已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`)
   await reload()
 }
 
+/** 批量还原当前类型下勾选的全部条目 */
 async function batchRestore() {
   const result = await RecycleBinApi.restore(selectedRowKeys.value, filterType.value)
   message.success(`已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`)
@@ -192,6 +201,7 @@ async function batchRestore() {
   await reload()
 }
 
+/** 彻底删除（不可恢复） */
 async function permanent(id: string) {
   await RecycleBinApi.permanent([id], filterType.value)
   message.success('已永久删除')

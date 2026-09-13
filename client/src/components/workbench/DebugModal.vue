@@ -66,6 +66,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 调试弹窗：选择执行环境后发起用例调试，实时展示每个步骤的结果与提取到的变量。
+ */
 import { computed, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'

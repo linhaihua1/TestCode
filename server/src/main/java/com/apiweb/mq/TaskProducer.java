@@ -24,6 +24,19 @@ public class TaskProducer {
     private final RabbitTemplate rabbitTemplate;
     private final MqProperties mq;
 
+    /**
+     * 投递接口测试任务到 MQ。
+     *
+     * <p>副作用：将 {@link EngineDtos.TaskMessage}（type=API）按配置路由键发送到任务交换机；
+     * 若 {@code apiweb.mq.enabled=false}（如 localdev），则跳过投递、不抛异常，
+     * 由进程内 {@code @Async} 直接执行，保证本地可跑通。</p>
+     *
+     * @param runId        本次执行的运行 ID（对应 t_test_task_run.id）
+     * @param projectId    项目 ID
+     * @param taskId       所属任务 ID（可为 null）
+     * @param caseId       用例 ID
+     * @param environmentId 环境 ID（可为 null）
+     */
     public void sendApiTask(String runId, String projectId, String taskId,
                             String caseId, String environmentId) {
         send(new EngineDtos.TaskMessage(TaskType.API.getCode(), runId, projectId,
@@ -45,6 +58,16 @@ public class TaskProducer {
         log.info("UI 任务已投递: runId={}, caseId={}, environmentId={}", runId, caseId, environmentId);
     }
 
+    /**
+     * 投递性能测试任务到 MQ。
+     *
+     * <p>副作用：将 {@link EngineDtos.TaskMessage}（type=PERF）发送到任务交换机；
+     * MQ 禁用时跳过投递（见 {@link #send}）。性能用例执行由消费端内嵌 JMeter 引擎完成。</p>
+     *
+     * @param runId     本次执行的报告 ID（对应 t_perf_report.id）
+     * @param projectId 项目 ID
+     * @param caseId    性能用例 ID
+     */
     public void sendPerfTask(String runId, String projectId, String caseId) {
         send(new EngineDtos.TaskMessage(TaskType.PERF.getCode(), runId, projectId,
                 caseId, null, null, null));

@@ -56,6 +56,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 趋势统计页：用 ECharts 展示近 N 天的通过率、用例数与响应时间趋势。
+ *
+ * <p>图表实例按需惰性创建并复用；窗口尺寸变化时手动 resize。
+ * 页面卸载前未销毁实例与 resize 监听是已知可优化点。</p>
+ */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
@@ -107,6 +113,7 @@ async function reload() {
   }
 }
 
+/** 渲染/更新趋势图：双 Y 轴——左轴通过率(%)，右轴数量与耗时 */
 function renderChart() {
   if (!chartRef.value || trend.value.length === 0) return
   if (!chartInstance) {
@@ -176,6 +183,7 @@ function renderChart() {
   })
 }
 
+/** 窗口尺寸变化时同步图表尺寸 */
 function handleResize() {
   chartInstance?.resize()
 }

@@ -1,37 +1,48 @@
-/** 全局类型定义（与后端 Java 实体保持字段一致） */
+/** 全局类型定义（与后端 Java 实体保持字段一致；改字段需前后端同步） */
 export interface BaseEntity {
+  /** 主键：后端使用 UUID（MyBatis-Plus ASSIGN_UUID） */
   id: string
+  /** 创建时间（ISO 字符串，后端以 UTC 存储，展示层按本地时区格式化） */
   createdAt: string
   updatedAt: string
 }
 
+/** 系统用户；role 决定写权限（viewer 只读，见 constants.ROLES） */
 export interface User {
   id: string
   username: string
+  /** admin：全部权限 / member：可编辑 / viewer：只读 */
   role: 'admin' | 'member' | 'viewer'
   createdAt: string
   updatedAt: string
 }
 
+/** 项目：所有测试资产与报告的隔离单元 */
 export interface Project extends BaseEntity {
   name: string
   description?: string
 }
 
+/** 运行环境：执行时提供 baseUrl、变量与公共请求头 */
 export interface Environment extends BaseEntity {
   projectId: string
   name: string
   baseUrl?: string
+  /** 环境变量（key-value 列表，可用 {{key}} 引用） */
   variables: KeyValueItem[]
+  /** 公共请求头，执行时合并到每个请求 */
   headers: KeyValueItem[]
 }
 
+/** 通用的键值对结构（请求头、Query 参数、变量统一用它） */
 export interface KeyValueItem {
   key: string
   value: string
+  /** 是否启用；false 的项在组装请求时被忽略 */
   enabled?: boolean
 }
 
+/** 项目级全局变量；encrypted 的敏感值后端密文存储 */
 export interface GlobalVariable extends BaseEntity {
   projectId: string
   name: string
@@ -41,26 +52,34 @@ export interface GlobalVariable extends BaseEntity {
   description?: string
 }
 
+/** 模块树节点：用例/接口/UI/性能四类资产共用的目录树 */
 export interface ModuleNode {
   key: string
   title: string
+  /** 父节点 ID；为空表示根节点 */
   parentId?: string
+  /** 树归属的资产类型 */
   type: 'case' | 'api' | 'ui' | 'perf'
   sortOrder: number
   children: ModuleNode[]
 }
 
+/** 接口测试用例：steps 为步骤数组，每个步骤可以是 HTTP 请求/等待/IF/FOR/WHILE/脚本 */
 export interface CaseInfo extends BaseEntity {
   projectId: string
   moduleId?: string
   name: string
   description?: string
+  /** 状态流转：draft 草稿 → reviewing 评审中 → pass 通过 / fail 不通过 */
   status: 'draft' | 'reviewing' | 'pass' | 'fail' | 'trash'
   priority: string
   tags: string[]
+  /** 步骤定义（见 CaseStep）；后端以 JSON 存储 */
   steps: any[]
+  /** 版本号：每次保存自增，用于生成版本快照 */
   version: number
   sortOrder: number
+  /** 软删除时间，非空表示已进入回收站 */
   deletedAt?: string
 }
 
@@ -180,16 +199,21 @@ export interface NotifyChannel {
   secret?: string
 }
 
+/** 任务的一次执行记录（展开任务行时展示） */
 export interface TestTaskRun {
   id: string
   taskId: string
+  /** pending 排队 / running 执行中 / success 通过 / failed 失败 / error 异常 / skipped 跳过 */
   result: 'pending' | 'running' | 'success' | 'failed' | 'error' | 'skipped'
+  /** 执行耗时（毫秒） */
   duration: number
   startedAt: string
   endedAt?: string
+  /** 用例级执行明细；数据量大时后端返回对象存储引用，前端需按引用再取 */
   details: any
 }
 
+/** 测试报告主记录（接口/场景执行完成后生成） */
 export interface Report {
   id: string
   projectId: string
@@ -202,6 +226,7 @@ export interface Report {
   finishedAt?: string
   triggerType?: 'manual' | 'schedule' | 'webhook' | 'api'
   triggerBy?: string
+  // 以下统计字段在执行完成后由后端回填，执行中可能为 0
   totalCases?: number
   passedCases?: number
   failedCases?: number
@@ -212,6 +237,7 @@ export interface Report {
   failedAssertions?: number
   avgResponseTime?: number
   p95ResponseTime?: number
+  /** 执行时的环境快照，便于事后还原现场 */
   environmentSnapshot?: string
   details?: ReportDetail[]
 }
@@ -360,18 +386,27 @@ export interface StepResult {
   responseSummary?: string
 }
 
+/** 性能测试用例：执行时被后端转换成 JMeter 的 .jmx 测试计划 */
 export interface PerfCase extends BaseEntity {
   projectId: string
   name: string
   description?: string
+  /** 并发线程数（虚拟用户数） */
   threads: number
+  /** 加压时长（秒）：线程在该时间内逐步启动 */
   rampUp: number
+  /** 循环次数；配置了 duration 时由持续时间控制 */
   loops: number
+  /** 持续时间（秒）；大于 0 时启用调度器 */
   duration: number
+  /** 思考时间（毫秒）：每个请求之间的停顿 */
   thinkTime: number
+  /** 取样错误后的处理策略：continue / startnext / stopthread / stoptest */
   onSampleError: string
   variables: KeyValueItem[]
+  /** 压测请求步骤，每个步骤生成一个 HTTP 取样器 */
   steps: PerfStep[]
+  /** 负载模型：fixed 固定并发 / stepping 阶梯加压 */
   profile: { loadProfile?: 'fixed' | 'stepping'; stepping?: number; concurrency?: number }
   deletedAt?: string
 }
@@ -397,6 +432,7 @@ export interface PerfStep {
   useKeepAlive?: boolean
 }
 
+/** 性能测试报告；图表数据由 summary/series/labels/errors 四个 JSON 块驱动 */
 export interface PerfReport {
   id: string
   projectId: string
@@ -405,10 +441,15 @@ export interface PerfReport {
   status: 'success' | 'failed' | 'error'
   duration: number
   startedAt: string
+  /** 汇总指标：样本数、错误数、平均/最小/最大、P90/P95/P99、TPS */
   summary: any
+  /** 时间序列点 [{ts, elapsed}]，画响应时间折线图 */
   series: any[]
+  /** 按接口（label）聚合的统计，画分接口柱状图 */
   labels: any[]
+  /** 错误 TOP 列表 [{message, count}] */
   errors: any[]
+  /** 执行失败时的异常原因 */
   message?: string
 }
 

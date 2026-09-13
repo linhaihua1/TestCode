@@ -62,6 +62,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 变量与模块配置页：以表格形式维护项目级全局变量（轻量版）。
+ *
+ * <p>与 GlobalVariablePage 的区别：这里只做最简单的增删改，
+ * 变量类型仅 string/number/json 三类。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'

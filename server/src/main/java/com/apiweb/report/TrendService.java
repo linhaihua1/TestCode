@@ -44,6 +44,8 @@ public class TrendService {
      * <p>无报告的日期补 0,保证前端图表 X 轴连续。
      */
     public List<TrendBucket> compute(String projectId, int days) {
+        // 把查询窗口限制在 [7, 365] 天：下限避免传 0/负数导致无效聚合，
+        // 上限避免一次性拉取过多历史报告拖垮查询（前端默认 30 天，越界即归一到边界）。
         if (days < 1) days = 7;
         if (days > 365) days = 365;
         Instant from = LocalDate.now().minusDays(days - 1L)

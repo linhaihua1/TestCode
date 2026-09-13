@@ -94,6 +94,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 接口定义列表页：接口资产的增删改查，以及 Excel 模板下载与 Swagger 导入。
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {

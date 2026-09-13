@@ -36,6 +36,11 @@ public interface StepExecutor {
 
     /**
      * 工具：从 config 中读取 KV 列表 [{key,value,enabled}]。
+     *
+     * <p>字段缺失时自动补默认值：enabled 缺省为 true，value 为 null 时存 null。
+     *
+     * @param raw 步骤 config 中的对应字段（期望是 List<Map>；非 List 时返回空列表）
+     * @return 解析后的 KV 列表
      */
     @SuppressWarnings("unchecked")
     default java.util.List<EngineDtos.KV> readKvList(Object raw) {
@@ -54,6 +59,8 @@ public interface StepExecutor {
         return out;
     }
 
+    /** 工具：对象转字符串，null 返回 null。 */
     static String toStr(Object o) { return o == null ? null : String.valueOf(o); }
+    /** 工具：对象转字符串，null 返回默认值 def。 */
     static String toStr(Object o, String def) { return o == null ? def : String.valueOf(o); }
 }

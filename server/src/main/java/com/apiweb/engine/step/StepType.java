@@ -23,15 +23,25 @@ package com.apiweb.engine.step;
  * 旧版本兼容 {@code http / if / for / while / script} 写法。
  */
 public enum StepType {
+    /** HTTP_REQUEST：单次 HTTP 调用，含断言与变量提取（最常用） */
     HTTP_REQUEST,
+    /** SCRIPT：自定义脚本步骤，执行 JS 并可读写变量 */
     SCRIPT,
+    /** WAIT：固定/动态条件等待 */
     WAIT,
+    /** VARIABLE_ASSIGN：直接赋值或表达式计算生成变量 */
     VARIABLE_ASSIGN,
+    /** IF：条件分支控制器，true 走 children，false 走 elseBranch */
     IF,
+    /** FOR：计数/列表循环控制器 */
     FOR,
+    /** WHILE：条件循环控制器（带最大迭代与超时保护） */
     WHILE,
+    /** TRANSACTION：事务控制器，按 successRule 判定整体成败 */
     TRANSACTION,
+    /** ONCE：仅一次控制器，同一任务内按 stepId 去重只跑一次 */
     ONCE,
+    /** REF_PUBLIC_CASE：引用公共用例，可嵌套（最多 5 层） */
     REF_PUBLIC_CASE;
 
     /**
@@ -61,7 +71,15 @@ public enum StepType {
         };
     }
 
-    /** 是否为容器（带 children 的控制器） */
+    /**
+     * 是否为容器（带 children 的控制器）。
+     *
+     * <p>容器步骤会递归执行子步骤（由对应 StepExecutor 调用 {@code runner.runSteps(children)}）。
+     * 该判断被 {@link com.apiweb.engine.CaseRunner#runSteps} 用于决定是否在子步骤失败时中断整条用例：
+     * 容器本身失败不算「用例级失败中断」，否则 IF/FOR 等控制结构会让用例整体提前停。
+     *
+     * @return true 表示是控制器（带子步骤）
+     */
     public boolean isContainer() {
         return this == IF || this == FOR || this == WHILE
                 || this == TRANSACTION || this == ONCE || this == REF_PUBLIC_CASE;

@@ -38,15 +38,28 @@ public class TestTaskController {
     private final TaskExecutorService taskExecutorService;
     private final OssService ossService;
 
+    /**
+     * 查询项目的测试任务列表（仅未删除，按更新时间倒序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 测试任务列表
+     */
     @GetMapping
     public Result<List<TestTaskEntity>> list(@RequestParam String projectId) {
         return Result.ok(testTaskMapper.selectList(
                 new LambdaQueryWrapper<TestTaskEntity>()
                         .eq(TestTaskEntity::getProjectId, projectId)
-                        .isNull(TestTaskEntity::getDeletedAt)
+                        .isNull(TestTaskEntity::getDeletedAt) // 过滤已软删除任务
                         .orderByDesc(TestTaskEntity::getUpdatedAt)));
     }
 
+    /**
+     * 获取测试任务详情。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 任务实体（含 caseIds/executeMode/cron/webhook 等配置）
+     * @throws BizException 任务不存在时抛 notFound
+     */
     @GetMapping("/{id}")
     public Result<TestTaskEntity> get(@PathVariable String id) {
         TestTaskEntity task = testTaskMapper.selectById(id);
@@ -56,6 +69,14 @@ public class TestTaskController {
         return Result.ok(task);
     }
 
+    /**
+     * 新建测试任务：补齐默认值并校验后落库，同时注册定时调度（若配置了 cron）。
+     *
+     * @param task 任务实体（请求体），name 必填，executeMode 仅限 sequential/parallel
+     * @return 已落库的任务实体
+     * @throws BizException 必填缺失或 executeMode/failStrategy/cron 不合法时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=test_task
+     */
     @AuditLog(action = "create", entityType = "test_task")
     @PostMapping
     public Result<TestTaskEntity> create(@RequestBody TestTaskEntity task) {
@@ -67,6 +88,15 @@ public class TestTaskController {
         return Result.ok(task);
     }
 
+    /**
+     * 更新测试任务：未传字段回填原值（防止被默认值清空），校验后落库并重新注册定时调度。
+     *
+     * @param id   任务 ID（路径参数，必填）
+     * @param task 任务实体（请求体）
+     * @return 无业务数据
+     * @throws BizException 任务不存在或字段不合法时抛 notFound/badRequest
+     * @audit 写审计日志：action=update, entityType=test_task
+     */
     @AuditLog(action = "update", entityType = "test_task")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable String id, @RequestBody TestTaskEntity task) {
@@ -83,6 +113,13 @@ public class TestTaskController {
         return Result.ok();
     }
 
+    /**
+     * 软删除测试任务：打 deletedAt 并移除其定时调度（不再触发）。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 无业务数据（不存在时静默成功）
+     * @audit 写审计日志：action=delete, entityType=test_task
+     */
     @AuditLog(action = "delete", entityType = "test_task")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
@@ -96,7 +133,12 @@ public class TestTaskController {
     }
 
     /**
-     * 异步触发（投递 RabbitMQ,适合分布式集群）。
+     * 异步触发（投递 RabbitMQ，适合分布式集群）：为每个用例创建 PENDING 运行记录并发送 MQ，分布到执行机执行。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 本次触发的运行记录（TestTaskRun）列表
+     * @throws BizException 任务不存在时抛 notFound
+     * @audit 写审计日志：action=execute, entityType=test_task
      */
     @AuditLog(action = "execute", entityType = "test_task")
     @PostMapping("/{id}/run")
@@ -123,7 +165,12 @@ public class TestTaskController {
     }
 
     /**
-     * 同步本地执行（走 TaskExecutorService,支持并行池 + 失败策略）。
+     * 同步本地执行（走 TaskExecutorService，支持并行池 + 失败策略），接口阻塞直到全部用例执行完毕。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 执行批次列表（每条用例含结果与断言）
+     * @throws BizException 任务不存在时抛 notFound
+     * @audit 写审计日志：action=execute_sync, entityType=test_task
      */
     @AuditLog(action = "execute_sync", entityType = "test_task")
     @PostMapping("/{id}/run-sync")
@@ -135,6 +182,12 @@ public class TestTaskController {
         return Result.ok(taskExecutorService.execute(task));
     }
 
+    /**
+     * 查询某任务的历史执行批次列表（details 若为 minio 引用则实时拉取回填为实际内容）。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 执行批次（TestTaskRun）列表
+     */
     @GetMapping("/{id}/runs")
     public Result<List<TestTaskRunEntity>> runs(@PathVariable String id) {
         List<TestTaskRunEntity> list = taskExecutorService.listRuns(id);
@@ -146,6 +199,13 @@ public class TestTaskController {
         return Result.ok(list);
     }
 
+    /**
+     * 启用/停用任务：切换 enabled 标记并同步注册或移除定时调度。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 无业务数据
+     * @throws BizException 任务不存在时抛 notFound
+     */
     @PostMapping("/{id}/toggle")
     public Result<Void> toggle(@PathVariable String id) {
         TestTaskEntity task = testTaskMapper.selectById(id);
@@ -159,8 +219,13 @@ public class TestTaskController {
     }
 
     /**
-     * 生成/重置 webhook token。
-     * 仅返回一次,前端需提示用户妥善保管。
+     * 生成/重置 webhook token（仅返回一次，前端需提示用户妥善保管）。
+     * <p>rotate 隐含"启用 webhook"意图：强制开启 webhookEnabled，避免此前禁用后无法重新启用。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return token 与完整触发 URL
+     * @throws BizException 任务不存在时抛 notFound
+     * @audit 写审计日志：action=rotate_webhook, entityType=test_task
      */
     @AuditLog(action = "rotate_webhook", entityType = "test_task")
     @PostMapping("/{id}/webhook/rotate")
@@ -181,6 +246,14 @@ public class TestTaskController {
         return Result.ok(resp);
     }
 
+    /**
+     * 禁用任务的 webhook 触发（保留已生成的 token，仅关闭触发开关）。
+     *
+     * @param id 任务 ID（路径参数，必填）
+     * @return 无业务数据
+     * @throws BizException 任务不存在时抛 notFound
+     * @audit 写审计日志：action=disable_webhook, entityType=test_task
+     */
     @AuditLog(action = "disable_webhook", entityType = "test_task")
     @PostMapping("/{id}/webhook/disable")
     public Result<Void> disableWebhook(@PathVariable String id) {

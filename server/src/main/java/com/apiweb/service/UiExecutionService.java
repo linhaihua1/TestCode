@@ -47,11 +47,37 @@ public class UiExecutionService {
     private final OssService ossService;
     private final EngineProperties engineProperties;
 
+    /**
+     * 异步执行 UI 自动化用例（由 MQ 消费者通过 @Async 调用）。
+     *
+     * <p>使用 {@code @Async} 的原因：Selenium 驱动真实 Chrome 属于长耗时、独占浏览器实例的
+     * 操作，同步执行会阻塞 MQ 消费线程或 HTTP 请求线程；异步后由独立线程池承载，
+     * 调用方可立即返回。线程池配置见 {@code ExecutorConfig}。</p>
+     *
+     * @param message MQ 任务消息（含 runId / caseId）
+     */
     @Async
     public void executeAsync(EngineDtos.TaskMessage message) {
         execute(message.getRunId(), message.getCaseId());
     }
 
+    /**
+     * 同步执行 UI 用例（在当前线程启动 ChromeDriver 并执行 setup/test/teardown 三段）。
+     *
+     * <p>设计要点：
+     * <ul>
+     *   <li>本方法为同步阻塞，必须由 {@link #executeAsync} 调用；</li>
+     *   <li>启动独立 {@code ChromeDriver} 实例，finally 中 {@code driver.quit()} 释放，
+     *       避免无头浏览器进程泄漏；</li>
+     *   <li>单步异常会被捕获并记入明细，不影响后续步骤；整体状态按明细是否有非 SUCCESS 决定。</li>
+     * </ul>
+     *
+     * <p>副作用：更新 {@code t_ui_report} 的 status / duration / details（明细超过阈值时经
+     * {@link OssService} 转存 OSS，库内仅存 {@code minio://} 引用）并落库。</p>
+     *
+     * @param runId  本次执行的报告 ID（对应 UiReportEntity.id）
+     * @param caseId UI 用例 ID（对应 UiTestCaseEntity.id）
+     */
     public void execute(String runId, String caseId) {
         UiTestCaseEntity test = uiTestCaseMapper.selectById(caseId);
         UiReportEntity report = uiReportMapper.selectById(runId);
@@ -123,6 +149,17 @@ public class UiExecutionService {
         uiReportMapper.updateById(report);
     }
 
+    /**
+     * 执行某一阶段（segment）的步骤序列：setup / test / teardown。
+     *
+     * <p>每个步骤的成败独立记录到 details，单步失败仅标记该步骤为 FAILED 并截图，
+     * 不中断后续步骤；最终报告状态由调用方汇总。</p>
+     *
+     * @param driver  已初始化的 WebDriver
+     * @param stepsJson 该阶段的步骤 JSON（可为 null，按空数组处理）
+     * @param segment 阶段标识（SETUP / TEST / TEARDOWN），用于明细分组
+     * @param details 累积的步骤执行明细（出参）
+     */
     @SuppressWarnings("unchecked")
     private void runSegment(WebDriver driver, String stepsJson, String segment,
                             List<Map<String, Object>> details) {

@@ -98,6 +98,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 全局变量页（旧版入口）：项目级变量的增删改与批量删除。
+ *
+ * <p>变量名需满足标识符规范（字母/下划线开头），否则后端变量解析会失败；
+ * 标记为密钥的值默认掩码展示，点击查看需二次确认。</p>
+ */
 import { onMounted, reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
@@ -168,6 +174,7 @@ function openEdit(record: GlobalVariable) {
   modalOpen.value = true
 }
 
+/** 保存变量：名称必须是合法标识符，否则后端变量解析会取不到值 */
 async function save() {
   if (!editing.name?.trim()) {
     message.warning('变量名不能为空')
@@ -194,6 +201,7 @@ async function remove(id: string) {
   await reload()
 }
 
+/** 批量删除：逐条调用（后端无批量接口），全部完成后刷新 */
 async function batchDelete() {
   for (const id of selectedRowKeys.value) {
     await GlobalVariableApi.remove(id)
@@ -203,6 +211,7 @@ async function batchDelete() {
   message.success('批量删除完成')
 }
 
+/** 切换密钥明文显示：首次查看需要二次确认，防止敏感值被旁观 */
 function toggleReveal(id: string) {
   if (!revealed[id]) {
     // 二次确认

@@ -62,6 +62,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 环境管理页：维护各环境的 baseUrl、公共请求头与环境变量。
+ *
+ * <p>环境的 variables/headers 在后端以 JSON 字符串存储，
+ * api 层已做数组与字符串的双向转换，本页直接按数组编辑即可。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
@@ -126,6 +132,7 @@ function openCreate() {
   modal.value = true
 }
 
+/** 打开编辑：可选字段补默认值，保证表单绑定不出现 undefined */
 function openEdit(record: Environment) {
   // baseUrl 在 Environment 中可选，补齐为 ''；数组字段保证非空
   Object.assign(form, record, {

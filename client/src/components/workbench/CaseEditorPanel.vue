@@ -170,6 +170,18 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 用例编辑面板（工作台中间栏）：编辑用例元信息与"前置/测试/后置"三段步骤。
+ *
+ * <p>要点：</p>
+ * <ul>
+ *   <li>步骤以一维数组 {@code form.steps} 存储，用 position 字段区分分区；
+ *       三个分区通过 computed 的 get/set 暴露给 draggable，拖拽排序后写回原数组，保持顺序稳定；</li>
+ *   <li>每个步骤带 _id（前端生成的唯一标识），仅用于拖拽与列表 key，不提交业务语义；</li>
+ *   <li>通过 defineExpose 暴露 save / debug / showDebugRecords，供父组件 Workbench 与快捷键调用；</li>
+ *   <li>调试不在本组件内直接发起，而是 emit('debug') 交给父组件弹窗选择环境后再执行。</li>
+ * </ul>
+ */
 import { computed, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -189,6 +201,7 @@ const emit = defineEmits<{
   debug: [caseId: string]
 }>()
 
+/** 表单数据：props 的一次性拷贝，之后在组件内编辑 */
 const form = reactive<CaseInfo & { steps: CaseStep[] }>({
   ...props.caseData,
   steps: (props.caseData.steps || []) as CaseStep[]
@@ -196,8 +209,10 @@ const form = reactive<CaseInfo & { steps: CaseStep[] }>({
 
 const saving = ref(false)
 const debugging = ref(false)
+/** 当前页签：script=步骤编排 / debug=调试记录 */
 const activeTab = ref<'script' | 'debug'>('script')
 
+/** 调试记录列表 */
 const records = ref<DebugRecord[]>([])
 const recordsLoading = ref(false)
 
@@ -206,6 +221,11 @@ const priorityOptions = ['P0', 'P1', 'P2', 'P3'].map((v) => ({ value: v, label: 
 /* ============================================================
    三个步骤分区（computed get/set，供 draggable v-model 排序）
    ============================================================ */
+/**
+ * 构造某个分区（PRE/TEST/POST）的可读写 computed：
+ * get 过滤出该分区步骤；set 把拖拽后的顺序写回 form.steps 中对应的位置，
+ * 这样一维数组里三个分区的相对次序不会被打乱。
+ */
 function makePartition(position: 'PRE' | 'TEST' | 'POST') {
   return computed<CaseStep[]>({
     get: () => form.steps.filter((s) => (s.position || 'TEST') === position),
@@ -224,6 +244,11 @@ const postSteps = makePartition('POST')
 /* ============================================================
    步骤增删 + 复制粘贴
    ============================================================ */
+/**
+ * 新增步骤。
+ * <p>插入位置规则：前置步骤放数组最前，后置步骤放最后，
+ * 测试步骤插在第一个后置步骤之前（没有后置步骤则追加到末尾）。</p>
+ */
 function addStep(position: 'PRE' | 'TEST' | 'POST') {
   const step: CaseStep = {
     _id: uid(),
@@ -251,6 +276,7 @@ function addStep(position: 'PRE' | 'TEST' | 'POST') {
   }
 }
 
+/** 删除指定分区内第 idx 个步骤（先还原它在总数组中的下标再删） */
 function removeStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
   const posSteps = form.steps.filter((s) => (s.position || 'TEST') === position)
   const target = posSteps[idx]
@@ -259,14 +285,17 @@ function removeStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
   }
 }
 
+/** 剪贴板：只保存一份步骤的深拷贝（组件内临时，刷新即失效） */
 const clipboard = ref<CaseStep | null>(null)
 
+/** 复制步骤：深拷贝后立即换新的 _id，避免与源步骤的拖拽 key 冲突 */
 function copyStep(step: CaseStep) {
   clipboard.value = JSON.parse(JSON.stringify(step))
   clipboard.value!._id = uid()
   message.success('已复制步骤')
 }
 
+/** 把剪贴板里的步骤插入到指定分区第 idx 个步骤之后 */
 function pasteStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
   if (!clipboard.value) {
     message.warning('请先复制一个步骤')
@@ -284,6 +313,7 @@ function pasteStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
 /* ============================================================
    保存 / 调试 / 删除
    ============================================================ */
+/** 保存用例（步骤数组整体提交，后端以 JSON 存储） */
 async function save() {
   if (!form.name) {
     message.warning('请填写用例名称')
@@ -303,6 +333,7 @@ async function debug() {
   emit('debug', form.id)
 }
 
+/** 删除当前用例（后端软删除，可在回收站恢复） */
 async function remove() {
   await CaseApi.remove(form.id)
   emit('saved')
@@ -336,6 +367,10 @@ defineExpose({ save, debug, showDebugRecords })
 /* ============================================================
    监听 caseData 变化
    ============================================================ */
+/**
+ * 兼容旧数据：补齐缺失的数组字段与默认值，
+ * 保证模板里直接访问 s.headers.length 之类不会报错。
+ */
 function ensureStepShape(s: CaseStep) {
   if (!s.headers) s.headers = []
   if (!s.query) s.query = []

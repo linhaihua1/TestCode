@@ -22,6 +22,9 @@ public class ExecutorController {
 
     /**
      * 心跳注册/上报（免 token：执行机使用固定注册密钥，此处简化为直接上报）。
+     *
+     * @param body 请求体，含 nodeId（缺省则用本机 ID）、name、capabilities（能力标签列表，可选）
+     * @return 当前节点状态实体（含最后心跳时间、在线状态等）
      */
     @PostMapping("/heartbeat")
     public Result<ExecutorNodeEntity> heartbeat(@RequestBody Map<String, Object> body) {
@@ -35,6 +38,8 @@ public class ExecutorController {
 
     /**
      * 查询资源池（在线执行机列表）。
+     *
+     * @return 在线执行机节点列表
      */
     @GetMapping("/pool")
     public Result<List<ExecutorNodeEntity>> pool() {
@@ -42,7 +47,10 @@ public class ExecutorController {
     }
 
     /**
-     * 任务执行完成回调（执行机释放占用）。
+     * 任务执行完成回调（执行机释放任务占用）。
+     *
+     * @param nodeId 执行机节点 ID（路径参数，必填）
+     * @return 无业务数据
      */
     @PostMapping("/{nodeId}/release")
     public Result<Void> release(@PathVariable String nodeId) {

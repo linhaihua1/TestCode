@@ -90,6 +90,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 通用三栏布局：左右两栏可拖拽调宽、可折叠，宽度按 storageKey 持久化到 localStorage。
+ *
+ * <p>拖拽通过监听 document 的 mousemove/mouseup 实现，结束后立即解绑，避免内存泄漏；
+ * 左右栏有最小宽度限制，中间栏保证不小于 400px。</p>
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons-vue'
 

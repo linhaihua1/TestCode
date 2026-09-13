@@ -65,8 +65,9 @@ public class AuthController {
     /**
      * 登录接口。
      *
-     * @param req 登录请求（用户名 + 密码）
-     * @return 成功返回 token + 用户基本信息；失败抛 BizException(401)
+     * @param req 登录请求（用户名 + 密码，均非空校验）
+     * @return 成功返回 token + 用户基本信息（id/username/role）
+     * @throws BizException 用户名不存在或密码错误时抛 unauthorized(401)；用户名/密码为空校验失败
      */
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@RequestBody @Validated LoginRequest req) {
@@ -90,6 +91,10 @@ public class AuthController {
      * 用户注册（开放注册，生产环境可禁用或加权限）。
      *
      * <p>新用户默认角色为 {@code member}（普通成员），无管理权限。</p>
+     *
+     * @param req 注册请求（用户名 + 密码，均非空校验）
+     * @return 无业务数据
+     * @throws BizException 用户名已存在时抛 badRequest(400)
      */
     @PostMapping("/register")
     public Result<Void> register(@RequestBody @Validated LoginRequest req) {
@@ -110,8 +115,10 @@ public class AuthController {
     /**
      * 修改当前用户密码。
      *
-     * @param body 含 {@code oldPassword} / {@code newPassword} 两个字段
+     * @param body 含 {@code oldPassword} / {@code newPassword} 两个字段，
      *             newPassword 长度下限由 {@code apiweb.security.min-password-length} 决定
+     * @return 无业务数据
+     * @throws BizException 新密码过短、原密码错误或用户不存在时抛 badRequest(400)
      */
     @PostMapping("/change-password")
     public Result<Void> changePassword(@RequestBody Map<String, String> body) {
@@ -131,6 +138,9 @@ public class AuthController {
 
     /**
      * 获取当前登录用户信息（前端刷新页面时验证 token 有效性）。
+     *
+     * @return 当前用户基本信息（id/username/role）
+     * @throws BizException 未登录或 token 失效时抛 unauthorized(401)
      */
     @GetMapping("/me")
     public Result<Map<String, Object>> me() {

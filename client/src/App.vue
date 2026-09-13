@@ -16,6 +16,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 应用根组件：挂载全局配置（Ant Design Vue 的 ConfigProvider）与路由出口。
+ */
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import { antTheme } from '@/styles/antTheme'
 </script>

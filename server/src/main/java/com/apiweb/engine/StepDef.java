@@ -43,6 +43,12 @@ public class StepDef {
 
     /**
      * 从 Map 解析（兼容旧的 step JSON）。
+     *
+     * <p>旧版步骤用 {@code Map<String,Object>} 表示，这里统一转换为 {@link StepDef}。
+     * 解析期间对缺失字段填充默认值，保证下游执行器拿到的对象始终可用。
+     *
+     * @param raw 旧版步骤原始 Map
+     * @return 解析后的步骤定义
      */
     @SuppressWarnings("unchecked")
     public static StepDef fromMap(Map<String, Object> raw) {
@@ -78,7 +84,15 @@ public class StepDef {
         return d;
     }
 
-    /** 从 JSON 数组字符串解析步骤列表 */
+    /**
+     * 从 JSON 数组字符串解析步骤列表。
+     *
+     * <p>用于兼容旧 API（{@link CaseRunner#run}）。解析失败或入参为空时返回空列表，
+     * 不抛异常，避免一个坏 JSON 让整条用例崩溃。
+     *
+     * @param json 形如 {@code [{"type":"HTTP_REQUEST",...}, ...]} 的 JSON 字符串
+     * @return 步骤定义列表（不会为 null）
+     */
     public static List<StepDef> fromJsonArray(String json) {
         if (json == null || json.isBlank()) return List.of();
         try {
@@ -94,14 +108,14 @@ public class StepDef {
         }
     }
 
-    /** 从 config 取字符串字段 */
+    /** 从 config 取字符串字段；config 为 null 或字段缺失时返回 null。 */
     public String cfg(String key) {
         if (config == null) return null;
         Object v = config.get(key);
         return v == null ? null : String.valueOf(v);
     }
 
-    /** 从 config 取整数字段 */
+    /** 从 config 取整数字段；缺失、非数字或解析失败时返回 null。 */
     public Integer cfgInt(String key) {
         if (config == null) return null;
         Object v = config.get(key);
@@ -114,7 +128,7 @@ public class StepDef {
         }
     }
 
-    /** 从 config 取长整型字段 */
+    /** 从 config 取长整型字段；缺失、非数字或解析失败时返回 null。 */
     public Long cfgLong(String key) {
         if (config == null) return null;
         Object v = config.get(key);
@@ -127,7 +141,7 @@ public class StepDef {
         }
     }
 
-    /** 从 config 取布尔字段 */
+    /** 从 config 取布尔字段；缺失时返回 null，字符串 "true"（忽略大小写）视为 true。 */
     public Boolean cfgBool(String key) {
         if (config == null) return null;
         Object v = config.get(key);

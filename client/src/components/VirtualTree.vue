@@ -22,6 +22,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 模块目录树组件：基于 Ant Design Vue 目录树，支持关键字过滤与按类型显示图标。
+ *
+ * <p>过滤采用"命中节点及其祖先保留"的策略，避免父节点被过滤掉后子节点无处挂载；
+ * 树数据由父组件按 type（case/api/ui/perf）加载后传入。</p>
+ */
 import { computed, ref, watch } from 'vue'
 import {
   FolderOutlined, FolderOpenOutlined, AppstoreOutlined,

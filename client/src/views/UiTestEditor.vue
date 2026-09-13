@@ -61,6 +61,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * UI 用例编辑器：编辑一个 UI 用例的三段式步骤（setup / test / teardown）。
+ *
+ * <p>执行前会先自动保存，避免跑的是未保存的草稿；
+ * 执行为异步投递，成功后跳转到 UI 报告列表查看结果。</p>
+ */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -79,6 +85,7 @@ const activeTab = ref<UiSegmentCode>(UI_SEGMENTS.TEST)
 const saving = ref(false)
 const running = ref(false)
 
+/** 加载用例：三段步骤缺失时补空数组，兼容历史数据 */
 async function load() {
   testCase.value = await UiApi.getTest(route.params.id as string)
   if (!testCase.value.setupSteps) testCase.value.setupSteps = []
@@ -96,6 +103,7 @@ async function save() {
   }
 }
 
+/** 保存后执行：先落库再投递，避免执行的是未保存的草稿 */
 async function run() {
   await save()
   running.value = true

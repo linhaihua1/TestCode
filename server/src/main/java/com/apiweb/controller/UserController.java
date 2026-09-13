@@ -30,14 +30,29 @@ public class UserController {
     @Value("${apiweb.security.min-password-length:6}")
     private int minPasswordLength;
 
+    /**
+     * 查询全部用户列表（仅管理员）。
+     * <p>返回前清空 passwordHash，避免密码哈希随响应外泄。
+     *
+     * @return 用户列表（不含密码哈希，role 字段标明权限）
+     * @throws BizException 非管理员时抛 forbidden(403)
+     */
     @GetMapping
     public Result<List<UserEntity>> list() {
         requireAdmin();
         List<UserEntity> users = userMapper.selectList(null);
-        users.forEach(u -> u.setPasswordHash(null));
+        users.forEach(u -> u.setPasswordHash(null)); // 清空密码哈希，避免随响应外泄
         return Result.ok(users);
     }
 
+    /**
+     * 新建用户（仅管理员）：BCrypt 加密密码后落库，role 默认 member。
+     *
+     * @param body 请求体，含 username（必填）、password（至少 minPasswordLength 位）、role（可选，默认 member）
+     * @return 已落库用户实体（passwordHash 已清空）
+     * @throws BizException 非管理员抛 forbidden；用户名/密码不合规或角色非法时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=user
+     */
     @AuditLog(action = "create", entityType = "user")
     @PostMapping
     public Result<UserEntity> create(@RequestBody Map<String, String> body) {
@@ -61,6 +76,15 @@ public class UserController {
         return Result.ok(user);
     }
 
+    /**
+     * 更新用户（仅管理员）：可改 role 或重置密码，未传字段保持原值。
+     *
+     * @param id   用户 ID（路径参数，必填）
+     * @param body 请求体，可含 role、password（重置时至少 minPasswordLength 位）
+     * @return 无业务数据
+     * @throws BizException 非管理员抛 forbidden；用户不存在抛 notFound；角色非法抛 badRequest
+     * @audit 写审计日志：action=update, entityType=user
+     */
     @AuditLog(action = "update", entityType = "user")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable String id, @RequestBody Map<String, String> body) {
@@ -86,10 +110,19 @@ public class UserController {
         return Result.ok();
     }
 
+    /**
+     * 删除用户（仅管理员）：禁止删除当前登录用户自身（防止无管理员可用）。
+     *
+     * @param id 用户 ID（路径参数，必填）
+     * @return 无业务数据
+     * @throws BizException 非管理员抛 forbidden；删除自身时抛 badRequest
+     * @audit 写审计日志：action=delete, entityType=user
+     */
     @AuditLog(action = "delete", entityType = "user")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
         requireAdmin();
+        // 禁止管理员删除自己，避免把系统变成"无管理员可用"状态
         if (id.equals(UserContext.userId())) {
             throw BizException.badRequest("不能删除当前登录用户");
         }

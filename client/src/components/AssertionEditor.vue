@@ -34,6 +34,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 断言编辑组件：配置"取值来源 + 比较符 + 期望值"，支持拖拽排序。
+ *
+ * <p>来源与比较符的取值需与后端断言引擎保持一致（新增操作符要同步后端实现）；
+ * 加载历史数据时自动补齐 _id 以支撑拖拽。</p>
+ */
 import draggable from 'vuedraggable'
 import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'
 import { uid, ensureIds } from '@/utils/uid'

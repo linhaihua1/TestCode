@@ -236,6 +236,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * UI 用例执行页（场景）：编排并运行 UI 场景，查看执行结果与报告。
+ *
+ * <p>执行为异步投递，页面轮询/刷新报告列表获取结果；
+ * 可指定执行机地址、失败重试次数与超时时间。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {

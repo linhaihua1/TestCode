@@ -24,6 +24,16 @@ public class AuditLogController {
 
     private final AuditLogMapper auditLogMapper;
 
+    /**
+     * 分页查询审计日志（仅 ADMIN 角色可访问，见类级 @RequireRole）。
+     * <p>支持按操作人用户名、操作对象类型（entityType）过滤，按创建时间倒序。
+     *
+     * @param username   操作人用户名（可选），精确匹配
+     * @param entityType 操作对象类型（可选），如 api/project/case 等
+     * @param page        页码，默认 1
+     * @param size        每页条数，默认 20，上限 100（防止大页查询）
+     * @return records=本页日志列表，total=总条数，page/size=分页参数回显
+     */
     @GetMapping
     public Result<Map<String, Object>> list(
             @RequestParam(required = false) String username,
@@ -31,6 +41,7 @@ public class AuditLogController {
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size) {
         Page<AuditLogEntity> result = auditLogMapper.selectPage(
+                // 单页上限 100，防止超大 size 拖垮查询
                 new Page<>(page, Math.min(size, 100)),
                 new LambdaQueryWrapper<AuditLogEntity>()
                         .eq(username != null && !username.isBlank(), AuditLogEntity::getUsername, username)

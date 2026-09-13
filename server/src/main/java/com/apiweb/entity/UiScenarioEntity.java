@@ -9,16 +9,19 @@ import lombok.EqualsAndHashCode;
 
 /**
  * UI 执行场景（即 UI 自动化测试执行任务）。
- * <p>收集多个 UI 用例按 {@link UiScenarioStepEntity#getSortOrder()} 升序依次执行。</p>
- * <p>执行参数：执行环境（environmentId）、执行参数（variables JSON）、执行机地址（executorUrl/Host/Port）、
+ * <p>收集多个 UI 用例按 {@link UiScenarioStepEntity#getSortOrder()} 升序依次执行。
+ * 执行参数：执行环境（environmentId）、执行参数（variables JSON）、执行机地址（executorUrl/Host/Port）、
  * 失败重试（retryCount）与超时（timeoutMs）。</p>
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("t_ui_scenario")
 public class UiScenarioEntity extends BaseEntity {
+    /** 所属项目 ID */
     private String projectId;
+    /** 名称 */
     private String name;
+    /** 描述 */
     private String description;
 
     /** 执行环境 ID（来自 t_environment 表，执行时合并其变量） */

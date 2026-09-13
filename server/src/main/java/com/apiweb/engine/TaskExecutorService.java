@@ -84,6 +84,13 @@ public class TaskExecutorService {
 
     /**
      * 执行任务（按任务的 executeMode + failStrategy 决定执行方式）。
+     *
+     * <p>流程：解析 caseIds → 为每个用例预建 run 记录 → 顺序/并行执行 → 汇总生成报告。
+     * 任务级变量池在此方法内通过 {@link #buildResolver} 构建并注入每个用例。
+     *
+     * @param task 待执行任务（含 caseIds、executeMode、failStrategy、parallelPoolSize 等）
+     * @return 本次创建的用例运行记录列表（run）
+     * @throws com.apiweb.common.BizException 任务或用例列表为空时抛出（参数校验）
      */
     public List<TestTaskRunEntity> execute(TestTaskEntity task) {
         if (task == null) throw BizException.badRequest("任务为空");
@@ -201,6 +208,16 @@ public class TaskExecutorService {
         }
     }
 
+    /**
+     * 懒初始化并行执行池（双重检查锁，保证线程安全且只创建一次）。
+     *
+     * <p>线程设为守护线程：JVM 退出时不会因池内线程未结束而阻塞关闭；
+     * 拒绝策略用 {@code AbortPolicy}，队列满时直接抛异常由上层捕获，
+     * 而不是静默丢弃用例（避免「任务看起来成功但用例没跑」）。
+     *
+     * @param poolSize 线程池核心/最大线程数（已在外部 clamp 到合法范围）
+     * @return 复用的并行执行池
+     */
     private ExecutorService getOrCreateExecutor(int poolSize) {
         ExecutorService local = parallelExecutor;
         if (local == null || local.isShutdown()) {
@@ -225,6 +242,14 @@ public class TaskExecutorService {
         return local;
     }
 
+    /**
+     * 把用户配置的并行池大小收敛到合法区间 [1, max]。
+     *
+     * <p>下限防止 poolSize<=0 导致线程池无法接受任务；上限防止误配超大并发拖垮机器。
+     *
+     * @param raw 任务里配置的并行池大小（可能为 null）
+     * @return 收敛后的实际池大小
+     */
     private int clampPoolSize(Integer raw) {
         if (raw == null) return engineProperties.getDefaultParallelPoolSize();
         if (raw < 1) return 1;
@@ -316,6 +341,14 @@ public class TaskExecutorService {
                         .last("LIMIT " + engineProperties.getListMaxLimit()));
     }
 
+    /**
+     * 列出当前活跃任务（便捷查询）。
+     *
+     * <p>当前实现返回空列表，活跃任务的真实判断已下沉到执行机和调度层，
+     * 保留方法仅作占位以兼容调用方接口。
+     *
+     * @return 活跃任务列表（当前恒为空）
+     */
     public List<TestTaskRunEntity> listActiveTasks() {
         return Collections.emptyList();
     }

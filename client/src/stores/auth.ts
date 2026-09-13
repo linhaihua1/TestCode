@@ -1,3 +1,9 @@
+/**
+ * 认证状态（Pinia）：保存 token 与当前用户，提供登录、登出与角色判断。
+ *
+ * <p>token 持久化到 localStorage，请求头由 api/client 统一附加；
+ * isAdmin / isViewer 等判断用于菜单与各页面的写权限控制。</p>
+ */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { AuthApi } from '@/api'

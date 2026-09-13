@@ -45,6 +45,21 @@ public class RecycleBinAutoCleanJob implements Job {
     private final CaseMapper caseMapper;
     private final TestTaskMapper testTaskMapper;
 
+    /**
+     * Quartz 定时入口：每日凌晨触发，按各项目回收站配置清理过期软删除条目。
+     *
+     * <p>逻辑：
+     * <ul>
+     *   <li>读取全部项目的回收站配置；{@code cleanupDays == null || <= 0} 表示该项目不自动清理，跳过；</li>
+     *   <li>以 {@code now - cleanupDays*86400s} 为阈值，物理删除 deleted_at 早于该时间的条目；</li>
+     *   <li>四类资源（模块/接口/用例/任务）均按 projectId 过滤后逐条 deleteById。</li>
+     * </ul>
+     *
+     * <p>该 Job 标注 {@link DisallowConcurrentExecution}，集群中同一时刻仅一个节点执行，
+     * 避免重复删除。</p>
+     *
+     * @param context Quartz 作业执行上下文
+     */
     @Override
     public void execute(JobExecutionContext context) {
         List<RecycleBinConfigEntity> configs = configMapper.selectList(null);
@@ -66,6 +81,16 @@ public class RecycleBinAutoCleanJob implements Job {
         log.info("[RecycleBinAutoClean] 全部项目共清理 {} 项", totalCleaned);
     }
 
+    /**
+     * 清理单个项目下、软删除时间早于阈值的四类资源（模块 / 接口 / 用例 / 任务）。
+     *
+     * <p>均为不可逆的<b>物理删除</b>（deleteById）。软删除标记 deleted_at 由业务层在
+     * 用户移入回收站时写入，本方法据此判断条目的「过期」。返回本项目本次清理的条目数。</p>
+     *
+     * @param projectId 项目 ID
+     * @param threshold 软删除时间阈值（早于该时间的条目被清理）
+     * @return 本次清理的条目总数
+     */
     private int cleanProject(String projectId, Instant threshold) {
         int n = 0;
         // 模块

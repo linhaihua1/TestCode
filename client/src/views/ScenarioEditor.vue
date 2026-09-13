@@ -96,6 +96,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 场景编辑器：为场景编排接口用例步骤（可拖拽排序），并配置每步的断言与变量提取。
+ *
+ * <p>步骤只保存"引用哪个用例 + 覆盖的断言/提取"，真正的请求定义仍在接口用例里，
+ * 因此修改用例会同时影响引用它的所有场景。</p>
+ */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -130,6 +136,7 @@ const steps = ref<Step[]>([])
 const saving = ref(false)
 const running = ref(false)
 
+/** 加载场景与其步骤；ensureIds 为每条步骤补上拖拽用的 _id */
 async function load() {
   const id = route.params.id as string
   const data = await ScenarioApi.get(id)
@@ -138,6 +145,7 @@ async function load() {
   ensureIds(steps.value)
 }
 
+/** 追加一个空步骤（默认未选择引用用例，需后续指定） */
 function addStep() {
   steps.value.push({
     _id: uid(),
@@ -163,6 +171,7 @@ async function save() {
   }
 }
 
+/** 执行场景：同步等待执行完成并提示报告状态 */
 async function execute() {
   running.value = true
   try {

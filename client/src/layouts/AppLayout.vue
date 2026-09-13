@@ -183,6 +183,16 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 应用主布局：左侧菜单 + 顶部项目切换/用户区 + 右侧路由内容区。
+ *
+ * <p>职责：</p>
+ * <ul>
+ *   <li>菜单按角色动态生成（viewer 只看到接口/UI 自动化，admin 额外有用户管理与操作日志）；</li>
+ *   <li>顶部提供项目搜索切换——切换项目后用 router.go(0) 整体刷新，确保各页面重新按新项目拉数据；</li>
+ *   <li>承载新建项目、修改密码、退出登录、快捷键说明等全局交互。</li>
+ * </ul>
+ */
 import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -343,12 +353,14 @@ watch(selectedKeys, (keys) => {
    事件
    ============================================================ */
 
+/** 点击菜单：按 ROUTE_MAP 跳转到对应路由（带 query 的一并带上） */
 function onMenuSelect({ key }: { key: string }) {
   const target = ROUTE_MAP[key]
   if (!target) return
   router.push({ name: target.name, query: target.query })
 }
 
+/** 按路由 name 直接跳转（顶栏快捷入口用） */
 function goTo(name: string) {
   router.push({ name })
 }
@@ -357,6 +369,11 @@ function onProjectSearch(value: string) {
   projectKeyword.value = value
 }
 
+/**
+ * 切换当前项目。
+ * <p>切换后调用 router.go(0) 强制整页刷新：各业务页大多在 onMounted 里按项目拉数据，
+ * 重新加载比逐页监听更可靠（避免出现上一个项目的残留数据）。</p>
+ */
 function onProjectChange(id: string) {
   // 点击候选项切换项目：清空关键字，切换后刷新
   projectKeyword.value = ''
@@ -368,15 +385,18 @@ function onProjectChange(id: string) {
 /* ---------------- 新增项目 ---------------- */
 
 const createProjectModal = ref(false)
+/** 正在提交新建项目，用于按钮 loading */
 const creatingProject = ref(false)
 const createProjectForm = reactive({ name: '', description: '' })
 
+/** 打开新建项目弹窗并清空表单 */
 function openCreateProject() {
   createProjectForm.name = ''
   createProjectForm.description = ''
   createProjectModal.value = true
 }
 
+/** 新建项目：创建成功后立即切换到该项目并刷新整页 */
 async function createProject() {
   if (!createProjectForm.name.trim()) {
     message.warning('请填写项目名称')
@@ -398,6 +418,7 @@ async function createProject() {
   }
 }
 
+/** 退出登录：清空本地 token 与用户信息后回登录页 */
 function logout() {
   auth.logout()
   router.push({ name: 'login' })
@@ -407,6 +428,7 @@ function logout() {
    快捷键 / 修改密码
    ============================================================ */
 
+/** 快捷键说明（仅展示用，实际绑定见 hooks/useShortcuts） */
 const shortcuts = [
   { k: 'Ctrl + S', desc: '保存当前用例' },
   { k: 'Ctrl + Enter', desc: '调试当前用例' },
@@ -422,6 +444,7 @@ function showChangePassword() {
   passwordModal.value = true
 }
 
+/** 修改密码：新旧密码都不能为空，新密码至少 6 位 */
 async function changePassword() {
   if (!passwordForm.value.oldPassword || passwordForm.value.newPassword.length < 6) {
     message.warning('请填写完整；新密码至少 6 位')
@@ -437,6 +460,7 @@ async function changePassword() {
   }
 }
 
+/** 进入应用时先拉一次项目列表，保证顶栏项目切换可用 */
 onMounted(async () => {
   await projectStore.fetchAll()
 })

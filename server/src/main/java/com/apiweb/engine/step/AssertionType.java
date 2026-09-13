@@ -17,9 +17,36 @@ package com.apiweb.engine.step;
  * </ul>
  */
 public enum AssertionType {
-    STATUS, BODY_CONTAINS, JSONPATH, REGEX, XPATH,
-    NUMERIC, EMPTY, RESPONSE_TIME, SCRIPT, HEADER;
+    /** STATUS：校验 HTTP 状态码（等于或范围，如 200-299） */
+    STATUS,
+    /** BODY_CONTAINS：响应体包含/不包含某子串 */
+    BODY_CONTAINS,
+    /** JSONPATH：用 JSONPath 取值后与期望值比较 */
+    JSONPATH,
+    /** REGEX：正则匹配响应体 */
+    REGEX,
+    /** XPATH：从 XML/HTML 响应体按 XPath 取值 */
+    XPATH,
+    /** NUMERIC：数值比较（gt/lt/gte/lte/range） */
+    NUMERIC,
+    /** EMPTY：判空/非空 */
+    EMPTY,
+    /** RESPONSE_TIME：响应耗时阈值 */
+    RESPONSE_TIME,
+    /** SCRIPT：执行 JS 脚本断言，返回 true 视为通过 */
+    SCRIPT,
+    /** HEADER：按响应头名取值后比较 */
+    HEADER;
 
+    /**
+     * 大小写不敏感解析断言类型。
+     *
+     * <p>兼容旧版 {@code source} 取值（body/header/jsonpath/status/responsetime/regex 等）。
+     * 无法识别或为空时回退到 {@code BODY_CONTAINS}（最常见的断言）。
+     *
+     * @param s 断言类型字符串
+     * @return 对应的断言类型
+     */
     public static AssertionType parse(String s) {
         if (s == null || s.isBlank()) return BODY_CONTAINS;
         try {

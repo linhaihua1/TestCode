@@ -79,8 +79,9 @@ public class RecycleBinController {
     /**
      * 查询回收站列表（按类型）。
      *
-     * @param projectId 项目 ID
-     * @param type      {@code MODULE|API|CASE|TASK}
+     * @param projectId 项目 ID（必填）
+     * @param type      回收对象类型 {@code MODULE|API|CASE|TASK}，默认 CASE
+     * @return 对应类型的已删除对象条目列表（含名称、删除时间、附加信息 extra）
      */
     @GetMapping
     public Result<List<RecycleBinItem>> list(@RequestParam String projectId,
@@ -176,6 +177,9 @@ public class RecycleBinController {
      * 批量还原：请求体 { ids: [...], type: "MODULE|API|CASE|TASK" }。
      *
      * <p>边界：还原模块时若原 parentId 已不存在则还原到根目录。
+     *
+     * @return restoredCount=成功还原数；若存在同名冲突则额外返回 renamedIds 与 message
+     * @throws BizException ids 为空时抛 badRequest
      */
     @AuditLog(action = "restore", entityType = "recycle_bin")
     @PostMapping("/restore")
@@ -267,6 +271,9 @@ public class RecycleBinController {
      * 批量永久删除：请求体 { ids: [...], type: "..." }。
      *
      * <p>注意：永久删除不可恢复，需前端二次确认。
+     *
+     * @return 无业务数据
+     * @throws BizException ids 为空时抛 badRequest
      */
     @AuditLog(action = "permanent_delete", entityType = "recycle_bin")
     @DeleteMapping("/permanent")
@@ -288,6 +295,9 @@ public class RecycleBinController {
 
     /**
      * 清空回收站（仅清空指定类型且超过 N 天的项）。
+     * <p>olderThanDays=0 时按 1 天兜底，避免误清空全部；cleanupDays 语义见 updateConfig。
+     *
+     * @return 被永久删除的条目数量
      */
     @AuditLog(action = "purge_all", entityType = "recycle_bin")
     @DeleteMapping("/purge")
@@ -337,7 +347,10 @@ public class RecycleBinController {
     // ---------------- 自动清理配置 ----------------
 
     /**
-     * 获取项目的回收站自动清理配置。
+     * 获取项目的回收站自动清理配置（无配置时返回默认 cleanupDays=30 的占位对象）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 配置实体；不存在时返回 cleanupDays=30 的默认对象（未落库）
      */
     @GetMapping("/config")
     public Result<RecycleBinConfigEntity> getConfig(@RequestParam String projectId) {
@@ -354,6 +367,10 @@ public class RecycleBinController {
 
     /**
      * 配置自动清理周期（开发文档 §3 + §7）。{@code cleanupDays=0} 表示不自动清理。
+     *
+     * @param cfg 配置实体（请求体），projectId 必填，cleanupDays 必须 >= 0
+     * @return 无业务数据
+     * @throws BizException projectId 缺失或 cleanupDays<0 时抛 badRequest
      */
     @AuditLog(action = "update", entityType = "recycle_bin_config")
     @PutMapping("/config")

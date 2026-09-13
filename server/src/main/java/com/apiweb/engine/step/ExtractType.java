@@ -12,7 +12,16 @@ package com.apiweb.engine.step;
  * </ul>
  */
 public enum ExtractType {
-    HEADER, COOKIE, JSONPATH, REGEX, XPATH;
+    /** HEADER：按响应头名提取（不区分大小写） */
+    HEADER,
+    /** COOKIE：从 Set-Cookie 头中按 cookie 名提取值 */
+    COOKIE,
+    /** JSONPATH：用 JSONPath 从 JSON 响应体取值 */
+    JSONPATH,
+    /** REGEX：正则匹配响应体（有捕获组取 group(1)） */
+    REGEX,
+    /** XPATH：从 XML/HTML 响应体按 XPath 取值 */
+    XPATH;
 
     /** 未指定 / 无法识别时的默认提取方式 */
     public static final ExtractType DEFAULT = JSONPATH;

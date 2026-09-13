@@ -94,6 +94,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 性能测试报告详情页：展示汇总指标、响应时间趋势、分接口统计与错误 TOP。
+ */
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {

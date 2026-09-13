@@ -73,6 +73,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 项目列表页：项目的创建/编辑/删除与"进入项目"。
+ *
+ * <p>项目是全部数据的隔离单元；进入项目会把它写入 projectStore，
+ * 之后各业务页按 currentProjectId 拉取数据。删除项目会同步刷新顶栏项目列表。</p>
+ */
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -151,6 +157,7 @@ async function remove(record: Project) {
   await projectStore.fetchAll()
 }
 
+/** 进入项目：写入 store 后跳转到工作台 */
 function enterProject(record: Project) {
   projectStore.switchProject(record.id)
   router.push({ name: 'workbench' })

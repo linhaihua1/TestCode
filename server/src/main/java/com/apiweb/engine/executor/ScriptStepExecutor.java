@@ -42,6 +42,16 @@ public class ScriptStepExecutor implements StepExecutor {
         return sr;
     }
 
+    /**
+     * 执行 JavaScript 脚本步骤。
+     *
+     * <p>脚本上下文注入当前全部变量（可读），脚本返回值写入变量 {@code __script_result__}
+     * 供后续步骤引用。若当前 JVM 无 JS 引擎（如未引入 GraalVM JS），标记步骤失败而非中断。
+     *
+     * @param step 脚本步骤定义（config.script 为脚本内容）
+     * @param ctx  执行上下文（提供变量池与结果累积）
+     * @return 脚本步骤执行结果
+     */
     private EngineDtos.StepResult executeJs(StepDef step, StepContext ctx) {
         String script = step.cfg("script");
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()

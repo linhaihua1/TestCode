@@ -52,11 +52,39 @@ public class PerfExecutionService {
     private final JmeterBootstrapper jmeterBootstrapper;
     private final EngineProperties engineProperties;
 
+    /**
+     * 异步执行性能测试（由 MQ 消费者或定时任务通过 @Async 调用）。
+     *
+     * <p>使用 Spring {@code @Async} 的原因：性能压测是长耗时操作（可能持续数小时），
+     * 若同步执行会占用 HTTP 请求线程或 MQ 消费线程导致超时；异步后由独立线程池承载，
+     * 调用方（生产者/调度）可立即返回。线程池配置见 {@code ExecutorConfig}。</p>
+     *
+     * @param message MQ 任务消息（含 runId / caseId）
+     */
     @Async
     public void executeAsync(EngineDtos.TaskMessage message) {
         execute(message.getRunId(), message.getCaseId());
     }
 
+    /**
+     * 同步执行性能测试（在当前线程内驱动嵌入式 JMeter 引擎）。
+     *
+     * <p>设计要点：
+     * <ul>
+     *   <li>本方法为同步阻塞，必须由 {@link #executeAsync} 等异步入口调用，
+     *       不应直接置于请求线程中执行；</li>
+     *   <li>每次执行创建独立的 {@code StandardJMeterEngine} 实例（该引擎非线程安全，
+     *       不可复用），执行结束后在 finally 中强制 stopTest 释放资源；</li>
+     *   <li>通过轮询 {@code engine.isActive()} 等待结束，并受
+     *       {@code apiweb.engine.perf-max-duration-hours} 上限保护，超时即中断。</li>
+     * </ul>
+     *
+     * <p>副作用：根据执行结果更新 {@code t_perf_report} 的 status / summary / series / labels /
+     * errors 等字段并落库；失败时 status 置为 ERROR 并记录 message。</p>
+     *
+     * @param runId  本次执行的报告 ID（对应 PerfReportEntity.id）
+     * @param caseId 性能用例 ID（对应 PerfCaseEntity.id）
+     */
     public void execute(String runId, String caseId) {
         PerfCaseEntity perfCase = perfCaseMapper.selectById(caseId);
         PerfReportEntity report = perfReportMapper.selectById(runId);

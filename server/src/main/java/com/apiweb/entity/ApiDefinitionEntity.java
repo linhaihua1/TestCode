@@ -26,9 +26,13 @@ import java.time.Instant;
 @EqualsAndHashCode(callSuper = true)
 @TableName("t_api_definition")
 public class ApiDefinitionEntity extends BaseEntity {
+    /** 所属项目 ID */
     private String projectId;
+    /** 名称 */
     private String name;
+    /** HTTP 方法（GET / POST / PUT / DELETE 等） */
     private String method;
+    /** 接口路径（可含 {变量} 占位符） */
     private String path;
     /** 路径参数定义：JSON [{key,value,description}]（如 /users/{id} → [{key:id,description:用户ID}]） */
     @JsonDeserialize(using = JsonStringDeserializer.class)
@@ -52,7 +56,9 @@ public class ApiDefinitionEntity extends BaseEntity {
     /** 响应头：JSON {key:value} */
     @JsonDeserialize(using = JsonStringDeserializer.class)
     private String responseHeaders;
+    /** 描述 */
     private String description;
+    /** 所属模块 ID（可空，表示未归类） */
     private String moduleId;
     /** 标签：JSON ["用户管理","订单"] */
     @JsonDeserialize(using = JsonStringDeserializer.class)
@@ -87,6 +93,7 @@ public class ApiDefinitionEntity extends BaseEntity {
     private String sourceHash;
 
     /** 软删除时间：null 表示未删除，进入回收站时设置 */
+    /** 软删除时间：null 表示未删除 */
     @TableField("deleted_at")
     private Instant deletedAt;
 }

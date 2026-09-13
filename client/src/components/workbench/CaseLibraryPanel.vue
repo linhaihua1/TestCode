@@ -68,6 +68,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 用例库面板：以列表形式展示可复用的公共用例，供拖拽或选取到当前用例中。
+ */
 import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'

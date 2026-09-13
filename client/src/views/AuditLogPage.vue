@@ -48,6 +48,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 操作日志页：按用户名/实体类型分页查询审计日志。
+ *
+ * <p>日志由后端 AuditAspect 在接口方法上打 @AuditLog 后自动记录，
+ * 含操作人、动作、实体前后快照与来源 IP。</p>
+ */
 import { onMounted, ref } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
@@ -92,6 +98,7 @@ function formatTime(iso: string) {
   return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm:ss')
 }
 
+/** 按当前筛选条件与分页参数加载日志 */
 async function reload() {
   loading.value = true
   try {

@@ -56,6 +56,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * UI 用例列表页：UI 用例的创建、执行与删除。
+ *
+ * <p>执行为异步投递（MQ），创建后跳转到步骤编辑器编排
+ * 前置/测试/后置三段步骤。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -109,6 +115,7 @@ async function save() {
   router.push({ name: 'ui-test-editor', params: { id: created.id } })
 }
 
+/** 执行 UI 用例：投递到 MQ，由执行机异步消费 */
 async function run(record: UiTestCase) {
   runningId.value = record.id
   try {

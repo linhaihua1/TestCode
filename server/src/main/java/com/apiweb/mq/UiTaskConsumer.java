@@ -24,6 +24,16 @@ public class UiTaskConsumer {
 
     private final UiExecutionService uiExecutionService;
 
+    /**
+     * 消费 UI 自动化任务消息。
+     *
+     * <p>说明：同 {@link PerfTaskConsumer}，采用 RabbitMQ 默认自动 ack；收到消息后立即
+     * 委派 {@link UiExecutionService#executeAsync} 异步驱动 Chrome 执行，方法本身不阻塞。
+     * 若本机非注册 UI 执行机，任务会保留在队列由资源池中的执行机消费。结果回写
+     * {@code t_ui_report}。</p>
+     *
+     * @param message MQ 任务消息
+     */
     @RabbitListener(queues = "${apiweb.mq.queue.ui}")
     public void onMessage(EngineDtos.TaskMessage message) {
         log.info("收到 UI 任务: runId={}, caseId={}", message.getRunId(), message.getCaseId());

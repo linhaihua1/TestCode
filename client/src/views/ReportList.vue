@@ -106,6 +106,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 测试报告列表页：报告查询、导出（HTML/PDF）、删除与整体统计。
+ *
+ * <p>顶部 Allure 风格汇总把当前列表内所有报告的用例数按状态聚合；
+ * "近 7 天通过率"只统计 startedAt 在 7 天内的报告，避免历史数据稀释结论。</p>
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {
@@ -165,6 +171,7 @@ const summaryStats = computed<StatusStat[]>(() => {
   ]
 })
 
+/** 近 7 天通过率（百分比）；无数据时返回 0 而不是 NaN */
 const recent7PassRate = computed(() => {
   const cutoff = Date.now() - 7 * 86400_000
   const recent = reports.value.filter(
@@ -189,6 +196,7 @@ async function reload() {
   }
 }
 
+/** 导出报告：直接在新窗口打开后端的导出地址（HTML/PDF） */
 function exportReport(record: Report, format: 'html' | 'pdf') {
   const url = format === 'html'
     ? ReportApi.exportHtmlUrl(record.id)

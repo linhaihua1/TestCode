@@ -27,6 +27,12 @@ public class IfStepExecutor implements StepExecutor {
     /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
     private final ObjectProvider<CaseRunner> caseRunnerProvider;
 
+    /**
+     * 延迟获取 CaseRunner（通过 ObjectProvider 避免构造期循环依赖）。
+     *
+     * @return 可用的 CaseRunner 实例
+     * @throws IllegalStateException 容器尚未就绪（理论上不会发生）
+     */
     private CaseRunner runner() {
         CaseRunner r = caseRunnerProvider.getIfAvailable();
         if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
@@ -61,6 +67,15 @@ public class IfStepExecutor implements StepExecutor {
         return sr;
     }
 
+    /**
+     * 读取 IF 的 else 分支步骤。
+     *
+     * <p>else 分支以步骤列表形式内联在 config 的 elseBranch 字段里（与 children 平级），
+     * 用 {@link StepDef#fromMap} 转为标准步骤定义后执行。
+     *
+     * @param raw 步骤 config 中的 elseBranch 字段
+     * @return else 分支步骤列表（缺失或非列表时返回空列表）
+     */
     @SuppressWarnings("unchecked")
     private List<StepDef> readElseBranch(Object raw) {
         if (!(raw instanceof List<?> list)) return List.of();

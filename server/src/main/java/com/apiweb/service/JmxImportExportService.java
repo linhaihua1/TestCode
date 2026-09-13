@@ -38,12 +38,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class JmxImportExportService {
 
-    /** 导出用例为 .jmx 文本。 */
+    /**
+     * 导出单个性能用例为 .jmx 文本。
+     *
+     * @param c 性能用例实体（含线程组 / 步骤等配置）
+     * @return 标准 JMeter .jmx 文本
+     */
     public String exportJmx(PerfCaseEntity c) {
         return JmxBuilder.build(c);
     }
 
-    /** 批量导出多个用例，合并为一个 .jmx（一个 TestPlan + 多个 ThreadGroup）。 */
+    /**
+     * 批量导出多个用例，合并为一个 .jmx（一个 TestPlan + 多个 ThreadGroup）。
+     *
+     * @param cases 性能用例列表
+     * @return 合并后的 .jmx 文本
+     */
     public String exportJmxMulti(List<PerfCaseEntity> cases) {
         return JmxBuilder.buildMulti(cases);
     }
@@ -51,6 +61,13 @@ public class JmxImportExportService {
     /**
      * 解析 .jmx 文本为性能用例（不含 projectId/name 的持久化，仅填充结构字段）。
      * 调用方负责设置 projectId / name。
+     *
+     * <p>副作用：在临时目录写 .jmx 文件并随即删除（仅用于 {@link SaveService} 解析）；
+     * 解析失败或文件中无 HTTP 采样器时抛出 {@code BizException}（badRequest）。</p>
+     *
+     * @param jmxXml 标准 JMeter .jmx 文本
+     * @return 填充了线程组 / 步骤等结构字段的 PerfCaseEntity（未设 projectId/name）
+     * @throws com.apiweb.common.BizException 文件格式非法或未找到 HTTP 请求采样器
      */
     public PerfCaseEntity importJmx(String jmxXml) {
         try {

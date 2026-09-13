@@ -53,6 +53,12 @@ public class UiController {
 
     // ---------------- UI 测试用例 ----------------
 
+    /**
+     * 查询项目的 UI 测试用例列表（按更新时间倒序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return UI 用例列表
+     */
     @GetMapping("/tests")
     public Result<List<UiTestCaseEntity>> listTests(@RequestParam String projectId) {
         return Result.ok(uiTestCaseMapper.selectList(
@@ -61,6 +67,13 @@ public class UiController {
                         .orderByDesc(UiTestCaseEntity::getUpdatedAt)));
     }
 
+    /**
+     * 获取 UI 用例详情。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 用例实体（含 setup/steps/teardown 三段）
+     * @throws BizException 用例不存在时抛 notFound
+     */
     @GetMapping("/tests/{id}")
     public Result<UiTestCaseEntity> getTest(@PathVariable String id) {
         UiTestCaseEntity t = uiTestCaseMapper.selectById(id);
@@ -70,6 +83,14 @@ public class UiController {
         return Result.ok(t);
     }
 
+    /**
+     * 新建 UI 用例：补齐 setup/steps/teardown 默认空数组后落库。
+     *
+     * @param t UI 用例实体（请求体），name 必填
+     * @return 已落库用例实体
+     * @throws BizException 用例名为空时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=ui_test
+     */
     @AuditLog(action = "create", entityType = "ui_test")
     @PostMapping("/tests")
     public Result<UiTestCaseEntity> createTest(@RequestBody UiTestCaseEntity t) {
@@ -89,6 +110,15 @@ public class UiController {
         return Result.ok(t);
     }
 
+    /**
+     * 更新 UI 用例（覆盖可写字段）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @param t  用例实体（请求体）
+     * @return 无业务数据
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=ui_test
+     */
     @AuditLog(action = "update", entityType = "ui_test")
     @PutMapping("/tests/{id}")
     public Result<Void> updateTest(@PathVariable String id, @RequestBody UiTestCaseEntity t) {
@@ -100,6 +130,13 @@ public class UiController {
         return Result.ok();
     }
 
+    /**
+     * 删除 UI 用例（物理删除）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 无业务数据
+     * @audit 写审计日志：action=delete, entityType=ui_test
+     */
     @AuditLog(action = "delete", entityType = "ui_test")
     @DeleteMapping("/tests/{id}")
     public Result<Void> deleteTest(@PathVariable String id) {
@@ -109,6 +146,12 @@ public class UiController {
 
     // ---------------- UI 执行场景 ----------------
 
+    /**
+     * 查询项目的 UI 执行场景列表（按更新时间倒序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return UI 场景列表
+     */
     @GetMapping("/scenarios")
     public Result<List<UiScenarioEntity>> listScenarios(@RequestParam String projectId) {
         return Result.ok(uiScenarioMapper.selectList(
@@ -117,6 +160,13 @@ public class UiController {
                         .orderByDesc(UiScenarioEntity::getUpdatedAt)));
     }
 
+    /**
+     * 获取 UI 场景详情（含步骤列表，按排序升序）。
+     *
+     * @param id 场景 ID（路径参数，必填）
+     * @return { scenario: 场景实体, steps: 步骤列表 }
+     * @throws BizException 场景不存在时抛 notFound
+     */
     @GetMapping("/scenarios/{id}")
     public Result<Map<String, Object>> getScenario(@PathVariable String id) {
         UiScenarioEntity scenario = uiScenarioMapper.selectById(id);
@@ -130,6 +180,13 @@ public class UiController {
         return Result.ok(Map.of("scenario", scenario, "steps", steps));
     }
 
+    /**
+     * 新建 UI 场景（含步骤与执行配置），整库写操作包裹事务。
+     *
+     * @param body 请求体，含 projectId（必填）、name（默认"未命名场景"）、description、steps、executor/retry/timeout 等配置
+     * @return 已落库的场景实体（不含步骤明细）
+     * @audit 写审计日志：action=create, entityType=ui_scenario
+     */
     @AuditLog(action = "create", entityType = "ui_scenario")
     @Transactional
     @PostMapping("/scenarios")
@@ -145,6 +202,16 @@ public class UiController {
         return Result.ok(scenario);
     }
 
+    /**
+     * 更新 UI 场景（含可选步骤整体替换与执行配置），整库写操作包裹事务。
+     * <p>仅覆盖传了的 name/description；若传了 steps，则先删旧步骤再整批插入。
+     *
+     * @param id   场景 ID（路径参数，必填）
+     * @param body 请求体，可含 name/description/steps/executor 配置
+     * @return 无业务数据
+     * @throws BizException 场景不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=ui_scenario
+     */
     @AuditLog(action = "update", entityType = "ui_scenario")
     @Transactional
     @PutMapping("/scenarios/{id}")
@@ -170,6 +237,13 @@ public class UiController {
         return Result.ok();
     }
 
+    /**
+     * 删除 UI 场景：先删步骤再删主表（物理删除），整库写操作包裹事务。
+     *
+     * @param id 场景 ID（路径参数，必填）
+     * @return 无业务数据
+     * @audit 写审计日志：action=delete, entityType=ui_scenario
+     */
     @AuditLog(action = "delete", entityType = "ui_scenario")
     @Transactional
     @DeleteMapping("/scenarios/{id}")
@@ -183,7 +257,12 @@ public class UiController {
     // ---------------- 执行与报告 ----------------
 
     /**
-     * 触发 UI 用例执行：创建报告并投递 RabbitMQ。
+     * 触发 UI 用例执行：创建 PENDING 报告并投递 MQ 异步执行（localdev 无消费端时改用 @Async 当前 JVM 内执行）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 新建的报告实体（status=pending）
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=execute, entityType=ui_test
      */
     @AuditLog(action = "execute", entityType = "ui_test")
     @PostMapping("/tests/{id}/run")
@@ -211,7 +290,12 @@ public class UiController {
     }
 
     /**
-     * 触发 UI 场景执行：依次为每个步骤用例创建报告并投递。
+     * 触发 UI 场景执行：按步骤顺序为每个关联用例创建 PENDING 报告并投递 MQ，携带 executor/重试/超时等扩展参数。
+     *
+     * @param id 场景 ID（路径参数，必填）
+     * @return 本次触发产生的报告实体列表
+     * @throws BizException 场景不存在时抛 notFound
+     * @audit 写审计日志：action=execute, entityType=ui_scenario
      */
     @AuditLog(action = "execute", entityType = "ui_scenario")
     @PostMapping("/scenarios/{id}/run")
@@ -269,6 +353,14 @@ public class UiController {
         return Result.ok(reports);
     }
 
+    /**
+     * 查询项目的 UI 报告列表（按开始时间倒序）。
+     * <p>details 字段若为对象存储引用（minio:// 前缀）则实时拉取回填；limit 控制返回条数上限避免一次回传过多。
+     *
+     * @param projectId 项目 ID（必填）
+     * @param limit     返回条数上限（默认取配置项 apiweb.engine.list-max-limit，最小 1）
+     * @return UI 报告列表（details 已解析为实际内容）
+     */
     @GetMapping("/reports")
     public Result<List<UiReportEntity>> listReports(
             @RequestParam String projectId,
@@ -286,6 +378,13 @@ public class UiController {
         return Result.ok(reports);
     }
 
+    /**
+     * 获取 UI 报告详情（details 若为 minio 引用则实时拉取回填）。
+     *
+     * @param id 报告 ID（路径参数，必填）
+     * @return 报告实体（含执行步骤明细 details）
+     * @throws BizException 报告不存在时抛 notFound
+     */
     @GetMapping("/reports/{id}")
     public Result<UiReportEntity> getReport(@PathVariable String id) {
         UiReportEntity r = uiReportMapper.selectById(id);
@@ -298,6 +397,12 @@ public class UiController {
         return Result.ok(r);
     }
 
+    /**
+     * 删除 UI 报告（物理删除）。
+     *
+     * @param id 报告 ID（路径参数，必填）
+     * @return 无业务数据
+     */
     @DeleteMapping("/reports/{id}")
     public Result<Void> deleteReport(@PathVariable String id) {
         uiReportMapper.deleteById(id);

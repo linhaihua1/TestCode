@@ -49,15 +49,28 @@ public class PerfController {
 
     // ---------------- 用例 ----------------
 
+    /**
+     * 查询项目的性能用例列表（仅未删除，按更新时间倒序）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 性能用例列表
+     */
     @GetMapping("/cases")
     public Result<List<PerfCaseEntity>> listCases(@RequestParam String projectId) {
         return Result.ok(perfCaseMapper.selectList(
                 new LambdaQueryWrapper<PerfCaseEntity>()
                         .eq(PerfCaseEntity::getProjectId, projectId)
-                        .isNull(PerfCaseEntity::getDeletedAt)
+                        .isNull(PerfCaseEntity::getDeletedAt) // 过滤已软删除用例
                         .orderByDesc(PerfCaseEntity::getUpdatedAt)));
     }
 
+    /**
+     * 获取性能用例详情。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 性能用例实体（含 variables/steps/profile 等全量字段）
+     * @throws BizException 用例不存在时抛 notFound
+     */
     @GetMapping("/cases/{id}")
     public Result<PerfCaseEntity> getCase(@PathVariable String id) {
         PerfCaseEntity c = perfCaseMapper.selectById(id);
@@ -67,6 +80,14 @@ public class PerfController {
         return Result.ok(c);
     }
 
+    /**
+     * 新建性能用例：补齐 variables/steps/profile 默认空结构后落库。
+     *
+     * @param c 性能用例实体（请求体），name 必填
+     * @return 已落库的用例实体
+     * @throws BizException 用例名为空时抛 badRequest
+     * @audit 写审计日志：action=create, entityType=perf_case
+     */
     @AuditLog(action = "create", entityType = "perf_case")
     @PostMapping("/cases")
     public Result<PerfCaseEntity> createCase(@RequestBody PerfCaseEntity c) {
@@ -86,6 +107,15 @@ public class PerfController {
         return Result.ok(c);
     }
 
+    /**
+     * 更新性能用例（覆盖请求体可写字段）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @param c  性能用例实体（请求体）
+     * @return 无业务数据
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=perf_case
+     */
     @AuditLog(action = "update", entityType = "perf_case")
     @PutMapping("/cases/{id}")
     public Result<Void> updateCase(@PathVariable String id, @RequestBody PerfCaseEntity c) {
@@ -97,6 +127,13 @@ public class PerfController {
         return Result.ok();
     }
 
+    /**
+     * 软删除性能用例（打 deletedAt，后续可在回收站恢复）。
+     *
+     * @param id 用例 ID（路径参数，必填）
+     * @return 无业务数据（不存在时静默成功）
+     * @audit 写审计日志：action=delete, entityType=perf_case
+     */
     @AuditLog(action = "delete", entityType = "perf_case")
     @DeleteMapping("/cases/{id}")
     public Result<Void> deleteCase(@PathVariable String id) {
@@ -171,7 +208,12 @@ public class PerfController {
     // ---------------- 执行与报告 ----------------
 
     /**
-     * 触发压测：创建报告（pending）并投递 RabbitMQ 异步执行。
+     * 触发压测：先创建 pending 状态报告并落库，再按配置投递 MQ 异步执行（localdev 无消费端时改 @Async 当前 JVM 内执行）。
+     *
+     * @param id 性能用例 ID（路径参数，必填）
+     * @return 新创建的压测报告实体（status=pending）
+     * @throws BizException 用例不存在时抛 notFound
+     * @audit 写审计日志：action=execute, entityType=perf_case
      */
     @AuditLog(action = "execute", entityType = "perf_case")
     @PostMapping("/cases/{id}/run")
@@ -201,6 +243,14 @@ public class PerfController {
         return Result.ok(report);
     }
 
+    /**
+     * 查询项目的压测报告列表（按开始时间倒序）。
+     * <p>series 字段若为对象存储引用（minio:// 前缀）则实时拉取回填；limit 控制返回条数上限，避免一次回传过多拖垮接口。
+     *
+     * @param projectId 项目 ID（必填）
+     * @param limit     返回条数上限（默认取配置项 apiweb.engine.list-max-limit，最小 1）
+     * @return 压测报告列表（series 已解析为实际内容）
+     */
     @GetMapping("/reports")
     public Result<List<PerfReportEntity>> listReports(
             @RequestParam String projectId,
@@ -209,6 +259,7 @@ public class PerfController {
                 new LambdaQueryWrapper<PerfReportEntity>()
                         .eq(PerfReportEntity::getProjectId, projectId)
                         .orderByDesc(PerfReportEntity::getStartedAt)
+                        // Math.max(1, limit)：防止 limit<=0 导致 LIMIT 0 或非法 SQL，至少返回 1 条
                         .last("LIMIT " + Math.max(1, limit)));
         for (PerfReportEntity r : reports) {
             if (r.getSeries() != null && r.getSeries().startsWith("minio://")) {
@@ -218,6 +269,13 @@ public class PerfController {
         return Result.ok(reports);
     }
 
+    /**
+     * 获取压测报告详情（series 若为 minio 引用则实时拉取回填）。
+     *
+     * @param id 报告 ID（路径参数，必填）
+     * @return 报告实体（含聚合指标 summary、时序曲线 series、标签分布 labels、错误明细 errors）
+     * @throws BizException 报告不存在时抛 notFound
+     */
     @GetMapping("/reports/{id}")
     public Result<PerfReportEntity> getReport(@PathVariable String id) {
         PerfReportEntity r = perfReportMapper.selectById(id);
@@ -230,6 +288,12 @@ public class PerfController {
         return Result.ok(r);
     }
 
+    /**
+     * 删除压测报告（物理删除）。
+     *
+     * @param id 报告 ID（路径参数，必填）
+     * @return 无业务数据
+     */
     @DeleteMapping("/reports/{id}")
     public Result<Void> deleteReport(@PathVariable String id) {
         perfReportMapper.deleteById(id);

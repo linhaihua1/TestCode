@@ -26,12 +26,17 @@ import java.time.Instant;
 @EqualsAndHashCode(callSuper = true)
 @TableName("t_test_task")
 public class TestTaskEntity extends BaseEntity {
+    /** 所属项目 ID */
     private String projectId;
+    /** 名称 */
     private String name;
+    /** 描述 */
     private String description;
     /** JSON: string[] */
+    /** 用例 ID 列表（JSON 数组） */
     @JsonDeserialize(using = JsonStringDeserializer.class)
     private String caseIds;
+    /** 执行环境 ID */
     private String environmentId;
     /** sequential / parallel */
     private String executeMode;
@@ -39,16 +44,24 @@ public class TestTaskEntity extends BaseEntity {
     private String failStrategy;
     /** 并行池大小（仅 parallel 模式生效） */
     private Integer parallelPoolSize;
+    /** 失败重试次数 */
     private Integer retryCount;
+    /** 执行超时时间（毫秒） */
     private Integer timeoutMs;
+    /** Quartz cron 表达式 */
     private String cronExpr;
+    /** 是否启用 */
     private Boolean enabled;
+    /** 通知回调地址 */
     private String notifyUrl;
     /** JSON: [{key,value}] */
     @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
+    /** 环境 baseUrl */
     private String baseUrl;
+    /** 创建人 */
     private String createdBy;
+    /** 软删除时间：null 表示未删除 */
     private Instant deletedAt;
 
     // ----- 执行机参数 -----
@@ -69,6 +82,7 @@ public class TestTaskEntity extends BaseEntity {
 
     // ----- 通知配置 -----
     /** 失败时通知（JSON 数组:[{type:email/dingtalk/feishu/webhook,target,secret}]） */
+    /** 通知渠道配置（JSON 数组：邮件/钉钉/飞书/Webhook） */
     @JsonDeserialize(using = JsonStringDeserializer.class)
     private String notifyChannels;
 }

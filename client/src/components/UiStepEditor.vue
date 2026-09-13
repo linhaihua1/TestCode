@@ -38,6 +38,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * UI 步骤编辑组件：编辑一段（前置/测试/后置）浏览器操作步骤，支持拖拽排序。
+ *
+ * <p>每个步骤 = 动作（action）+ 定位方式（locator）+ 选择器/输入值；
+ * 动作与定位方式的取值需与执行机端的实现一致。</p>
+ */
 import draggable from 'vuedraggable'
 import { watch } from 'vue'
 import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'

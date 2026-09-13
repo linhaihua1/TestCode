@@ -54,6 +54,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Allure 风格的状态汇总组件：以卡片 + 环形图展示 passed/failed/broken/skipped 占比。
+ *
+ * <p>状态顺序与中文名统一取自 constants，页面只需传入 {key,label,value} 列表；
+ * 点击卡片可向上抛出 filter 事件实现按状态过滤。</p>
+ */
 import { computed } from 'vue'
 import { ALLURE_STATUS_KEYS, ALLURE_STATUS_LABELS, type AllureStatusKey } from '@/constants'
 

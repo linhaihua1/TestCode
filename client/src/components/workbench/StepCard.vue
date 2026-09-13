@@ -141,6 +141,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 步骤卡片组件：展示与编辑单个用例步骤（请求头/参数/请求体/断言/提取）。
+ */
 import { computed } from 'vue'
 import {
   DeleteOutlined, DragOutlined, CopyOutlined, SnippetsOutlined

@@ -67,6 +67,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 调试记录弹窗：查看某条用例的历史调试记录与每次的请求/响应摘要。
+ */
 import { ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { CaseApi } from '@/api'

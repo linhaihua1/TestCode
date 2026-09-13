@@ -64,6 +64,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 登录页：用户名密码登录，成功后跳转到来访前的目标地址。
+ *
+ * <p>演示账号是否预填由环境变量 VITE_PREFILL_DEMO_ACCOUNT 控制，
+ * 默认关闭，避免把默认口令写进代码。</p>
+ */
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -84,6 +90,7 @@ const loading = ref(false)
 
 const year = new Date().getFullYear()
 
+/** 登录：成功后跳回 redirect 参数指定的地址（默认首页） */
 async function onLogin() {
   loading.value = true
   try {

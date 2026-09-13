@@ -46,12 +46,31 @@ public class Extractor {
      */
     public record ExtractDef(String type, String expression, String variable,
                               String defaultValue, String failStrategy) {
+        /**
+         * 把 {@link EngineDtos.Extract} 归一化为提取定义。
+         *
+         * <p>旧版只填了 {@code expression} 没填 {@code type} 时，用 expression 兜底作 type，
+         * 保证解析不抛异常（{@link ExtractType#parse} 仍会按 DEFAULT 兜底）。
+         *
+         * @param e 原始提取定义
+         * @return 归一化后的 ExtractDef
+         */
         public static ExtractDef of(EngineDtos.Extract e) {
             return new ExtractDef(e.getType() != null ? e.getType() : e.getExpression(),
                     e.getExpression(), e.getVariable(), e.getDefaultValue(), e.getFailStrategy());
         }
     }
 
+    /**
+     * 按 {@link EngineDtos.Extract} 定义从响应中提取变量。
+     *
+     * <p>先用 {@link ExtractDef#of} 做一次字段归一化（兼容旧版 type 字段），再委托给
+     * {@link #extract(ExtractDef, Response)} 执行真正的提取。
+     *
+     * @param e        提取定义（含 type/expression/variable/defaultValue/failStrategy）
+     * @param response HTTP 响应（状态码/Headers/Body）
+     * @return 提取结果（变量名与值）
+     */
     public EngineDtos.ExtractResult extract(EngineDtos.Extract e, Response response) {
         return extract(ExtractDef.of(e), response);
     }

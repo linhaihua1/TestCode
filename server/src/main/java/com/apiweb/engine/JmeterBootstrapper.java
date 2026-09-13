@@ -48,6 +48,13 @@ public class JmeterBootstrapper {
     @Getter
     private boolean initialized = false;
 
+    /**
+     * Spring 启动完成后初始化嵌入式 JMeter。
+     *
+     * <p>必须把 JMeter 的配置文件放到「home/bin」下，JMeterUtils 才会正确加载。
+     * 整个过程包裹在 try-catch 中：初始化失败只记日志、不抛异常，
+     * 保证接口/UI 测试不受性能模块影响（性能测试此时不可用，但平台其它功能照常）。
+     */
     @PostConstruct
     public void init() {
         try {
@@ -84,6 +91,12 @@ public class JmeterBootstrapper {
         }
     }
 
+    /**
+     * 应用关闭时清理临时 JMeter 目录。
+     *
+     * <p>仅做尽力清理：删除失败（如文件被占用）时直接忽略，因为临时目录会在 JVM 退出后
+     * 由操作系统回收，不影响功能。
+     */
     @PreDestroy
     public void cleanup() {
         if (jmeterHome != null && jmeterHome.exists()) {

@@ -31,6 +31,12 @@ public class TransactionStepExecutor implements StepExecutor {
     /** 用 ObjectProvider 打断与 CaseRunner 的循环依赖，见 ForStepExecutor 注释。 */
     private final ObjectProvider<CaseRunner> caseRunnerProvider;
 
+    /**
+     * 延迟获取 CaseRunner（通过 ObjectProvider 避免构造期循环依赖）。
+     *
+     * @return 可用的 CaseRunner 实例
+     * @throws IllegalStateException 容器尚未就绪
+     */
     private CaseRunner runner() {
         CaseRunner r = caseRunnerProvider.getIfAvailable();
         if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
@@ -54,6 +60,8 @@ public class TransactionStepExecutor implements StepExecutor {
             String rule = step.cfg("successRule");
             if (rule == null || rule.isBlank()) rule = "all_pass";
 
+            // 记录执行子步骤前后的结果数，仅统计「本事务产生的」子步骤结果，
+            // 避免把之前步骤的结果也算进事务成败判定。
             int sizeBefore = ctx.getResult().getSteps().size();
             runner().runSteps(children, ctx);
             int sizeAfter = ctx.getResult().getSteps().size();

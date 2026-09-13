@@ -1,3 +1,15 @@
+/**
+ * 全部后端接口的统一封装层：页面/组件只通过这里的对象调接口，不直接写 axios 路径。
+ *
+ * <p>约定：</p>
+ * <ul>
+ *   <li>底层 axios 实例见 {@link ./client}，已统一加上 /api/v1 前缀、JWT 请求头，
+ *       并在响应拦截器中解包 {@code {code, message, data}}，因此这里的返回值就是 data 本身；</li>
+ *   <li>后端以 JSON 字符串存储的字段（如环境的 variables/headers）在本层做数组与字符串的双向转换，
+ *       页面拿到的都是结构化对象；</li>
+ *   <li>新增接口时请同步补充对应的类型定义（见 @/types）。</li>
+ * </ul>
+ */
 import axios from './client'
 import type {
   User, Project, Environment, GlobalVariable, ModuleNode, CaseInfo,
@@ -7,6 +19,7 @@ import type {
   CaseVersion, CaseReview, DebugRecord, KeyValueItem
 } from '@/types'
 
+/** 认证相关：登录、获取当前用户、修改密码 */
 export const AuthApi = {
   login: (username: string, password: string) =>
     axios.post<{ token: string; user: User }>('/auth/login', { username, password }),
@@ -15,6 +28,7 @@ export const AuthApi = {
     axios.post('/auth/change-password', { oldPassword, newPassword })
 }
 
+/** 用户管理（仅管理员可用） */
 export const UserApi = {
   list: () => axios.get<User[]>('/users'),
   create: (data: { username: string; password: string; role: string }) =>
@@ -23,6 +37,7 @@ export const UserApi = {
   remove: (id: string) => axios.delete(`/users/${id}`)
 }
 
+/** 项目：所有数据的顶层隔离单元 */
 export const ProjectApi = {
   list: (keyword?: string) => axios.get<Project[]>('/projects', { params: { keyword } }),
   get: (id: string) => axios.get<Project>(`/projects/${id}`),
@@ -67,6 +82,11 @@ function serializeEnv<T extends Partial<Environment>>(env: T): T {
   }
 }
 
+/**
+ * 环境管理。
+ * <p>list 会把后端返回的 JSON 字符串解析成数组，create/update 反向序列化，
+ * 这样页面里始终按 KeyValueItem[] 处理。</p>
+ */
 export const EnvironmentApi = {
   list: async (projectId: string) => {
     const list = await axios.get<Environment[]>('/environments', { params: { projectId } })
@@ -77,6 +97,7 @@ export const EnvironmentApi = {
   remove: (id: string) => axios.delete(`/environments/${id}`)
 }
 
+/** 项目级全局变量 */
 export const GlobalVariableApi = {
   list: (projectId: string) =>
     axios.get<GlobalVariable[]>('/global-variables', { params: { projectId } }),
@@ -86,6 +107,7 @@ export const GlobalVariableApi = {
   remove: (id: string) => axios.delete(`/global-variables/${id}`)
 }
 
+/** 模块目录树：tree 返回已组装好的树形结构（含 children） */
 export const ModuleApi = {
   tree: (projectId: string, type = 'case') =>
     axios.get<ModuleNode[]>('/modules/tree', { params: { projectId, type } }),
@@ -94,6 +116,7 @@ export const ModuleApi = {
   remove: (id: string) => axios.delete(`/modules/${id}`)
 }
 
+/** 接口定义（API 资产库）：支持 Swagger/OpenAPI 的文本与文件导入 */
 export const ApiApi = {
   list: (params: { projectId: string; moduleId?: string; keyword?: string; method?: string }) =>
     axios.get<ApiDefinition[]>('/apis', { params }),
@@ -113,6 +136,9 @@ export const ApiApi = {
   }
 }
 
+/**
+ * 接口用例：CRUD + 调试执行 + 调试记录 + 版本快照/回滚 + 评审流 + 回收站。
+ */
 export const CaseApi = {
   list: (params: {
     projectId: string
@@ -142,6 +168,7 @@ export const CaseApi = {
   purge: (id: string) => axios.delete(`/cases/${id}/purge`)
 }
 
+/** 场景：多个接口用例的有序组合，execute 会同步返回一份报告 */
 export const ScenarioApi = {
   list: (projectId: string) => axios.get<Scenario[]>('/scenarios', { params: { projectId } }),
   get: (id: string) => axios.get<{ scenario: Scenario; steps: any[] }>(`/scenarios/${id}`),
@@ -152,6 +179,11 @@ export const ScenarioApi = {
     axios.post<Report>(`/scenarios/${id}/execute`, { environmentId })
 }
 
+/**
+ * 测试任务：定时/手动/CI 触发的执行单元。
+ * <p>run 走 MQ 异步投递（立即返回），runSync 在服务端同步跑完再返回，
+ * 页面可根据任务规模选择。</p>
+ */
 export const TestTaskApi = {
   list: (projectId: string) =>
     axios.get<TestTask[]>('/test-tasks', { params: { projectId } }),
@@ -172,6 +204,7 @@ export const TestTaskApi = {
   disableWebhook: (id: string) => axios.post(`/test-tasks/${id}/webhook/disable`)
 }
 
+/** 测试报告：列表/明细/导出（HTML、PDF）/趋势统计/分享链接管理 */
 export const ReportApi = {
   list: (params: {
     projectId?: string
@@ -216,6 +249,7 @@ export const WebhookApi = {
       '/webhook/test-tasks/trigger', null, { params: { token, triggerBy } })
 }
 
+/** 性能测试：用例管理 + JMX 导入导出 + 执行 + 报告查询 */
 export const PerfApi = {
   listCases: (projectId: string) =>
     axios.get<PerfCase[]>('/perf/cases', { params: { projectId } }),
@@ -234,6 +268,7 @@ export const PerfApi = {
   deleteReport: (id: string) => axios.delete(`/perf/reports/${id}`)
 }
 
+/** UI 自动化：用例（三段式步骤）+ 场景（多用例编排）+ 执行与报告 */
 export const UiApi = {
   listTests: (projectId: string) =>
     axios.get<UiTestCase[]>('/ui/tests', { params: { projectId } }),
@@ -257,11 +292,13 @@ export const UiApi = {
   deleteReport: (id: string) => axios.delete(`/ui/reports/${id}`)
 }
 
+/** 审计日志查询（分页） */
 export const AuditApi = {
   list: (params: { username?: string; entityType?: string; page?: number; size?: number }) =>
     axios.get<{ records: AuditLog[]; total: number }>('/audit-logs', { params })
 }
 
+/** 执行机资源池：查看节点、上报心跳、释放节点 */
 export const ExecutorApi = {
   pool: () => axios.get<ExecutorNode[]>('/executors/pool'),
   heartbeat: (data: { nodeId?: string; name?: string; capabilities: string[] }) =>
@@ -295,6 +332,7 @@ export interface RecycleBinConfig {
   cleanupDays: number
 }
 
+/** 回收站：按类型查看已删除项、恢复、彻底删除、按天数清理、保留策略配置 */
 export const RecycleBinApi = {
   list: (projectId: string, type: RecycleBinItem['type'] = 'CASE') =>
     axios.get<RecycleBinItem[]>('/recycle-bin', { params: { projectId, type } }),

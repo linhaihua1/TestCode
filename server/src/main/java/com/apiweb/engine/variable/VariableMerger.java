@@ -52,6 +52,19 @@ public class VariableMerger {
         private String value;
     }
 
+    /**
+     * 按优先级合并四类变量，返回最终变量池。
+     *
+     * <p>合并顺序决定覆盖优先级（后合并的覆盖先合并的）：
+     * 全局 → 环境 → 用例 → 提取。SECRET 类型全局变量会在此处自动解密。
+     * 环境变量会额外加上 {@code env.}/{@code envHeader.} 前缀，避免与用例变量同名冲突。
+     *
+     * @param globals   全局变量列表（优先级最低）
+     * @param env       当前环境（其 baseUrl 注入 baseUrl 变量，variables/headers 加前缀注入）
+     * @param caseVars  用例级变量
+     * @param extracts  步骤执行中提取出的变量（优先级最高）
+     * @return 合并后的变量池（LinkedHashMap，保留插入顺序）
+     */
     public Map<String, String> merge(List<GlobalVariableEntity> globals,
                                       EnvironmentEntity env,
                                       List<CaseVariable> caseVars,
@@ -102,6 +115,17 @@ public class VariableMerger {
         return pool;
     }
 
+    /**
+     * 合并变量并直接构建 {@link VariablesResolver}，供执行引擎使用。
+     *
+     * <p>等价于 {@code new VariablesResolver(merge(...))}，是 {@link #merge} 的便捷封装。
+     *
+     * @param globals   全局变量列表
+     * @param env       当前环境
+     * @param caseVars  用例级变量
+     * @param extracts  提取变量
+     * @return 已填充好变量池的解析器
+     */
     public VariablesResolver buildResolver(List<GlobalVariableEntity> globals,
                                             EnvironmentEntity env,
                                             List<CaseVariable> caseVars,

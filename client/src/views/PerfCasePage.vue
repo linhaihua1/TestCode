@@ -279,6 +279,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 性能用例编辑页：配置并发线程、加压方式、持续时间与 HTTP 请求步骤。
+ *
+ * <p>保存后的用例由后端转换成 JMeter 的 .jmx 测试计划执行（嵌入式 JMeter，不依赖外部环境）；
+ * 本页同时支持把已有 .jmx 导入为用例、把用例导出为 .jmx。</p>
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'

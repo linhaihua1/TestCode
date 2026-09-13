@@ -41,6 +41,12 @@ public class ScenarioController {
     private final ReportDetailMapper reportDetailMapper;
     private final ExecutionSupportService executionSupport;
 
+    /**
+     * 查询项目的场景列表（按更新时间倒序，不含步骤）。
+     *
+     * @param projectId 项目 ID（必填）
+     * @return 场景列表（步骤详情见 get 接口）
+     */
     @GetMapping
     public Result<List<ScenarioEntity>> list(@RequestParam String projectId) {
         return Result.ok(scenarioMapper.selectList(
@@ -49,6 +55,13 @@ public class ScenarioController {
                         .orderByDesc(ScenarioEntity::getUpdatedAt)));
     }
 
+    /**
+     * 获取场景详情（含步骤列表，按排序升序）。
+     *
+     * @param id 场景 ID（路径参数，必填）
+     * @return { scenario: 场景实体, steps: 步骤列表 }
+     * @throws BizException 场景不存在时抛 notFound
+     */
     @GetMapping("/{id}")
     public Result<Map<String, Object>> get(@PathVariable String id) {
         ScenarioEntity scenario = scenarioMapper.selectById(id);
@@ -62,6 +75,13 @@ public class ScenarioController {
         return Result.ok(Map.of("scenario", scenario, "steps", steps));
     }
 
+    /**
+     * 新建场景（含步骤），整库写操作包裹事务。
+     *
+     * @param body 请求体，含 projectId（必填）、name（默认"未命名场景"）、description、steps（步骤数组）
+     * @return 已落库的场景实体（不含步骤明细）
+     * @audit 写审计日志：action=create, entityType=scenario
+     */
     @AuditLog(action = "create", entityType = "scenario")
     @Transactional
     @PostMapping
@@ -75,6 +95,16 @@ public class ScenarioController {
         return Result.ok(scenario);
     }
 
+    /**
+     * 更新场景（含可选的步骤整体替换），整库写操作包裹事务。
+     * <p>仅覆盖传了的 name/description；若传了 steps，则先删旧步骤再整批插入新步骤。
+     *
+     * @param id   场景 ID（路径参数，必填）
+     * @param body 请求体，可含 name/description/steps
+     * @return 无业务数据
+     * @throws BizException 场景不存在时抛 notFound
+     * @audit 写审计日志：action=update, entityType=scenario
+     */
     @AuditLog(action = "update", entityType = "scenario")
     @Transactional
     @PutMapping("/{id}")
@@ -98,6 +128,13 @@ public class ScenarioController {
         return Result.ok();
     }
 
+    /**
+     * 删除场景：先删其步骤再删主表（物理删除），整库写操作包裹事务。
+     *
+     * @param id 场景 ID（路径参数，必填）
+     * @return 无业务数据
+     * @audit 写审计日志：action=delete, entityType=scenario
+     */
     @AuditLog(action = "delete", entityType = "scenario")
     @Transactional
     @DeleteMapping("/{id}")
@@ -109,7 +146,14 @@ public class ScenarioController {
     }
 
     /**
-     * 执行场景：按步骤顺序执行并生成报告。
+     * 执行场景：按步骤顺序逐个执行并汇总生成报告（同步执行）。
+     * <p>步骤若关联用例则执行该用例的步骤；否则执行步骤自身配置。报告先插入取主键，再逐条写执行明细。
+     *
+     * @param id   场景 ID（路径参数，必填）
+     * @param body 请求体（可选），可含 environmentId 指定执行环境
+     * @return 执行后生成的报告实体（含统计与最终状态）
+     * @throws BizException 场景不存在时抛 notFound
+     * @audit 写审计日志：action=execute, entityType=scenario
      */
     @AuditLog(action = "execute", entityType = "scenario")
     @PostMapping("/{id}/execute")

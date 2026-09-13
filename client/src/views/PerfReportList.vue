@@ -37,6 +37,9 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 性能测试报告列表页：查看报告概要并跳转详情页看图表。
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import { PerfApi } from '@/api'

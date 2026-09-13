@@ -25,14 +25,18 @@ import java.time.Instant;
 @Data
 @TableName("t_report_share")
 public class ReportShareEntity {
+    /** 主键 ID（UUID） */
     @TableId(type = IdType.ASSIGN_UUID)
     private String id;
     /** 分享 token（URL 中实际使用的字符串,32 位随机串） */
     private String token;
+    /** 所属报告 ID */
     private String reportId;
     /** 创建者 */
     private String createdBy;
+    /** 创建时间（UTC） */
     private Instant createdAt;
+    /** 过期时间（过期后拒绝访问） */
     private Instant expiresAt;
     /** 可选,BCrypt 哈希;null 表示无密码 */
     private String password;
@@ -40,6 +44,7 @@ public class ReportShareEntity {
     private Boolean revoked;
     /** 累计访问次数 */
     private Integer accessCount;
+    /** 最近一次访问时间 */
     private Instant lastAccessedAt;
     /** 可选,达到上限后禁止继续访问 */
     private Integer maxAccessCount;

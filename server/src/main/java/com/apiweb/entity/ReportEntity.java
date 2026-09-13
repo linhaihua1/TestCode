@@ -22,16 +22,24 @@ import java.time.Instant;
 @Data
 @TableName("t_report")
 public class ReportEntity {
+    /** 主键 ID（UUID） */
     @TableId(type = IdType.ASSIGN_UUID)
     private String id;
+    /** 所属项目 ID */
     private String projectId;
+    /** 所属场景 ID */
     private String scenarioId;
     /** 关联任务 ID（可空,手动调试用例会直接生成 report 不经过 task） */
     private String taskId;
+    /** 名称 */
     private String name;
+    /** 状态 */
     private String status;
+    /** 耗时（毫秒） */
     private Integer duration;
+    /** 开始执行时间 */
     private Instant startedAt;
+    /** 执行结束时间 */
     private Instant finishedAt;
     /** 执行触发方式:manual / schedule / webhook / api */
     private String triggerType;
@@ -40,14 +48,23 @@ public class ReportEntity {
 
     // ----- 统计字段（执行完成后回填） -----
     private Integer totalCases;
+    /** 通过用例数 */
     private Integer passedCases;
+    /** 失败用例数 */
     private Integer failedCases;
+    /** 异常用例数 */
     private Integer errorCases;
+    /** 跳过用例数 */
     private Integer skippedCases;
+    /** 断言总数 */
     private Integer totalAssertions;
+    /** 通过断言数 */
     private Integer passedAssertions;
+    /** 失败断言数 */
     private Integer failedAssertions;
+    /** 平均响应时间（毫秒） */
     private Integer avgResponseTime;
+    /** 95 分位响应时间（毫秒） */
     private Integer p95ResponseTime;
 
     /** 测试环境 baseUrl（快照,便于报告还原） */

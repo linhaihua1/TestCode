@@ -47,6 +47,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 用户管理页（仅管理员）：用户的创建、角色调整、密码重置与删除。
+ *
+ * <p>编辑时密码留空表示不修改；新建时密码至少 6 位。
+ * 角色决定写权限（viewer 只读），具体取值见 constants.ROLES。</p>
+ */
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
@@ -92,6 +98,7 @@ function openEdit(record: User) {
   modal.value = true
 }
 
+/** 保存用户：编辑时密码留空表示不改；新建时要求密码至少 6 位 */
 async function save() {
   if (!form.username) {
     message.warning('请填写用户名')

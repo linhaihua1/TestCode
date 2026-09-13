@@ -35,6 +35,12 @@ public class ForStepExecutor implements StepExecutor {
      */
     private final ObjectProvider<CaseRunner> caseRunnerProvider;
 
+    /**
+     * 延迟获取 CaseRunner（通过 ObjectProvider 避免构造期循环依赖）。
+     *
+     * @return 可用的 CaseRunner 实例
+     * @throws IllegalStateException 容器尚未就绪
+     */
     private CaseRunner runner() {
         CaseRunner r = caseRunnerProvider.getIfAvailable();
         if (r == null) throw new IllegalStateException("CaseRunner 尚未就绪");
@@ -75,6 +81,7 @@ public class ForStepExecutor implements StepExecutor {
                     caseRunner.runSteps(children, ctx);
                 }
             } else {
+                // count 模式：循环固定次数。count 为 null 时退化为 1 次（至少执行一次）。
                 Integer count = step.cfgInt("count");
                 if (count == null) count = 1;
                 Integer stepInc = step.cfgInt("step");
