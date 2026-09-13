@@ -116,6 +116,12 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, FolderAddOutlined } from '@ant-design/icons-vue'
 import { CaseApi, ModuleApi } from '@/api'
+import {
+  CASE_STATUS_FILTER_OPTIONS,
+  PRIORITY_OPTIONS,
+  caseStatusColor,
+  caseStatusLabel
+} from '@/constants'
 import type { CaseInfo, ModuleNode } from '@/types'
 import VirtualTree from '@/components/VirtualTree.vue'
 
@@ -147,39 +153,16 @@ const form = reactive<Partial<CaseInfo>>({
 
 const statusOptions = [
   { label: '全部', value: 'all' },
-  { label: '草稿', value: 'draft' },
-  { label: '评审中', value: 'reviewing' },
-  { label: '已通过', value: 'pass' },
-  { label: '驳回', value: 'fail' },
-  { label: '已废弃', value: 'trash' }
+  ...CASE_STATUS_FILTER_OPTIONS
 ]
-const priorityOptions = [
-  { label: 'P0', value: 'P0' },
-  { label: 'P1', value: 'P1' },
-  { label: 'P2', value: 'P2' },
-  { label: 'P3', value: 'P3' }
-]
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: '草稿',
-  reviewing: '评审中',
-  pass: '已通过',
-  fail: '驳回',
-  trash: '已废弃'
-}
+const priorityOptions = PRIORITY_OPTIONS
 
 function statusLabel(s: string | undefined) {
-  return (s && STATUS_LABEL[s]) || s || '-'
+  return caseStatusLabel(s)
 }
 
 function statusColor(s: string | undefined) {
-  switch (s) {
-    case 'pass': return 'green'
-    case 'reviewing': return 'orange'
-    case 'fail': return 'red'
-    case 'trash': return 'default'
-    default: return 'blue'
-  }
+  return caseStatusColor(s)
 }
 
 async function loadModules() {

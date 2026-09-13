@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { AuthApi } from '@/api'
+import { ROLES, ROLE_LABELS } from '@/constants'
 import type { User } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -39,27 +40,23 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function isAdmin() {
-    return user.value?.role === 'admin'
+    return user.value?.role === ROLES.ADMIN
   }
 
   /** 是否为成员（可操作接口/UI/性能/环境，但不能进管理页） */
   function isMember() {
-    return user.value?.role === 'member'
+    return user.value?.role === ROLES.MEMBER
   }
 
   /** 是否为查看者（只读，禁止一切操作） */
   function isViewer() {
-    return user.value?.role === 'viewer'
+    return user.value?.role === ROLES.VIEWER
   }
 
   /** 当前角色名（用于展示） */
   const roleLabel = computed(() => {
-    switch (user.value?.role) {
-      case 'admin': return '管理员'
-      case 'member': return '成员'
-      case 'viewer': return '查看者'
-      default: return ''
-    }
+    const code = user.value?.role
+    return code ? (ROLE_LABELS[code] ?? '') : ''
   })
 
   return { token, user, restore, login, logout, isAdmin, isMember, isViewer, roleLabel }

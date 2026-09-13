@@ -68,8 +68,8 @@
         <!-- 步骤明细 -->
         <a-tab-pane key="details" tab="步骤明细">
           <div v-if="statusFilter" class="filter-banner">
-            <a-tag :color="statusTagColor(statusFilter)" closable @close="clearFilter">
-              筛选：{{ statusLabel(statusFilter) }}（{{ filteredDetails.length }} 条）
+            <a-tag :color="allureStatusColor(statusFilter)" closable @close="clearFilter">
+              筛选：{{ allureStatusLabel(statusFilter) }}（{{ filteredDetails.length }} 条）
             </a-tag>
           </div>
           <a-list
@@ -259,6 +259,15 @@ import {
   PlusOutlined
 } from '@ant-design/icons-vue'
 import { ReportApi } from '@/api'
+import {
+  ALLURE_STATUS_COLORS,
+  ALLURE_STATUS_LABELS,
+  ALLURE_TO_RUN_STATUS,
+  TRIGGER_LABELS,
+  TRIGGER_TYPES,
+  statusColor
+} from '@/constants'
+import { formatDateTime, isExpired } from '@/utils/format'
 import type { Report, ReportDetail, ReportShare as ReportShareType } from '@/types'
 import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
 
@@ -294,23 +303,16 @@ const passRate = computed(() => {
 
 /** Allure 状态统计（来自报告用例计数） */
 const statusStats = computed<StatusStat[]>(() => [
-  { key: 'passed', label: '通过', value: report.value?.passedCases || 0 },
-  { key: 'failed', label: '失败', value: report.value?.failedCases || 0 },
-  { key: 'broken', label: '异常', value: report.value?.errorCases || 0 },
-  { key: 'skipped', label: '跳过', value: report.value?.skippedCases || 0 }
+  { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: report.value?.passedCases || 0 },
+  { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: report.value?.failedCases || 0 },
+  { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: report.value?.errorCases || 0 },
+  { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: report.value?.skippedCases || 0 }
 ])
 
 /** 按状态过滤后的步骤明细 */
 const filteredDetails = computed(() => {
   if (!statusFilter.value) return details.value
-  const key = statusFilter.value
-  const map: Record<string, string> = {
-    passed: 'success',
-    failed: 'failed',
-    broken: 'error',
-    skipped: 'skipped'
-  }
-  const target = map[key]
+  const target = ALLURE_TO_RUN_STATUS[statusFilter.value]
   return details.value.filter((d) => (d.status || '').toLowerCase() === target)
 })
 
@@ -322,39 +324,22 @@ function clearFilter() {
   statusFilter.value = null
 }
 
-function statusLabel(key: string) {
-  return ({ passed: '通过', failed: '失败', broken: '异常', skipped: '跳过' } as Record<string, string>)[key] || key
+/** Allure 统计键 → 中文名 */
+function allureStatusLabel(key: string) {
+  return ALLURE_STATUS_LABELS[key] ?? key
 }
 
-function statusTagColor(key: string) {
-  return ({ passed: 'green', failed: 'red', broken: 'orange', skipped: 'default' } as Record<string, string>)[key] || 'blue'
-}
-
-function statusColor(s: string) {
-  return s === 'success' ? 'green'
-    : s === 'failed' ? 'red'
-    : s === 'error' ? 'volcano'
-    : s === 'skipped' ? 'default'
-    : 'blue'
+/** Allure 统计键 → 标签颜色 */
+function allureStatusColor(key: string) {
+  return ALLURE_STATUS_COLORS[key] ?? 'blue'
 }
 
 function triggerLabel(t?: string) {
-  switch (t) {
-    case 'manual': return '手动'
-    case 'schedule': return '定时'
-    case 'webhook': return 'Webhook'
-    case 'api': return 'API'
-    default: return '手动'
-  }
+  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL]
 }
 
 function formatDate(iso?: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleString()
-}
-
-function isExpired(iso: string) {
-  return new Date(iso).getTime() < Date.now()
+  return formatDateTime(iso)
 }
 
 function sharePublicUrl(s: ReportShareType) {

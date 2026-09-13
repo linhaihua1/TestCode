@@ -105,7 +105,8 @@ import {
 import * as XLSX from 'xlsx'
 import { ApiApi } from '@/api'
 import { useProjectStore } from '@/stores/project'
-import type { ApiDefinition } from '@/types'
+import { HTTP_METHOD_FILTER_OPTIONS, httpMethodColor } from '@/constants'
+import type { ApiDefinition, KeyValueItem } from '@/types'
 import KeyValueEditor from '@/components/KeyValueEditor.vue'
 import Monaco from '@/components/Monaco.vue'
 
@@ -118,7 +119,25 @@ const keyword = ref('')
 const methodFilter = ref<string>()
 
 const modal = ref(false)
-const form = reactive<Partial<ApiDefinition>>({
+
+/**
+ * 接口新建 / 编辑表单模型。
+ *
+ * <p>不用 {@code Partial<ApiDefinition>}：headers / query 在模板里直接绑定
+ * KeyValueEditor（要求数组），若声明成可选会产生 undefined 分支。
+ */
+interface ApiForm {
+  id?: string
+  method: string
+  name: string
+  path: string
+  headers: KeyValueItem[]
+  query: KeyValueItem[]
+  body: string
+  tags: string[]
+}
+
+const form = reactive<ApiForm>({
   method: 'GET',
   name: '',
   path: '',
@@ -128,14 +147,8 @@ const form = reactive<Partial<ApiDefinition>>({
   tags: []
 })
 
-const methodOptions = [
-  { value: undefined, label: '全部' },
-  { value: 'GET', label: 'GET' },
-  { value: 'POST', label: 'POST' },
-  { value: 'PUT', label: 'PUT' },
-  { value: 'DELETE', label: 'DELETE' },
-  { value: 'PATCH', label: 'PATCH' }
-]
+/** 方法筛选选项（含"全部"），来源统一到 constants */
+const methodOptions = HTTP_METHOD_FILTER_OPTIONS
 
 const columns = [
   { title: '方法', key: 'method', width: 80 },
@@ -145,8 +158,9 @@ const columns = [
   { title: '操作', key: 'action', width: 140 }
 ]
 
+/** 方法标签颜色：统一走 constants，避免多页面各写一份映射 */
 function methodColor(m: string) {
-  return m === 'GET' ? 'blue' : m === 'POST' ? 'green' : m === 'PUT' ? 'orange' : 'red'
+  return httpMethodColor(m)
 }
 
 async function reload() {
@@ -178,7 +192,8 @@ function openCreate() {
 }
 
 function openEdit(record: ApiDefinition) {
-  Object.assign(form, record)
+  // body 在 ApiDefinition 中可选，补齐为 ''，避免 Monaco 绑定 undefined
+  Object.assign(form, record, { body: record.body ?? '', tags: record.tags ?? [] })
   modal.value = true
 }
 

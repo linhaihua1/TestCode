@@ -1,6 +1,7 @@
 package com.apiweb.engine;
 
 import com.apiweb.common.BizException;
+import com.apiweb.config.EngineProperties;
 import com.apiweb.engine.variable.VariableMerger;
 import com.apiweb.entity.CaseEntity;
 import com.apiweb.entity.TestTaskEntity;
@@ -57,6 +58,7 @@ public class TaskExecutorService {
     private final ExecutionSupportService executionSupport;
     private final CaseMapper caseMapper;
     private final ReportGenerationService reportGenerationService;
+    private final EngineProperties engineProperties;
 
     /** 并行执行池（懒初始化,首次使用时按 parallelPoolSize 创建） */
     private volatile ExecutorService parallelExecutor;
@@ -91,16 +93,16 @@ public class TaskExecutorService {
             throw BizException.badRequest("任务未包含用例");
         }
 
-        boolean parallel = "parallel".equalsIgnoreCase(task.getExecuteMode());
+        boolean parallel = ExecuteMode.parseOrDefault(task.getExecuteMode()) == ExecuteMode.PARALLEL;
         int poolSize = clampPoolSize(task.getParallelPoolSize());
-        String strategy = task.getFailStrategy() == null ? "stop_on_fail" : task.getFailStrategy();
+        FailStrategy strategy = FailStrategy.parseOrDefault(task.getFailStrategy());
 
         // 一次性为所有用例创建 run
         List<TestTaskRunEntity> runs = new ArrayList<>();
         for (String caseId : caseIds) {
             TestTaskRunEntity run = new TestTaskRunEntity();
             run.setTaskId(task.getId());
-            run.setResult("pending");
+            run.setResult(RunStatus.PENDING.getCode());
             run.setStartedAt(Instant.now());
             run.setDetails("[]");
             testTaskRunMapper.insert(run);
@@ -138,22 +140,22 @@ public class TaskExecutorService {
         }
         reportGenerationService.generateFromRuns(
                 task.getProjectId(), task.getId(), task.getName(),
-                "manual", null, runNameMap, runs);
+                TriggerType.MANUAL.getCode(), null, runNameMap, runs);
     }
 
     // ============== 顺序执行 ==============
 
-    private void executeSequential(TestTaskEntity task, List<TestTaskRunEntity> runs, String strategy) {
-        boolean stopOnFail = "stop_on_fail".equalsIgnoreCase(strategy);
+    private void executeSequential(TestTaskEntity task, List<TestTaskRunEntity> runs, FailStrategy strategy) {
+        boolean stopOnFail = strategy.stopOnFailure();
         for (TestTaskRunEntity run : runs) {
             boolean ok = runOne(task, run);
             if (!ok && stopOnFail) {
-                log.info("任务 {} 因失败策略 {} 提前终止", task.getId(), strategy);
+                log.info("任务 {} 因失败策略 {} 提前终止", task.getId(), strategy.getCode());
                 int idx = runs.indexOf(run);
                 for (int i = idx + 1; i < runs.size(); i++) {
                     TestTaskRunEntity skipped = runs.get(i);
-                    if ("pending".equals(skipped.getResult())) {
-                        skipped.setResult("skipped");
+                    if (RunStatus.PENDING.getCode().equals(skipped.getResult())) {
+                        skipped.setResult(RunStatus.SKIPPED.getCode());
                         testTaskRunMapper.updateById(skipped);
                     }
                 }
@@ -164,18 +166,18 @@ public class TaskExecutorService {
 
     // ============== 并行执行 ==============
 
-    private void executeParallel(TestTaskEntity task, List<TestTaskRunEntity> runs, int poolSize, String strategy) {
+    private void executeParallel(TestTaskEntity task, List<TestTaskRunEntity> runs,
+                                 int poolSize, FailStrategy strategy) {
         ExecutorService executor = getOrCreateExecutor(poolSize);
         AtomicInteger failureCount = new AtomicInteger();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        boolean stopOnFail = "stop_on_fail".equalsIgnoreCase(strategy)
-                || "retry_then_stop".equalsIgnoreCase(strategy);
+        boolean stopOnFail = strategy.stopOnFailure();
 
         for (TestTaskRunEntity run : runs) {
             CompletableFuture<Void> f = CompletableFuture.runAsync(() -> {
                 if (stopOnFail && failureCount.get() > 0) {
-                    if ("pending".equals(run.getResult())) {
-                        run.setResult("skipped");
+                    if (RunStatus.PENDING.getCode().equals(run.getResult())) {
+                        run.setResult(RunStatus.SKIPPED.getCode());
                         testTaskRunMapper.updateById(run);
                     }
                     return;
@@ -190,8 +192,9 @@ public class TaskExecutorService {
 
         // 等所有用例结束（即使失败也等,确保 run 状态完整）
         try {
+            long base = engineProperties.getParallelWaitTimeoutSeconds();
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(Math.max(60, runs.size() / 10L + 1), TimeUnit.SECONDS);
+                    .get(Math.max(base, runs.size() / 10L + 1), TimeUnit.SECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
             log.warn("任务 {} 并行执行异常: {}", task.getId(), e.getMessage());
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -207,7 +210,7 @@ public class TaskExecutorService {
                     local = new ThreadPoolExecutor(
                             poolSize, poolSize,
                             60L, TimeUnit.SECONDS,
-                            new LinkedBlockingQueue<>(1024),
+                            new LinkedBlockingQueue<>(engineProperties.getExecutorQueueCapacity()),
                             r -> {
                                 Thread t = new Thread(r, "task-executor-" + System.nanoTime());
                                 t.setDaemon(true);
@@ -222,11 +225,11 @@ public class TaskExecutorService {
         return local;
     }
 
-    private static int clampPoolSize(Integer raw) {
-        if (raw == null) return 5;
+    private int clampPoolSize(Integer raw) {
+        if (raw == null) return engineProperties.getDefaultParallelPoolSize();
         if (raw < 1) return 1;
-        if (raw > 200) return 200;
-        return raw;
+        int max = engineProperties.getMaxParallelPoolSize();
+        return Math.min(raw, max);
     }
 
     /**
@@ -234,12 +237,12 @@ public class TaskExecutorService {
      */
     private boolean runOne(TestTaskEntity task, TestTaskRunEntity run) {
         long start = System.currentTimeMillis();
-        run.setResult("running");
+        run.setResult(RunStatus.RUNNING.getCode());
         testTaskRunMapper.updateById(run);
         try {
             CaseRunner runner = caseRunnerProvider.getIfAvailable();
             if (runner == null) {
-                run.setResult("error");
+                run.setResult(RunStatus.ERROR.getCode());
                 run.setDetails("[{\"error\":\"CaseRunner 未注册\"}]");
                 run.setEndedAt(Instant.now());
                 run.setDuration((int) (System.currentTimeMillis() - start));
@@ -249,7 +252,8 @@ public class TaskExecutorService {
             String caseId = extractCaseId(task, run);
             VariablesResolver resolver = buildResolver(task);
             EngineDtos.ExecutionResult result = runner.runCaseSteps(caseId, resolver);
-            run.setResult(result.allPassed() ? "success" : "failed");
+            run.setResult(result.allPassed()
+                    ? RunStatus.SUCCESS.getCode() : RunStatus.FAILED.getCode());
             run.setDetails(JsonUtils.toJson(result.getSteps()));
             run.setDuration((int) (System.currentTimeMillis() - start));
             run.setEndedAt(Instant.now());
@@ -257,7 +261,7 @@ public class TaskExecutorService {
             return result.allPassed();
         } catch (Exception e) {
             log.error("用例执行异常: runId={}", run.getId(), e);
-            run.setResult("error");
+            run.setResult(RunStatus.ERROR.getCode());
             run.setDetails("[{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}]");
             run.setDuration((int) (System.currentTimeMillis() - start));
             run.setEndedAt(Instant.now());
@@ -309,7 +313,7 @@ public class TaskExecutorService {
                 new LambdaQueryWrapper<TestTaskRunEntity>()
                         .eq(TestTaskRunEntity::getTaskId, taskId)
                         .orderByDesc(TestTaskRunEntity::getStartedAt)
-                        .last("LIMIT 100"));
+                        .last("LIMIT " + engineProperties.getListMaxLimit()));
     }
 
     public List<TestTaskRunEntity> listActiveTasks() {

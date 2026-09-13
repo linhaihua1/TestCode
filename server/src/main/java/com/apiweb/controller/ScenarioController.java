@@ -8,6 +8,9 @@ import com.apiweb.entity.ReportEntity;
 import com.apiweb.entity.ScenarioEntity;
 import com.apiweb.entity.ScenarioStepEntity;
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.ReportStatus;
+import com.apiweb.engine.RunStatus;
+import com.apiweb.engine.TriggerType;
 import com.apiweb.engine.VariablesResolver;
 import com.apiweb.mapper.ReportDetailMapper;
 import com.apiweb.mapper.ReportMapper;
@@ -133,8 +136,8 @@ public class ScenarioController {
         report.setScenarioId(id);
         report.setName(scenario.getName());
         report.setStartedAt(Instant.now());
-        report.setTriggerType("manual");
-        report.setStatus("running");
+        report.setTriggerType(TriggerType.MANUAL.getCode());
+        report.setStatus(ReportStatus.RUNNING.getCode());
         report.setTotalCases(0);
         report.setPassedCases(0);
         report.setFailedCases(0);
@@ -170,7 +173,7 @@ public class ScenarioController {
             detail.setStepName(step.getName() == null ? "步骤" : step.getName());
             EngineDtos.StepResult last = result.getSteps().isEmpty() ? null
                     : result.getSteps().get(result.getSteps().size() - 1);
-            String status = last == null ? "error" : last.getStatus();
+            String status = last == null ? RunStatus.ERROR.getCode() : last.getStatus();
             detail.setStatus(status);
             detail.setError(last == null ? "无执行结果" : last.getError());
             detail.setAssertions(last == null ? "[]" : JsonUtils.toJson(last.getAssertions()));
@@ -178,9 +181,9 @@ public class ScenarioController {
             reportDetailMapper.insert(detail);
 
             // 汇总统计
-            if ("success".equals(status)) {
+            if (RunStatus.SUCCESS.getCode().equals(status)) {
                 passedSteps++;
-            } else if ("error".equals(status)) {
+            } else if (RunStatus.ERROR.getCode().equals(status)) {
                 errorSteps++;
             } else {
                 failedSteps++;
@@ -197,7 +200,9 @@ public class ScenarioController {
                 }
             }
         }
-        report.setStatus(allPass ? "success" : (errorSteps > 0 ? "error" : "failed"));
+        report.setStatus(allPass
+                ? ReportStatus.PASSED.getCode()
+                : (errorSteps > 0 ? ReportStatus.ERROR.getCode() : ReportStatus.FAILED.getCode()));
         report.setTotalCases(steps.size());
         report.setPassedCases(passedSteps);
         report.setFailedCases(failedSteps);

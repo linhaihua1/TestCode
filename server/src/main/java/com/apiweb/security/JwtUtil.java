@@ -3,6 +3,7 @@ package com.apiweb.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,15 +23,18 @@ import java.util.Date;
  *   ├── typ: JWT
  * ├── sub: userId   (String，UUID)
  * ├── username: 用户名
- * ├── role: 角色（admin/manager/engineer/viewer）
+ * ├── role: 角色（admin/member/viewer）
  * ├── iat: 签发时间（Unix ms）
  * └── exp: 过期时间（Unix ms）
  * </pre>
  *
  * <h3>密钥要求</h3>
  * HS256 算法要求密钥 ≥ 256 bit（32 字节）。{@link Keys#hmacShaKeyFor(byte[])} 会在密钥长度不足时抛异常。
- * 生产环境务必通过环境变量 {@code APIWEB_JWT_SECRET} 传入强随机密钥（如 {@code openssl rand -base64 48}）。
+ * 密钥来自配置 {@code apiweb.jwt.secret}（环境变量 {@code JWT_SECRET}）。
+ * <b>未配置时自动生成随机密钥并告警</b>：可保证本地开箱即用，但重启后旧 token 失效，
+ * 生产环境务必显式配置（如 {@code openssl rand -base64 48}）。
  */
+@Slf4j
 @Component
 public class JwtUtil {
 
@@ -42,12 +46,18 @@ public class JwtUtil {
     /**
      * Spring 注入密钥与有效期。
      *
-     * @param secret      签名密钥（至少 32 字节）
+     * @param secret      签名密钥（至少 32 字节）；为空时自动生成随机密钥
      * @param expireHours 过期小时数（默认 24h，配置在 application.yml）
      */
-    public JwtUtil(@Value("${apiweb.jwt.secret}") String secret,
+    public JwtUtil(@Value("${apiweb.jwt.secret:}") String secret,
                    @Value("${apiweb.jwt.expire-hours:24}") long expireHours) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (secret == null || secret.isBlank()) {
+            this.key = Jwts.SIG.HS256.key().build();
+            log.warn("⚠️ 未配置 apiweb.jwt.secret（环境变量 JWT_SECRET），已自动生成随机密钥，"
+                    + "重启后旧 token 将失效；生产环境务必显式配置");
+        } else {
+            this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        }
         this.expireMillis = expireHours * 3600_000L;
     }
 

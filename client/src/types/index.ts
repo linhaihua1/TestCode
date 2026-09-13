@@ -132,7 +132,8 @@ export interface ScenarioStep {
   apiCaseId?: string
   name?: string
   assertions: AssertionResult[]
-  extracts: ExtractResult[]
+  /** 变量提取规则（见 ExtractRule） */
+  extracts: ExtractRule[]
 }
 
 export interface TestTask extends BaseEntity {
@@ -297,6 +298,27 @@ export interface ExtractResult {
 }
 
 /**
+ * 变量提取**规则**（编写用例时配置，对应后端 EngineDtos.Extract）。
+ *
+ * <p>与 {@link ExtractResult}（执行后的提取结果）区分开：
+ * 规则描述"怎么提取"，结果描述"提取到了什么"。
+ */
+export interface ExtractRule {
+  /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
+  _id?: string
+  /** 提取方式，取值见 constants 的 EXTRACT_TYPES */
+  type: string
+  /** 表达式（JSONPath / 正则 / Header 名 / Cookie 名 / XPath） */
+  expression: string
+  /** 提取结果保存到的变量名，后续用 {{变量名}} 引用 */
+  variable: string
+  /** 未命中时的默认值 */
+  defaultValue?: string
+  /** 未命中时的策略：ignore（继续）/ stop（中断步骤） */
+  failStrategy?: string
+}
+
+/**
  * 接口用例步骤（编写用例面板）。
  *
  * <p>position 区分前置/测试/后置三个分区，enabled 控制是否参与执行。
@@ -317,7 +339,8 @@ export interface CaseStep {
   query: KeyValueItem[]
   body?: string
   assertions: AssertionResult[]
-  extracts: ExtractResult[]
+  /** 变量提取规则（不是执行结果，见 ExtractRule / ExtractResult 区别） */
+  extracts: ExtractRule[]
   condition?: string
   loopCount?: number
   /** 等待时间（毫秒），type=wait 时使用 */

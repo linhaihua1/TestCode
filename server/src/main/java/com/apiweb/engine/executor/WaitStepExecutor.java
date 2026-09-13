@@ -1,13 +1,16 @@
 package com.apiweb.engine.executor;
 
+import com.apiweb.config.EngineProperties;
 import com.apiweb.engine.EngineDtos;
 import com.apiweb.engine.StepContext;
 import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
 import com.apiweb.engine.step.StepType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 等待步骤执行器（{@link StepType#WAIT}）。
@@ -16,9 +19,14 @@ import java.util.ArrayList;
  *   <li>fixed：固定等待 {@code ms} 毫秒</li>
  *   <li>dynamic：条件等待,每 {@code intervalMs} 检查 {@code condition},直到满足或超时</li>
  * </ul>
+ *
+ * <p>缺省时长取自 {@link EngineProperties}（{@code apiweb.engine.*}）。
  */
 @Component
+@RequiredArgsConstructor
 public class WaitStepExecutor implements StepExecutor {
+
+    private final EngineProperties engine;
 
     @Override
     public StepType type() { return StepType.WAIT; }
@@ -27,7 +35,7 @@ public class WaitStepExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -35,11 +43,13 @@ public class WaitStepExecutor implements StepExecutor {
         try {
             String mode = step.cfg("mode");
             if (mode == null || mode.isBlank() || "fixed".equalsIgnoreCase(mode)) {
-                long ms = step.cfgLong("ms") == null ? 1000L : step.cfgLong("ms");
+                long ms = step.cfgLong("ms") == null ? engine.getWaitDefaultMs() : step.cfgLong("ms");
                 if (ms > 0) Thread.sleep(ms);
             } else if ("dynamic".equalsIgnoreCase(mode)) {
-                long intervalMs = step.cfgLong("intervalMs") == null ? 500L : step.cfgLong("intervalMs");
-                long timeoutMs = step.cfgLong("timeoutMs") == null ? 30000L : step.cfgLong("timeoutMs");
+                long intervalMs = step.cfgLong("intervalMs") == null
+                        ? engine.getWaitDynamicIntervalMs() : step.cfgLong("intervalMs");
+                long timeoutMs = step.cfgLong("timeoutMs") == null
+                        ? engine.getWaitDynamicTimeoutMs() : step.cfgLong("timeoutMs");
                 String condition = step.cfg("condition");
                 long deadline = System.currentTimeMillis() + timeoutMs;
                 boolean ok = false;
@@ -54,16 +64,16 @@ public class WaitStepExecutor implements StepExecutor {
                     Thread.sleep(intervalMs);
                 }
                 if (!ok && condition != null && !condition.isBlank()) {
-                    sr.setStatus("failed");
+                    sr.setStatus(RunStatus.FAILED.getCode());
                     sr.setError("动态等待超时（" + timeoutMs + "ms）");
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("等待被中断");
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("等待失败: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);

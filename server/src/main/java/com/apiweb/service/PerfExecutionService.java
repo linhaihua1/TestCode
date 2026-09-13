@@ -1,6 +1,8 @@
 package com.apiweb.service;
 
+import com.apiweb.config.EngineProperties;
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.RunStatus;
 import com.apiweb.engine.JmeterBootstrapper;
 import com.apiweb.entity.PerfCaseEntity;
 import com.apiweb.entity.PerfReportEntity;
@@ -48,6 +50,7 @@ public class PerfExecutionService {
     private final PerfReportMapper perfReportMapper;
     private final OssService ossService;
     private final JmeterBootstrapper jmeterBootstrapper;
+    private final EngineProperties engineProperties;
 
     @Async
     public void executeAsync(EngineDtos.TaskMessage message) {
@@ -90,14 +93,16 @@ public class PerfExecutionService {
             engine.configure(testPlanTree);
             engine.runTest();
 
-            // 4. 等待执行结束（最大 2 小时）
-            long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(2);
+            // 4. 等待执行结束（最长时长来自配置 apiweb.engine.perf-max-duration-hours）
+            long maxDurationMs = TimeUnit.HOURS.toMillis(engineProperties.getPerfMaxDurationHours());
+            long deadline = System.currentTimeMillis() + maxDurationMs;
             while (engine.isActive()) {
                 if (System.currentTimeMillis() > deadline) {
                     engine.stopTest(true);
-                    throw new IllegalStateException("JMeter 执行超时（2 小时）");
+                    throw new IllegalStateException("JMeter 执行超时（"
+                            + engineProperties.getPerfMaxDurationHours() + " 小时）");
                 }
-                Thread.sleep(500);
+                Thread.sleep(engineProperties.getPerfPollIntervalMs());
             }
 
             // 5. 解析 .jtl
@@ -106,7 +111,7 @@ public class PerfExecutionService {
             }
             JtlSummary summary = JtlParser.parse(jtlFile);
             report.setStatus(summary.errorCount == 0 && summary.sampleCount > 0
-                    ? "success" : "failed");
+                    ? RunStatus.SUCCESS.getCode() : RunStatus.FAILED.getCode());
             report.setDuration((int) (System.currentTimeMillis() - start));
             report.setSummary(JsonUtils.toJson(Map.of(
                     "sampleCount", summary.sampleCount,
@@ -123,7 +128,7 @@ public class PerfExecutionService {
             report.setErrors(JsonUtils.toJson(summary.errors));
         } catch (Exception e) {
             log.error("性能测试执行异常", e);
-            report.setStatus("error");
+            report.setStatus(RunStatus.ERROR.getCode());
             report.setMessage(e.getMessage());
             report.setDuration((int) (System.currentTimeMillis() - start));
         } finally {

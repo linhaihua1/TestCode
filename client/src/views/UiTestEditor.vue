@@ -46,13 +46,13 @@
     <!-- 步骤编辑 Tab -->
     <section class="panel editor-panel">
       <a-tabs v-model:active-key="activeTab" class="editor-tabs">
-        <a-tab-pane key="setup" tab="前置步骤">
+        <a-tab-pane :key="UI_SEGMENTS.SETUP" :tab="UI_SEGMENT_LABELS[UI_SEGMENTS.SETUP]">
           <StepEditor v-model="testCase.setupSteps" />
         </a-tab-pane>
-        <a-tab-pane key="test" tab="测试步骤">
+        <a-tab-pane :key="UI_SEGMENTS.TEST" :tab="UI_SEGMENT_LABELS[UI_SEGMENTS.TEST]">
           <StepEditor v-model="testCase.steps" />
         </a-tab-pane>
-        <a-tab-pane key="teardown" tab="后置步骤">
+        <a-tab-pane :key="UI_SEGMENTS.TEARDOWN" :tab="UI_SEGMENT_LABELS[UI_SEGMENTS.TEARDOWN]">
           <StepEditor v-model="testCase.teardownSteps" />
         </a-tab-pane>
       </a-tabs>
@@ -68,13 +68,14 @@ import {
   SaveOutlined, PlayCircleOutlined, RobotOutlined, ArrowLeftOutlined
 } from '@ant-design/icons-vue'
 import { UiApi } from '@/api'
+import { UI_SEGMENTS, UI_SEGMENT_LABELS, type UiSegmentCode } from '@/constants'
 import type { UiTestCase, UiStep } from '@/types'
 import StepEditor from '@/components/UiStepEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const testCase = ref<UiTestCase | null>(null)
-const activeTab = ref<'setup' | 'test' | 'teardown'>('test')
+const activeTab = ref<UiSegmentCode>(UI_SEGMENTS.TEST)
 const saving = ref(false)
 const running = ref(false)
 

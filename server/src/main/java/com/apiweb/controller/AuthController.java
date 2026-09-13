@@ -5,10 +5,12 @@ import com.apiweb.common.Result;
 import com.apiweb.entity.UserEntity;
 import com.apiweb.mapper.UserMapper;
 import com.apiweb.security.JwtUtil;
+import com.apiweb.security.Role;
 import com.apiweb.security.UserContext;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +46,10 @@ public class AuthController {
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+
+    /** 密码最小长度（配置项 apiweb.security.min-password-length，默认 6） */
+    @Value("${apiweb.security.min-password-length:6}")
+    private int minPasswordLength;
 
     /**
      * 登录请求体：用户名 + 密码。
@@ -96,7 +102,7 @@ public class AuthController {
         UserEntity user = new UserEntity();
         user.setUsername(req.getUsername());
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        user.setRole("member");
+        user.setRole(Role.MEMBER_CODE);
         userMapper.insert(user);
         return Result.ok();
     }
@@ -105,14 +111,14 @@ public class AuthController {
      * 修改当前用户密码。
      *
      * @param body 含 {@code oldPassword} / {@code newPassword} 两个字段
-     *             newPassword 至少 6 位
+     *             newPassword 长度下限由 {@code apiweb.security.min-password-length} 决定
      */
     @PostMapping("/change-password")
     public Result<Void> changePassword(@RequestBody Map<String, String> body) {
         String oldPassword = body.get("oldPassword");
         String newPassword = body.get("newPassword");
-        if (newPassword == null || newPassword.length() < 6) {
-            throw BizException.badRequest("新密码长度至少 6 位");
+        if (newPassword == null || newPassword.length() < minPasswordLength) {
+            throw BizException.badRequest("新密码长度至少 " + minPasswordLength + " 位");
         }
         UserEntity user = userMapper.selectById(UserContext.userId());
         if (user == null || !passwordEncoder.matches(oldPassword, user.getPasswordHash())) {

@@ -62,20 +62,20 @@ public class CaseRunner {
      */
     public EngineDtos.ExecutionResult runCaseSteps(String caseId, VariablesResolver resolver) {
         EngineDtos.ExecutionResult result = EngineDtos.ExecutionResult.builder()
-                .result("success")
+                .result(RunStatus.SUCCESS.getCode())
                 .build();
         StepContext ctx = new StepContext(resolver, result);
         try {
             List<StepDef> rootSteps = loadCaseSteps(caseId);
             runSteps(rootSteps, ctx);
-            if (result.getSteps().stream().anyMatch(s -> "error".equals(s.getStatus()))) {
-                result.setResult("error");
-            } else if (result.getSteps().stream().anyMatch(s -> "failed".equals(s.getStatus()))) {
-                result.setResult("failed");
+            if (result.getSteps().stream().anyMatch(s -> RunStatus.ERROR.getCode().equals(s.getStatus()))) {
+                result.setResult(RunStatus.ERROR.getCode());
+            } else if (result.getSteps().stream().anyMatch(s -> RunStatus.FAILED.getCode().equals(s.getStatus()))) {
+                result.setResult(RunStatus.FAILED.getCode());
             }
         } catch (Exception e) {
             log.error("用例执行异常", e);
-            result.setResult("error");
+            result.setResult(RunStatus.ERROR.getCode());
             result.setErrorLog(e.getMessage());
         }
         result.setTotalDurationMs(System.currentTimeMillis() - ctx.getStartMillis());
@@ -126,7 +126,7 @@ public class CaseRunner {
                 if (Boolean.FALSE.equals(step.getEnabled())) {
                     EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                             .stepName(step.getName())
-                            .status("skipped")
+                            .status(RunStatus.SKIPPED.getCode())
                             .assertions(new ArrayList<>())
                             .extracts(new ArrayList<>())
                             .error("步骤已禁用")
@@ -139,7 +139,7 @@ public class CaseRunner {
                 EngineDtos.StepResult sr = executor.execute(step, ctx);
                 ctx.getResult().getSteps().add(sr);
                 // 失败策略：stop 时立即中断（除非是 skipped 或 controller 类容器）
-                if (("failed".equals(sr.getStatus()) || "error".equals(sr.getStatus()))
+                if ((RunStatus.FAILED.getCode().equals(sr.getStatus()) || RunStatus.ERROR.getCode().equals(sr.getStatus()))
                         && !"continue".equalsIgnoreCase(step.getFailStrategy())
                         && !type.isContainer()) {
                     log.warn("步骤 [{}] 失败,中断后续步骤", step.getName());
@@ -149,7 +149,7 @@ public class CaseRunner {
                 log.error("步骤 [{}] 执行异常", step.getName(), e);
                 EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                         .stepName(step.getName())
-                        .status("error")
+                        .status(RunStatus.ERROR.getCode())
                         .assertions(new ArrayList<>())
                         .extracts(new ArrayList<>())
                         .error(e.getMessage())
@@ -216,20 +216,20 @@ public class CaseRunner {
      */
     public EngineDtos.ExecutionResult run(String stepsJson, VariablesResolver resolver) {
         EngineDtos.ExecutionResult result = EngineDtos.ExecutionResult.builder()
-                .result("success")
+                .result(RunStatus.SUCCESS.getCode())
                 .build();
         StepContext ctx = new StepContext(resolver, result);
         try {
             List<StepDef> steps = StepDef.fromJsonArray(stepsJson);
             runSteps(steps, ctx);
-            if (result.getSteps().stream().anyMatch(s -> "error".equals(s.getStatus()))) {
-                result.setResult("error");
-            } else if (result.getSteps().stream().anyMatch(s -> "failed".equals(s.getStatus()))) {
-                result.setResult("failed");
+            if (result.getSteps().stream().anyMatch(s -> RunStatus.ERROR.getCode().equals(s.getStatus()))) {
+                result.setResult(RunStatus.ERROR.getCode());
+            } else if (result.getSteps().stream().anyMatch(s -> RunStatus.FAILED.getCode().equals(s.getStatus()))) {
+                result.setResult(RunStatus.FAILED.getCode());
             }
         } catch (Exception e) {
             log.error("用例执行异常", e);
-            result.setResult("error");
+            result.setResult(RunStatus.ERROR.getCode());
             result.setErrorLog(e.getMessage());
         }
         result.setTotalDurationMs(System.currentTimeMillis() - ctx.getStartMillis());

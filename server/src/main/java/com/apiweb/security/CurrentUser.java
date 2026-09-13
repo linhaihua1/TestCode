@@ -16,7 +16,7 @@ public class CurrentUser {
     private String userId;
     /** 用户名（登录账号） */
     private String username;
-    /** 角色：admin / manager / engineer / viewer */
+    /** 角色：admin / member / viewer（见 {@link Role}） */
     private String role;
 
     /**
@@ -24,6 +24,6 @@ public class CurrentUser {
      * 管理员拥有所有权限，可访问 /api/users、/api/audit-logs 等管理接口。
      */
     public boolean isAdmin() {
-        return "admin".equals(role);
+        return Role.ADMIN_CODE.equals(role);
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import com.apiweb.engine.TriggerType;
 
 /**
  * CI/CD 触发：提供给 GitHub Actions / GitLab CI / Jenkins / 自研调度系统调用。
@@ -88,7 +89,7 @@ public class WebhookController {
         resp.taskName = task.getName();
         resp.execId = execId;
         resp.triggeredAt = Instant.now().toString();
-        resp.triggeredBy = triggerBy == null ? "webhook" : triggerBy;
+        resp.triggeredBy = triggerBy == null ? TriggerType.WEBHOOK.getCode() : triggerBy;
         resp.runCount = runs == null ? 0 : runs.size();
         resp.runIds = runs == null ? List.of() : runs.stream().map(TestTaskRunEntity::getId).toList();
         return Result.ok(resp);

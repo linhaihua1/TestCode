@@ -72,7 +72,7 @@
           >
             <template #bodyCell="{ column, run }">
               <template v-if="column.key === 'result'">
-                <a-tag :color="resultColor(run.result)">{{ run.result }}</a-tag>
+                <a-tag :color="statusColor(run.result)">{{ statusLabel(run.result) }}</a-tag>
               </template>
               <template v-else-if="column.key === 'duration'">
                 {{ run.duration }} ms
@@ -324,15 +324,10 @@
             <a-form-item label="通知渠道">
               <div v-for="(ch, idx) in form.notifyChannels" :key="idx" class="notify-row">
                 <a-space>
-                  <a-select v-model:value="ch.type" style="width: 140px">
-                    <a-select-option value="email">邮箱</a-select-option>
-                    <a-select-option value="dingtalk">钉钉</a-select-option>
-                    <a-select-option value="feishu">飞书</a-select-option>
-                    <a-select-option value="webhook">Webhook</a-select-option>
-                  </a-select>
+                  <a-select v-model:value="ch.type" style="width: 140px" :options="NOTIFY_CHANNEL_OPTIONS" />
                   <a-input v-model:value="ch.target" :placeholder="targetPlaceholder(ch.type)" style="width: 320px" />
                   <a-input v-model:value="ch.secret" placeholder="密钥(可选)" style="width: 200px" />
-                  <a-button type="link" danger @click="form.notifyChannels.splice(idx, 1)">删除</a-button>
+                  <a-button type="link" danger @click="form.notifyChannels?.splice(idx, 1)">删除</a-button>
                 </a-space>
               </div>
               <a-button type="dashed" @click="addNotifyChannel">
@@ -367,6 +362,15 @@ import {
 } from '@ant-design/icons-vue'
 import draggable from 'vuedraggable'
 import { TestTaskApi, CaseApi, EnvironmentApi } from '@/api'
+import {
+  FAIL_STRATEGIES,
+  FAIL_STRATEGY_LABELS,
+  NOTIFY_CHANNEL_OPTIONS,
+  RUN_STATUS,
+  priorityColor,
+  statusColor,
+  statusLabel
+} from '@/constants'
 import { useProjectStore } from '@/stores/project'
 import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from '@/types'
 
@@ -443,25 +447,8 @@ const filteredAvailableCases = computed(() => {
   })
 })
 
-function resultColor(s: string) {
-  return s === 'success' ? 'green'
-    : s === 'failed' ? 'red'
-    : s === 'error' ? 'volcano'
-    : s === 'skipped' ? 'default'
-    : 'blue'
-}
-
 function strategyLabel(s?: string) {
-  switch (s) {
-    case 'stop_on_fail': return '失败即停'
-    case 'continue_all': return '失败继续'
-    case 'retry_then_stop': return '重试后停'
-    default: return '失败即停'
-  }
-}
-
-function priorityColor(p: string) {
-  return p === 'P0' ? 'red' : p === 'P1' ? 'orange' : p === 'P2' ? 'blue' : 'default'
+  return FAIL_STRATEGY_LABELS[s ?? ''] ?? FAIL_STRATEGY_LABELS[FAIL_STRATEGIES.STOP_ON_FAIL]
 }
 
 function envName(id?: string) {

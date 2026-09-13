@@ -36,7 +36,7 @@
         :columns="columns"
         :loading="loading"
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-        :pagination="{ pageSize: 20 }"
+        :pagination="{ pageSize: DEFAULT_PAGE_SIZE }"
         row-key="id"
         size="middle"
       >
@@ -102,6 +102,7 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { GlobalVariableApi } from '@/api'
+import { DEFAULT_PAGE_SIZE } from '@/constants'
 import type { GlobalVariable } from '@/types'
 import { useProjectStore } from '@/stores/project'
 

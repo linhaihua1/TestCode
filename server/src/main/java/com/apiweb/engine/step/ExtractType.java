@@ -14,19 +14,20 @@ package com.apiweb.engine.step;
 public enum ExtractType {
     HEADER, COOKIE, JSONPATH, REGEX, XPATH;
 
+    /** 未指定 / 无法识别时的默认提取方式 */
+    public static final ExtractType DEFAULT = JSONPATH;
+
+    /**
+     * 大小写不敏感解析（前端传 jsonpath / JSONPATH 均可）。
+     *
+     * <p>无法识别时回退到 {@link #DEFAULT}，不再列举字面量，避免与枚举名重复维护。
+     */
     public static ExtractType parse(String s) {
-        if (s == null || s.isBlank()) return JSONPATH;
+        if (s == null || s.isBlank()) return DEFAULT;
         try {
-            return ExtractType.valueOf(s.toUpperCase());
+            return ExtractType.valueOf(s.trim().toUpperCase());
         } catch (IllegalArgumentException ignored) {
+            return DEFAULT;
         }
-        return switch (s.toLowerCase()) {
-            case "header" -> HEADER;
-            case "cookie" -> COOKIE;
-            case "jsonpath" -> JSONPATH;
-            case "regex" -> REGEX;
-            case "xpath" -> XPATH;
-            default -> JSONPATH;
-        };
     }
 }

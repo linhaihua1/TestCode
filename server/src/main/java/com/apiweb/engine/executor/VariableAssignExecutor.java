@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.util.ArrayList;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 变量赋值步骤执行器（{@link StepType#VARIABLE_ASSIGN}）。
@@ -29,14 +30,14 @@ public class VariableAssignExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
         try {
             String name = step.cfg("name");
             if (name == null || name.isBlank()) {
-                sr.setStatus("failed");
+                sr.setStatus(RunStatus.FAILED.getCode());
                 sr.setError("变量名不能为空");
                 return sr;
             }
@@ -46,7 +47,7 @@ public class VariableAssignExecutor implements StepExecutor {
                 String expr = step.cfg("expression");
                 ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
                 if (engine == null) {
-                    sr.setStatus("failed");
+                    sr.setStatus(RunStatus.FAILED.getCode());
                     sr.setError("当前 JVM 无 JS 引擎,无法计算 expression");
                     return sr;
                 }
@@ -60,7 +61,7 @@ public class VariableAssignExecutor implements StepExecutor {
             sr.setExtracts(java.util.List.of(
                     EngineDtos.ExtractResult.builder().variable(name).value(value).build()));
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("变量赋值失败: " + e.getMessage());
         }
         return sr;

@@ -35,26 +35,23 @@ import draggable from 'vuedraggable'
 import { watch } from 'vue'
 import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'
 import { uid, ensureIds } from '@/utils/uid'
-import type { ExtractResult } from '@/types'
+import { EXTRACT_TYPE_OPTIONS, EXTRACT_TYPES } from '@/constants'
+import type { ExtractRule } from '@/types'
 
-const extracts = defineModel<ExtractResult[]>({ required: true })
+const extracts = defineModel<ExtractRule[]>({ required: true })
 
 // 从后端加载的旧数据可能没有 _id，补齐以支撑拖拽排序
 watch(extracts, (list) => ensureIds(list), { immediate: true, deep: true })
 
-const typeOptions = [
-  { value: 'jsonpath', label: 'JSONPath' },
-  { value: 'regex', label: '正则' },
-  { value: 'header', label: '响应头' }
-]
+/** 提取方式选项：与后端 ExtractType 枚举一一对应，不再局部硬编码 */
+const typeOptions = EXTRACT_TYPE_OPTIONS
 
 function add() {
   extracts.value.push({
     _id: uid(),
-    type: 'jsonpath',
+    type: EXTRACT_TYPES.JSONPATH,
     expression: '',
-    variable: '',
-    value: ''
+    variable: ''
   })
 }
 

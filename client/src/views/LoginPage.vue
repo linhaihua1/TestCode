@@ -74,7 +74,12 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const form = ref({ username: 'admin', password: 'admin@123' })
+// 演示账号仅在显式开启时预填（VITE_PREFILL_DEMO_ACCOUNT=true），避免把默认口令写死在代码里
+const prefillDemo = import.meta.env.VITE_PREFILL_DEMO_ACCOUNT === 'true'
+const form = ref({
+  username: prefillDemo ? (import.meta.env.VITE_DEMO_USERNAME ?? '') : '',
+  password: prefillDemo ? (import.meta.env.VITE_DEMO_PASSWORD ?? '') : ''
+})
 const loading = ref(false)
 
 const year = new Date().getFullYear()

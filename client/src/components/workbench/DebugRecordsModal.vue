@@ -30,7 +30,7 @@
                       v-for="(s, i) in item.stepResults"
                       :key="i"
                       :title="s.stepName"
-                      :status="s.status === 'success' ? 'finish' : 'error'"
+                      :status="s.status === RUN_STATUS.SUCCESS ? 'finish' : 'error'"
                       :description="`${s.durationMs}ms ${
                         s.error ? ' - ' + s.error : ''
                       }`"
@@ -70,16 +70,13 @@
 import { ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { CaseApi } from '@/api'
+import { RUN_STATUS, statusColor } from '@/constants'
 import type { DebugRecord } from '@/types'
 
 const props = defineProps<{ open: boolean; caseId: string }>()
 const emit = defineEmits<{ 'update:open': [v: boolean] }>()
 
 const records = ref<DebugRecord[]>([])
-
-function statusColor(s: string) {
-  return s === 'success' ? 'green' : s === 'failed' ? 'red' : s === 'error' ? 'volcano' : 'default'
-}
 
 function formatTime(iso: string) {
   return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm:ss')

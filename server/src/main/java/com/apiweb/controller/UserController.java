@@ -5,8 +5,10 @@ import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
 import com.apiweb.entity.UserEntity;
 import com.apiweb.mapper.UserMapper;
+import com.apiweb.security.Role;
 import com.apiweb.security.UserContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +26,10 @@ public class UserController {
     private final UserMapper userMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
+    /** 密码最小长度（配置项 apiweb.security.min-password-length，默认 6） */
+    @Value("${apiweb.security.min-password-length:6}")
+    private int minPasswordLength;
+
     @GetMapping
     public Result<List<UserEntity>> list() {
         requireAdmin();
@@ -38,9 +44,13 @@ public class UserController {
         requireAdmin();
         String username = body.get("username");
         String password = body.get("password");
-        String role = body.getOrDefault("role", "member");
-        if (username == null || username.isBlank() || password == null || password.length() < 6) {
-            throw BizException.badRequest("用户名必填，密码至少 6 位");
+        String role = body.getOrDefault("role", Role.MEMBER_CODE);
+        if (username == null || username.isBlank() || password == null
+                || password.length() < minPasswordLength) {
+            throw BizException.badRequest("用户名必填，密码至少 " + minPasswordLength + " 位");
+        }
+        if (!Role.isValid(role)) {
+            throw BizException.badRequest("角色非法: " + role);
         }
         UserEntity user = new UserEntity();
         user.setUsername(username);
@@ -60,11 +70,15 @@ public class UserController {
             throw BizException.notFound("用户不存在");
         }
         if (body.containsKey("role")) {
-            user.setRole(body.get("role"));
+            String role = body.get("role");
+            if (!Role.isValid(role)) {
+                throw BizException.badRequest("角色非法: " + role);
+            }
+            user.setRole(role);
         }
         if (body.containsKey("password")) {
             String pwd = body.get("password");
-            if (pwd != null && pwd.length() >= 6) {
+            if (pwd != null && pwd.length() >= minPasswordLength) {
                 user.setPasswordHash(passwordEncoder.encode(pwd));
             }
         }

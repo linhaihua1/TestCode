@@ -111,7 +111,7 @@ public class ExecutionSupportService {
      * 报告明细超阈值时转存 MinIO，返回 details 内容或 minio:// 引用。
      */
     public String offloadDetails(String runId, String detailsJson) {
-        return ossService.putIfLarge(detailsJson, "reports/" + runId + "/details.json");
+        return ossService.putIfLarge(detailsJson, OssKeys.reportDetails(runId));
     }
 
     /**

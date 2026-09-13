@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 引用公共用例（{@link StepType#REF_PUBLIC_CASE}）。
@@ -44,21 +45,21 @@ public class RefPublicCaseExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
         long start = System.currentTimeMillis();
         try {
             if (ctx.isMaxDepthReached(MAX_DEPTH)) {
-                sr.setStatus("failed");
+                sr.setStatus(RunStatus.FAILED.getCode());
                 sr.setError("引用公共用例嵌套超过 " + MAX_DEPTH + " 层,已截断");
                 return sr;
             }
             // 取出被引用的步骤,这里由 caseRunner 提供
             String publicCaseId = step.cfg("publicCaseId");
             if (publicCaseId == null || publicCaseId.isBlank()) {
-                sr.setStatus("failed");
+                sr.setStatus(RunStatus.FAILED.getCode());
                 sr.setError("publicCaseId 不能为空");
                 return sr;
             }
@@ -81,7 +82,7 @@ public class RefPublicCaseExecutor implements StepExecutor {
             ctx.setRefCaseDepth(ctx.getRefCaseDepth() - 1);
         } catch (Exception e) {
             log.warn("引用公共用例失败: {}", e.getMessage());
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("引用公共用例失败: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);

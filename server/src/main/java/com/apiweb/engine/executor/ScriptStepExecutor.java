@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.util.ArrayList;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 自定义脚本步骤执行器（{@link StepType#SCRIPT}）。
@@ -33,7 +34,7 @@ public class ScriptStepExecutor implements StepExecutor {
         // 其它语言暂不支持,标记为失败但不中断
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("failed")
+                .status(RunStatus.FAILED.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .error("暂不支持的脚本语言: " + language)
@@ -45,14 +46,14 @@ public class ScriptStepExecutor implements StepExecutor {
         String script = step.cfg("script");
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
         try {
             ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
             if (engine == null) {
-                sr.setStatus("failed");
+                sr.setStatus(RunStatus.FAILED.getCode());
                 sr.setError("当前 JVM 无可用 JS 引擎（建议引入 org.graalvm.polyglot:js 依赖）");
             } else {
                 ctx.getResolver().all().forEach(engine::put);
@@ -63,7 +64,7 @@ public class ScriptStepExecutor implements StepExecutor {
                 }
             }
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("脚本执行失败: " + e.getMessage());
         }
         return sr;

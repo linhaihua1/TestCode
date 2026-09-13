@@ -12,68 +12,69 @@ import org.springframework.context.annotation.Configuration;
 /**
  * RabbitMQ 配置：任务异步投递拓扑。
  *
- * 拓扑设计：
- *   exchange: apiweb.task.exchange (topic)
- *     - routing key "task.api.#"  -> apiweb.task.api.queue   （接口自动化任务）
- *     - routing key "task.ui.#"   -> apiweb.task.ui.queue    （UI 自动化任务）
- *     - routing key "task.perf.#" -> apiweb.task.perf.queue  （性能测试任务）
- *   exchange: apiweb.result.exchange (fanout)  —— 执行结果回传（多消费者：报告落库、进度推送）
+ * <p>拓扑结构（交换机 / 队列 / 路由键名称全部来自 {@link MqProperties}，
+ * 即 {@code application.yml} 的 {@code apiweb.mq.*}，代码中不再硬编码）：
+ * <pre>
+ *   exchange: {apiweb.mq.exchange} (topic)
+ *     - routing key {apiweb.mq.binding-key.api}  -> {apiweb.mq.queue.api}   接口自动化任务
+ *     - routing key {apiweb.mq.binding-key.ui}   -> {apiweb.mq.queue.ui}    UI 自动化任务
+ *     - routing key {apiweb.mq.binding-key.perf} -> {apiweb.mq.queue.perf}  性能测试任务
+ *   exchange: {apiweb.mq.result-exchange} (fanout)  执行结果回传
+ * </pre>
  */
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String TASK_EXCHANGE = "apiweb.task.exchange";
-    public static final String RESULT_EXCHANGE = "apiweb.result.exchange";
+    private final MqProperties mq;
 
-    public static final String API_TASK_QUEUE = "apiweb.task.api.queue";
-    public static final String UI_TASK_QUEUE = "apiweb.task.ui.queue";
-    public static final String PERF_TASK_QUEUE = "apiweb.task.perf.queue";
-
-    public static final String API_TASK_KEY = "task.api.execute";
-    public static final String UI_TASK_KEY = "task.ui.execute";
-    public static final String PERF_TASK_KEY = "task.perf.execute";
+    public RabbitMQConfig(MqProperties mq) {
+        this.mq = mq;
+    }
 
     // ---------- 交换机 ----------
     @Bean
     public TopicExchange taskExchange() {
-        return ExchangeBuilder.topicExchange(TASK_EXCHANGE).durable(true).build();
+        return ExchangeBuilder.topicExchange(mq.getExchange()).durable(true).build();
     }
 
     @Bean
     public FanoutExchange resultExchange() {
-        return ExchangeBuilder.fanoutExchange(RESULT_EXCHANGE).durable(true).build();
+        return ExchangeBuilder.fanoutExchange(mq.getResultExchange()).durable(true).build();
     }
 
     // ---------- 任务队列 ----------
     @Bean
     public Queue apiTaskQueue() {
-        return QueueBuilder.durable(API_TASK_QUEUE).build();
+        return QueueBuilder.durable(mq.getQueue().getApi()).build();
     }
 
     @Bean
     public Queue uiTaskQueue() {
-        return QueueBuilder.durable(UI_TASK_QUEUE).build();
+        return QueueBuilder.durable(mq.getQueue().getUi()).build();
     }
 
     @Bean
     public Queue perfTaskQueue() {
-        return QueueBuilder.durable(PERF_TASK_QUEUE).build();
+        return QueueBuilder.durable(mq.getQueue().getPerf()).build();
     }
 
     // ---------- 绑定 ----------
     @Bean
     public Binding apiTaskBinding() {
-        return BindingBuilder.bind(apiTaskQueue()).to(taskExchange()).with("task.api.#");
+        return BindingBuilder.bind(apiTaskQueue()).to(taskExchange())
+                .with(mq.getBindingKey().getApi());
     }
 
     @Bean
     public Binding uiTaskBinding() {
-        return BindingBuilder.bind(uiTaskQueue()).to(taskExchange()).with("task.ui.#");
+        return BindingBuilder.bind(uiTaskQueue()).to(taskExchange())
+                .with(mq.getBindingKey().getUi());
     }
 
     @Bean
     public Binding perfTaskBinding() {
-        return BindingBuilder.bind(perfTaskQueue()).to(taskExchange()).with("task.perf.#");
+        return BindingBuilder.bind(perfTaskQueue()).to(taskExchange())
+                .with(mq.getBindingKey().getPerf());
     }
 
     // ---------- JSON 消息转换 ----------

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.apiweb.engine.RunStatus;
 
 /**
  * FOR 循环控制器（{@link StepType#FOR}）。
@@ -47,7 +48,7 @@ public class ForStepExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -85,7 +86,7 @@ public class ForStepExecutor implements StepExecutor {
                 }
             }
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("FOR 控制器异常: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);

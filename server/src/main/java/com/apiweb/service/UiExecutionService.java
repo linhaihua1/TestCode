@@ -1,6 +1,9 @@
 package com.apiweb.service;
 
+import com.apiweb.config.EngineProperties;
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.RunStatus;
+import com.apiweb.engine.UiSegment;
 import com.apiweb.entity.UiReportEntity;
 import com.apiweb.entity.UiTestCaseEntity;
 import com.apiweb.mapper.UiReportMapper;
@@ -30,7 +33,9 @@ import java.util.function.Supplier;
  * 步骤 JSON 约定（8 种定位方式）：
  *   {"action":"open|click|input|clear|submit|wait|assert_text|assert_title|screenshot|script",
  *    "locator":"id|name|css|xpath|class|tag|link_text|partial_link_text", "selector":"...",
- *    "value":"...", "timeoutMs":5000}
+ *    "value":"...", "timeoutMs":<元素等待超时，缺省取配置>}
+ *
+ * <p>各类默认超时来自 {@link EngineProperties}（{@code apiweb.engine.ui.*}），不硬编码。
  */
 @Slf4j
 @Service
@@ -40,6 +45,7 @@ public class UiExecutionService {
     private final UiTestCaseMapper uiTestCaseMapper;
     private final UiReportMapper uiReportMapper;
     private final OssService ossService;
+    private final EngineProperties engineProperties;
 
     @Async
     public void executeAsync(EngineDtos.TaskMessage message) {
@@ -56,37 +62,49 @@ public class UiExecutionService {
         long start = System.currentTimeMillis();
         WebDriver driver = null;
         List<Map<String, Object>> details = new ArrayList<>();
-        String status = "success";
+        String status = RunStatus.SUCCESS.getCode();
         try {
+            EngineProperties.Ui ui = engineProperties.getUi();
             ChromeOptions options = new ChromeOptions();
-            options.addArguments("--headless=new", "--no-sandbox", "--disable-gpu",
-                    "--window-size=1920,1080");
-            // 允许通过环境变量指定 chromedriver 路径（解决不同环境 chromedriver 版本不匹配的问题）。
-            // 优先读取 WEBDRIVER_CHROME_DRIVER，其次 system property。
+            List<String> args = new ArrayList<>();
+            if (ui.isHeadless()) {
+                args.add("--headless=new");
+            }
+            // 容器 / 无特权环境必需参数，保持常开
+            args.add("--no-sandbox");
+            args.add("--disable-gpu");
+            args.add("--window-size=" + ui.getWindowSize());
+            options.addArguments(args);
+
+            // 驱动路径解析顺序：环境变量 WEBDRIVER_CHROME_DRIVER > JVM 系统属性 > 配置文件
             String driverPath = System.getenv("WEBDRIVER_CHROME_DRIVER");
             if (driverPath == null || driverPath.isBlank()) {
                 driverPath = System.getProperty("webdriver.chrome.driver");
+            }
+            if (driverPath == null || driverPath.isBlank()) {
+                driverPath = ui.getDriverPath();
             }
             if (driverPath != null && !driverPath.isBlank()) {
                 System.setProperty("webdriver.chrome.driver", driverPath);
             }
             driver = new ChromeDriver(options);
             // 页面加载超时 + 隐式等待兜底（具体交互步骤另有显式等待 + 重试）
-            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(3));
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(ui.getPageLoadTimeoutSeconds()));
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(ui.getImplicitWaitSeconds()));
 
-            runSegment(driver, test.getSetupSteps(), "setup", details);
-            runSegment(driver, test.getSteps(), "test", details);
-            runSegment(driver, test.getTeardownSteps(), "teardown", details);
+            runSegment(driver, test.getSetupSteps(), UiSegment.SETUP.getCode(), details);
+            runSegment(driver, test.getSteps(), UiSegment.TEST.getCode(), details);
+            runSegment(driver, test.getTeardownSteps(), UiSegment.TEARDOWN.getCode(), details);
 
-            if (details.stream().anyMatch(d -> !"success".equals(d.get("status")))) {
-                status = "failed";
+            if (details.stream().anyMatch(
+                    d -> !RunStatus.SUCCESS.getCode().equals(d.get("status")))) {
+                status = RunStatus.FAILED.getCode();
             }
         } catch (Exception e) {
-            status = "error";
+            status = RunStatus.ERROR.getCode();
             Map<String, Object> err = new LinkedHashMap<>();
-            err.put("segment", "error");
-            err.put("status", "error");
+            err.put("segment", UiSegment.ERROR.getCode());
+            err.put("status", RunStatus.ERROR.getCode());
             err.put("message", e.getMessage());
             details.add(err);
             log.error("UI 用例执行异常", e);
@@ -101,7 +119,7 @@ public class UiExecutionService {
         report.setStatus(status);
         report.setDuration((int) (System.currentTimeMillis() - start));
         report.setDetails(ossService.putIfLarge(JsonUtils.toJson(details),
-                "ui-reports/" + runId + "/details.json"));
+                OssKeys.uiReportDetails(runId)));
         uiReportMapper.updateById(report);
     }
 
@@ -114,12 +132,12 @@ public class UiExecutionService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("segment", segment);
             row.put("step", step);
-            row.put("status", "success");
+            row.put("status", RunStatus.SUCCESS.getCode());
             long t0 = System.currentTimeMillis();
             try {
                 doStep(driver, step, row);
             } catch (Exception e) {
-                row.put("status", "failed");
+                row.put("status", RunStatus.FAILED.getCode());
                 row.put("message", e.getMessage());
                 takeScreenshot(driver, row);
             }
@@ -142,7 +160,8 @@ public class UiExecutionService {
             case "clear" -> el.clear();
             case "submit" -> el.submit();
             case "wait" -> Thread.sleep(
-                    step.get("timeoutMs") instanceof Number n ? n.longValue() : 1000L);
+                    step.get("timeoutMs") instanceof Number n
+                            ? n.longValue() : engineProperties.getUi().getWaitDefaultMs());
             case "assert_text" -> {
                 String expected = str(step.get("value"), "");
                 if (el != null && !el.getText().contains(expected)) {
@@ -189,8 +208,10 @@ public class UiExecutionService {
      * 可交互，更贴近真实用户操作时序。</p>
      */
     private WebElement findElement(WebDriver driver, Map<String, Object> step) {
-        long timeoutMs = step.get("timeoutMs") instanceof Number n ? n.longValue() : 5000L;
-        Duration wait = Duration.ofMillis(Math.max(timeoutMs, 1000L));
+        EngineProperties.Ui ui = engineProperties.getUi();
+        long timeoutMs = step.get("timeoutMs") instanceof Number n
+                ? n.longValue() : ui.getElementTimeoutMs();
+        Duration wait = Duration.ofMillis(Math.max(timeoutMs, ui.getMinElementTimeoutMs()));
         By by = by(driver, step);
         return retry(() -> new WebDriverWait(driver, wait)
                 .until(ExpectedConditions.visibilityOfElementLocated(by)),

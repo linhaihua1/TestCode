@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 测试任务：编排用例集合，支持手动触发（RabbitMQ 异步）/ 本地并行执行 / Quartz 定时调度 / CI/CD webhook 触发。
@@ -110,7 +111,7 @@ public class TestTaskController {
         for (String caseId : caseIds) {
             TestTaskRunEntity run = new TestTaskRunEntity();
             run.setTaskId(id);
-            run.setResult("pending");
+            run.setResult(RunStatus.PENDING.getCode());
             run.setStartedAt(Instant.now());
             run.setDetails("[]");
             testTaskRunMapper.insert(run);

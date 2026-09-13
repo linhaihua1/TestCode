@@ -55,7 +55,7 @@
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
         size="middle"
-        :pagination="{ pageSize: 20 }"
+        :pagination="{ pageSize: DEFAULT_PAGE_SIZE }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
@@ -102,6 +102,7 @@ import { onMounted, reactive, ref, watch, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { RecycleBinApi, type RecycleBinItem, type RecycleBinConfig } from '@/api'
+import { DEFAULT_PAGE_SIZE } from '@/constants'
 import { useProjectStore } from '@/stores/project'
 
 const projectStore = useProjectStore()

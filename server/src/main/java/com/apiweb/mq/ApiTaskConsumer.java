@@ -1,6 +1,5 @@
 package com.apiweb.mq;
 
-import com.apiweb.config.RabbitMQConfig;
 import com.apiweb.engine.EngineDtos;
 import com.apiweb.engine.VariablesResolver;
 import com.apiweb.entity.CaseEntity;
@@ -25,11 +24,12 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 接口自动化任务消费者。
  *
- * <p>消费 RabbitMQ 队列 {@code apiweb.task.api.queue} 中的任务消息，调用 {@code CaseRunner} 执行用例，
+ * <p>消费 RabbitMQ 队列 {@code apiweb.mq.queue.api}（配置项）中的任务消息，调用 {@code CaseRunner} 执行用例，
  * 结果写入 {@code t_test_task_run}。
  *
  * <h3>消息流</h3>
@@ -68,7 +68,7 @@ public class ApiTaskConsumer {
      * @param channel     RabbitMQ Channel（用于手动 ack）
      * @param deliveryTag 消息投递标签
      */
-    @RabbitListener(queues = RabbitMQConfig.API_TASK_QUEUE)
+    @RabbitListener(queues = "${apiweb.mq.queue.api}")
     public void onMessage(@Payload EngineDtos.TaskMessage message, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws Exception {
         try {
@@ -93,7 +93,7 @@ public class ApiTaskConsumer {
             log.warn("Run 不存在，忽略: {}", runId);
             return;
         }
-        run.setResult("running");
+        run.setResult(RunStatus.RUNNING.getCode());
         testTaskRunMapper.updateById(run);
 
         long start = System.currentTimeMillis();
@@ -124,7 +124,7 @@ public class ApiTaskConsumer {
         // 注意：重试用全新变量池，避免上一次的提取变量污染
         int retry = task == null ? 0 : task.getRetryCount();
         int attempts = 0;
-        while (!"success".equals(result.getResult()) && attempts < retry) {
+        while (!RunStatus.SUCCESS.getCode().equals(result.getResult()) && attempts < retry) {
             attempts++;
             result = executionSupport.caseRunner()
                     .run(caseEntity.getSteps(), new VariablesResolver(new HashMap<>(vars)));
@@ -151,7 +151,7 @@ public class ApiTaskConsumer {
     private void markError(String runId, String message) {
         TestTaskRunEntity run = testTaskRunMapper.selectById(runId);
         if (run != null) {
-            run.setResult("error");
+            run.setResult(RunStatus.ERROR.getCode());
             run.setEndedAt(Instant.now());
             Map<String, Object> err = new HashMap<>();
             err.put("error", message);

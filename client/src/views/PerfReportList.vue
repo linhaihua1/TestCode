@@ -23,7 +23,7 @@
             <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
           </template>
           <template v-else-if="column.key === 'startedAt'">
-            {{ formatTime(record.startedAt) }}
+            {{ formatDateTime(record.startedAt) }}
           </template>
           <template v-else-if="column.key === 'action'">
             <router-link :to="{ name: 'perf-report-detail', params: { id: record.id } }">
@@ -40,6 +40,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import { PerfApi } from '@/api'
+import { statusColor } from '@/constants'
+import { formatDateTime } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'
 import type { PerfReport } from '@/types'
 
@@ -55,16 +57,6 @@ const columns = [
   { title: '开始时间', key: 'startedAt', width: 200 },
   { title: '操作', key: 'action', width: 100 }
 ]
-
-function statusColor(s: string) {
-  return s === 'success' ? 'green' : s === 'failed' ? 'orange' : 'red'
-}
-
-function formatTime(iso?: string) {
-  if (!iso) return '-'
-  const d = new Date(iso)
-  return isNaN(d.getTime()) ? iso : d.toLocaleString()
-}
 
 async function reload() {
   if (!projectId.value) return

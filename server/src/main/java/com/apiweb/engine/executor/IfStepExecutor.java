@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * IF-ELSE 条件分支控制器（{@link StepType#IF}）。
@@ -39,7 +40,7 @@ public class IfStepExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -53,7 +54,7 @@ public class IfStepExecutor implements StepExecutor {
                     : readElseBranch(step.cfg("elseBranch"));
             caseRunner.runSteps(target, ctx);
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("IF 控制器异常: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);

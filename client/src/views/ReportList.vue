@@ -52,7 +52,7 @@
         :columns="columns"
         row-key="id"
         :loading="loading"
-        :pagination="{ pageSize: 20 }"
+        :pagination="{ pageSize: DEFAULT_PAGE_SIZE }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
@@ -62,7 +62,7 @@
             <a-tag color="blue">{{ triggerLabel(record.triggerType) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'startedAt'">
-            {{ formatTime(record.startedAt) }}
+            {{ formatDateTime(record.startedAt) }}
           </template>
           <template v-else-if="column.key === 'cases'">
             <span v-if="record.totalCases">
@@ -108,13 +108,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import {
   ReloadOutlined,
   LineChartOutlined,
   DownOutlined
 } from '@ant-design/icons-vue'
 import { ReportApi } from '@/api'
+import {
+  ALLURE_STATUS_LABELS,
+  DEFAULT_PAGE_SIZE,
+  TRIGGER_LABELS,
+  TRIGGER_TYPES,
+  statusColor
+} from '@/constants'
+import { formatDateTime } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'
 import type { Report } from '@/types'
 import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
@@ -151,10 +158,10 @@ const summaryStats = computed<StatusStat[]>(() => {
   const sum = (fn: (r: Report) => number) =>
     reports.value.reduce((acc, r) => acc + (fn(r) || 0), 0)
   return [
-    { key: 'passed', label: '通过', value: sum((r) => r.passedCases || 0) },
-    { key: 'failed', label: '失败', value: sum((r) => r.failedCases || 0) },
-    { key: 'broken', label: '异常', value: sum((r) => r.errorCases || 0) },
-    { key: 'skipped', label: '跳过', value: sum((r) => r.skippedCases || 0) }
+    { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: sum((r) => r.passedCases || 0) },
+    { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: sum((r) => r.failedCases || 0) },
+    { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: sum((r) => r.errorCases || 0) },
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: sum((r) => r.skippedCases || 0) }
   ]
 })
 
@@ -168,27 +175,8 @@ const recent7PassRate = computed(() => {
   return total === 0 ? 0 : (passed * 100) / total
 })
 
-function statusColor(s: string) {
-  return s === 'passed' || s === 'success'
-    ? 'green'
-    : s === 'failed' ? 'red'
-    : s === 'error' ? 'volcano'
-    : s === 'running' ? 'blue'
-    : 'default'
-}
-
 function triggerLabel(t?: string) {
-  switch (t) {
-    case 'manual': return '手动'
-    case 'schedule': return '定时'
-    case 'webhook': return 'Webhook'
-    case 'api': return 'API'
-    default: return '手动'
-  }
-}
-
-function formatTime(iso: string) {
-  return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm:ss')
+  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL]
 }
 
 async function reload() {

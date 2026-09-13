@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 仅一次控制器（{@link StepType#ONCE}）。
@@ -38,7 +39,7 @@ public class OnceStepExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("skipped")
+                .status(RunStatus.SKIPPED.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -49,10 +50,10 @@ public class OnceStepExecutor implements StepExecutor {
         long start = System.currentTimeMillis();
         try {
             runner().runSteps(step.getChildren(), ctx);
-            sr.setStatus("success");
+            sr.setStatus(RunStatus.SUCCESS.getCode());
             ctx.markOnceExecuted(step.getId());
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("ONCE 控制器异常: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);

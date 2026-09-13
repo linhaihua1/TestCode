@@ -98,34 +98,34 @@ public class ReportShareService {
     public ReportShareEntity verify(String token, String clientIp, String password) {
         ReportShareEntity s = shareMapper.selectOne(
                 new LambdaQueryWrapper<ReportShareEntity>().eq(ReportShareEntity::getToken, token));
-        String status = "success";
+        ShareAccessStatus status = ShareAccessStatus.SUCCESS;
         try {
             if (s == null) {
-                status = "not_found";
+                status = ShareAccessStatus.NOT_FOUND;
                 throw BizException.notFound("分享链接不存在");
             }
             if (Boolean.TRUE.equals(s.getRevoked())) {
-                status = "revoked";
+                status = ShareAccessStatus.REVOKED;
                 throw BizException.forbidden("分享链接已被撤销");
             }
             if (s.getExpiresAt() != null && s.getExpiresAt().isBefore(Instant.now())) {
-                status = "expired";
+                status = ShareAccessStatus.EXPIRED;
                 throw BizException.badRequest("分享链接已过期");
             }
             if (s.getMaxAccessCount() != null && s.getAccessCount() != null
                     && s.getAccessCount() >= s.getMaxAccessCount()) {
-                status = "rate_limited";
+                status = ShareAccessStatus.RATE_LIMITED;
                 throw BizException.badRequest("分享链接访问次数已达上限");
             }
             if (s.getPassword() != null) {
                 if (password == null || !BCrypt.checkpw(password, s.getPassword())) {
-                    status = "wrong_password";
+                    status = ShareAccessStatus.WRONG_PASSWORD;
                     throw BizException.forbidden("密码错误");
                 }
             }
             if (s.getAllowedIps() != null && !s.getAllowedIps().isBlank() && clientIp != null) {
                 if (!ipAllowed(s.getAllowedIps(), clientIp)) {
-                    status = "ip_blocked";
+                    status = ShareAccessStatus.IP_BLOCKED;
                     throw BizException.forbidden("IP 不在允许范围内");
                 }
             }
@@ -134,7 +134,7 @@ public class ReportShareService {
             // 记录访问日志（即使失败也记）
             try {
                 if (s != null) {
-                    if ("success".equals(status)) {
+                    if (status == ShareAccessStatus.SUCCESS) {
                         s.setAccessCount((s.getAccessCount() == null ? 0 : s.getAccessCount()) + 1);
                         s.setLastAccessedAt(Instant.now());
                         shareMapper.updateById(s);
@@ -144,7 +144,7 @@ public class ReportShareService {
                     logEntity.setReportId(s.getReportId());
                     logEntity.setAccessIp(clientIp);
                     logEntity.setAccessedAt(Instant.now());
-                    logEntity.setStatus(status);
+                    logEntity.setStatus(status.getCode());
                     logMapper.insert(logEntity);
                 }
             } catch (Exception e) {

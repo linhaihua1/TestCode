@@ -55,10 +55,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ALLURE_STATUS_KEYS, ALLURE_STATUS_LABELS, type AllureStatusKey } from '@/constants'
 
 export interface StatusStat {
   /** 状态标识：passed | failed | broken | skipped */
-  key: 'passed' | 'failed' | 'broken' | 'skipped'
+  key: AllureStatusKey
   /** 显示名称 */
   label: string
   /** 数量 */
@@ -77,17 +78,14 @@ const emit = defineEmits<{
 // 供外部 v-model:active 使用（可选）
 const active = defineModel<string | null>('active', { default: null })
 
-/** 归一化后的四类状态（确保顺序固定：通过/失败/异常/跳过） */
+/** 归一化后的四类状态（顺序与中文名均取自 constants，避免重复维护） */
 const normalized = computed<StatusStat[]>(() => {
   const map = new Map(props.stats.map((s) => [s.key, s.value]))
-  const order: StatusStat['key'][] = ['passed', 'failed', 'broken', 'skipped']
-  const labels: Record<StatusStat['key'], string> = {
-    passed: '通过',
-    failed: '失败',
-    broken: '异常',
-    skipped: '跳过'
-  }
-  return order.map((k) => ({ key: k, label: labels[k], value: map.get(k) || 0 }))
+  return ALLURE_STATUS_KEYS.map((k) => ({
+    key: k,
+    label: ALLURE_STATUS_LABELS[k] ?? k,
+    value: map.get(k) || 0
+  }))
 })
 
 const total = computed(() =>

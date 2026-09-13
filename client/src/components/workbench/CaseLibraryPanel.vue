@@ -34,7 +34,7 @@
               <a-space>
                 <span>{{ item.name }}</span>
                 <a-tag color="blue" size="small">v{{ item.version }}</a-tag>
-                <a-tag size="small" :color="statusColor(item.status)">{{ item.status }}</a-tag>
+                <a-tag size="small" :color="caseStatusColor(item.status)">{{ CASE_STATUS_LABELS[item.status] || item.status }}</a-tag>
                 <a-tag size="small">{{ item.priority }}</a-tag>
               </a-space>
             </template>
@@ -72,6 +72,7 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { CaseApi } from '@/api'
+import { CASE_STATUS_LABELS, CASE_STATUS_OPTIONS, PRIORITY_OPTIONS, caseStatusColor } from '@/constants'
 import type { CaseInfo } from '@/types'
 
 const props = defineProps<{
@@ -91,19 +92,9 @@ const statusFilter = ref<string | undefined>()
 const createOpen = ref(false)
 const form = reactive<Partial<CaseInfo>>({ name: '', priority: 'P2', description: '' })
 
-const statusOptions = [
-  { value: undefined, label: '全部' },
-  { value: 'draft', label: '草稿' },
-  { value: 'reviewing', label: '评审中' },
-  { value: 'pass', label: '通过' },
-  { value: 'fail', label: '失败' }
-]
+const statusOptions = [{ value: undefined, label: '全部' }, ...CASE_STATUS_OPTIONS]
 
-const priorityOptions = ['P0', 'P1', 'P2', 'P3'].map((v) => ({ value: v, label: v }))
-
-function statusColor(s: string) {
-  return s === 'pass' ? 'green' : s === 'fail' ? 'red' : s === 'reviewing' ? 'orange' : 'default'
-}
+const priorityOptions = PRIORITY_OPTIONS
 
 async function reload() {
   if (!props.projectId) return
@@ -133,7 +124,7 @@ async function create() {
   const c = await CaseApi.create({
     ...form,
     projectId: props.projectId,
-    moduleId: props.moduleId || null,
+    moduleId: props.moduleId || undefined,
     status: 'draft',
     tags: [],
     steps: []

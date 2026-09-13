@@ -4,6 +4,7 @@ import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.TaskType;
 import com.apiweb.entity.PerfCaseEntity;
 import com.apiweb.entity.PerfReportEntity;
 import com.apiweb.mapper.PerfCaseMapper;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 性能测试（JMeter）：用例管理 + 异步执行 + 报告。
@@ -182,7 +184,7 @@ public class PerfController {
         report.setProjectId(c.getProjectId());
         report.setCaseId(id);
         report.setName(c.getName());
-        report.setStatus("pending");
+        report.setStatus(RunStatus.PENDING.getCode());
         report.setStartedAt(Instant.now());
         report.setSummary("{}");
         report.setSeries("[]");
@@ -194,18 +196,20 @@ public class PerfController {
         } else {
             // localdev：消费端关闭，改用 @Async 异步执行（嵌入式 JMeter 在当前 JVM 内跑）
             perfExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                    "perf", report.getId(), c.getProjectId(), id, null, null, null));
+                    TaskType.PERF.getCode(), report.getId(), c.getProjectId(), id, null, null, null));
         }
         return Result.ok(report);
     }
 
     @GetMapping("/reports")
-    public Result<List<PerfReportEntity>> listReports(@RequestParam String projectId) {
+    public Result<List<PerfReportEntity>> listReports(
+            @RequestParam String projectId,
+            @RequestParam(defaultValue = "${apiweb.engine.list-max-limit:100}") int limit) {
         List<PerfReportEntity> reports = perfReportMapper.selectList(
                 new LambdaQueryWrapper<PerfReportEntity>()
                         .eq(PerfReportEntity::getProjectId, projectId)
                         .orderByDesc(PerfReportEntity::getStartedAt)
-                        .last("LIMIT 100"));
+                        .last("LIMIT " + Math.max(1, limit)));
         for (PerfReportEntity r : reports) {
             if (r.getSeries() != null && r.getSeries().startsWith("minio://")) {
                 r.setSeries(ossService.get(r.getSeries()));

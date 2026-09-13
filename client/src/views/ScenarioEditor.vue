@@ -107,7 +107,7 @@ import draggable from 'vuedraggable'
 import { ScenarioApi } from '@/api'
 import { uid, ensureIds } from '@/utils/uid'
 import { useProjectStore } from '@/stores/project'
-import type { Scenario, AssertionResult, ExtractResult } from '@/types'
+import type { Scenario, AssertionResult, ExtractRule } from '@/types'
 import AssertionEditor from '@/components/AssertionEditor.vue'
 import ExtractEditor from '@/components/ExtractEditor.vue'
 
@@ -122,7 +122,7 @@ interface Step {
   name?: string
   apiCaseId?: string
   assertions: AssertionResult[]
-  extracts: ExtractResult[]
+  extracts: ExtractRule[]
 }
 
 const scenario = ref<Scenario | null>(null)

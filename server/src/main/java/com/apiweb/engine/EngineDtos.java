@@ -255,10 +255,10 @@ public final class EngineDtos {
          * 是否全部通过（result=success 且无 failed/error 步骤）。
          */
         public boolean allPassed() {
-            if (!"success".equals(result)) return false;
+            if (!RunStatus.SUCCESS.getCode().equals(result)) return false;
             if (steps == null) return true;
             for (StepResult s : steps) {
-                if ("failed".equals(s.getStatus()) || "error".equals(s.getStatus())) {
+                if (RunStatus.FAILED.getCode().equals(s.getStatus()) || RunStatus.ERROR.getCode().equals(s.getStatus())) {
                     return false;
                 }
             }
@@ -272,7 +272,7 @@ public final class EngineDtos {
             if (steps == null) return 0;
             int n = 0;
             for (StepResult s : steps) {
-                if ("failed".equals(s.getStatus()) || "error".equals(s.getStatus())) {
+                if (RunStatus.FAILED.getCode().equals(s.getStatus()) || RunStatus.ERROR.getCode().equals(s.getStatus())) {
                     n++;
                 }
             }

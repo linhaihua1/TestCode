@@ -1,6 +1,8 @@
 package com.apiweb.service;
 
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.ReportStatus;
+import com.apiweb.engine.RunStatus;
 import com.apiweb.entity.ReportDetailEntity;
 import com.apiweb.entity.ReportEntity;
 import com.apiweb.entity.TestTaskRunEntity;
@@ -69,11 +71,11 @@ public class ReportGenerationService {
 
         for (TestTaskRunEntity run : runs) {
             String result = run.getResult();
-            if ("success".equals(result)) {
+            if (RunStatus.SUCCESS.getCode().equals(result)) {
                 passed++;
-            } else if ("failed".equals(result)) {
+            } else if (RunStatus.FAILED.getCode().equals(result)) {
                 failed++;
-            } else if ("error".equals(result)) {
+            } else if (RunStatus.ERROR.getCode().equals(result)) {
                 error++;
             } else {
                 // pending / running / skipped / null 均视为未通过（跳过）
@@ -121,7 +123,7 @@ public class ReportGenerationService {
         report.setDuration((int) sumDuration);
         // avgResponseTime 用平均单用例耗时近似（语义为平均响应，任务场景下近似为平均用例耗时）
         report.setAvgResponseTime(total == 0 ? 0 : (int) (sumDuration / total));
-        report.setStatus(resolveStatus(error, failed, passed, skipped, total));
+        report.setStatus(ReportStatus.resolve(error, failed, total).getCode());
 
         reportMapper.insert(report);
 
@@ -135,7 +137,7 @@ public class ReportGenerationService {
             EngineDtos.ExecutionResult er = parseResult(run.getDetails());
             if (er.getErrorLog() != null && !er.getErrorLog().isBlank()) {
                 detail.setError(er.getErrorLog());
-            } else if ("error".equals(run.getResult()) || "failed".equals(run.getResult())) {
+            } else if (RunStatus.isFailure(run.getResult())) {
                 detail.setError(extractFirstError(er));
             }
             detail.setAssertions(JsonUtils.toJson(collectAssertions(er)));
@@ -148,21 +150,10 @@ public class ReportGenerationService {
         return report;
     }
 
-    private String resolveStatus(int error, int failed, int passed, int skipped, int total) {
-        if (total == 0) return "passed";
-        if (error > 0) return "error";
-        if (failed > 0) return "failed";
-        return "passed";
-    }
-
     private String normalizeStatus(String result) {
-        if (result == null) return "skipped";
-        return switch (result) {
-            case "success" -> "success";
-            case "failed" -> "failed";
-            case "error" -> "error";
-            default -> "skipped";
-        };
+        if (result == null) return RunStatus.SKIPPED.getCode();
+        RunStatus s = RunStatus.parse(result);
+        return s == null ? RunStatus.SKIPPED.getCode() : s.getCode();
     }
 
     private String extractFirstError(EngineDtos.ExecutionResult er) {
@@ -176,12 +167,12 @@ public class ReportGenerationService {
 
     private EngineDtos.ExecutionResult parseResult(String detailsJson) {
         if (detailsJson == null || detailsJson.isBlank() || "[]".equals(detailsJson.trim())) {
-            return EngineDtos.ExecutionResult.builder().result("skipped").build();
+            return EngineDtos.ExecutionResult.builder().result(RunStatus.SKIPPED.getCode()).build();
         }
         try {
             return JsonUtils.fromJson(detailsJson, EngineDtos.ExecutionResult.class);
         } catch (Exception e) {
-            return EngineDtos.ExecutionResult.builder().result("error").build();
+            return EngineDtos.ExecutionResult.builder().result(RunStatus.ERROR.getCode()).build();
         }
     }
 

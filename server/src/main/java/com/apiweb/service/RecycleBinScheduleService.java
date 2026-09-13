@@ -6,10 +6,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * 回收站自动清理调度：每天凌晨 03:00 触发 {@link RecycleBinAutoCleanJob}。
+ * 回收站自动清理调度：按配置的 cron 触发 {@link RecycleBinAutoCleanJob}。
+ *
+ * <p>cron 来自配置 {@code apiweb.recycle-bin.clean-cron}（默认每天 03:00），
+ * 代码中不再硬编码表达式。
  *
  * <p>localdev profile 下 Quartz 自动配置被排除，Scheduler bean 不存在，所有方法静默跳过；
  * 生产环境（启用 Quartz 集群模式）会自动注册。
@@ -24,9 +28,12 @@ public class RecycleBinScheduleService {
 
     public static final String JOB_NAME = "recycle-bin-auto-clean";
     public static final String TRIGGER_NAME = "recycle-bin-auto-clean-trigger";
-    public static final String CRON = "0 0 3 * * ?";
 
     private final ObjectProvider<Scheduler> schedulerProvider;
+
+    /** 回收站清理 cron（配置项 apiweb.recycle-bin.clean-cron） */
+    @Value("${apiweb.recycle-bin.clean-cron:0 0 3 * * ?}")
+    private String cleanCron;
 
     private Scheduler scheduler() {
         return schedulerProvider.getIfAvailable();
@@ -53,11 +60,11 @@ public class RecycleBinScheduleService {
                     .build();
             Trigger trigger = TriggerBuilder.newTrigger()
                     .withIdentity(triggerKey)
-                    .withSchedule(CronScheduleBuilder.cronSchedule(CRON)
+                    .withSchedule(CronScheduleBuilder.cronSchedule(cleanCron)
                             .withMisfireHandlingInstructionFireAndProceed())
                     .build();
             scheduler.scheduleJob(job, trigger);
-            log.info("[RecycleBinScheduleService] 已注册回收站定时清理 Job，每天 03:00 触发");
+            log.info("[RecycleBinScheduleService] 已注册回收站定时清理 Job，cron={}", cleanCron);
         } catch (SchedulerException e) {
             log.error("[RecycleBinScheduleService] 注册回收站定时清理 Job 失败", e);
         }

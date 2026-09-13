@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 测试任务定时触发 Job（Quartz 集群模式，同一触发只会被集群中一个节点执行）。
@@ -48,7 +49,7 @@ public class TestTaskScheduleJob implements Job {
         for (String caseId : caseIds) {
             TestTaskRunEntity run = new TestTaskRunEntity();
             run.setTaskId(taskId);
-            run.setResult("pending");
+            run.setResult(RunStatus.PENDING.getCode());
             run.setStartedAt(Instant.now());
             run.setDetails("[]");
             testTaskRunMapper.insert(run);

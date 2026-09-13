@@ -101,6 +101,7 @@ import {
 } from '@ant-design/icons-vue'
 import * as echarts from 'echarts'
 import { PerfApi } from '@/api'
+import { statusColor } from '@/constants'
 import type { PerfReport } from '@/types'
 import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
 
@@ -138,10 +139,6 @@ const labelColumns = [
   { title: 'P95', dataIndex: 'p95', width: 100 },
   { title: 'P99', dataIndex: 'p99', width: 100 }
 ]
-
-function statusColor(s: string) {
-  return s === 'success' ? 'green' : s === 'failed' ? 'orange' : 'red'
-}
 
 function renderChart() {
   if (!chartEl.value || !report.value?.series?.length) return

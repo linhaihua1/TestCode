@@ -73,7 +73,7 @@ public class RoleAspect {
             + "&& !execution(* com.apiweb.controller.WebhookController.*(..))")
     public void checkViewerReadOnly(org.aspectj.lang.JoinPoint jp) {
         CurrentUser user = UserContext.get();
-        if (user == null || !"viewer".equals(user.getRole())) {
+        if (user == null || !Role.VIEWER_CODE.equals(user.getRole())) {
             return;
         }
         if (WRITE_METHODS.contains(currentMethod())) {

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * HTTP 请求步骤执行器（{@link StepType#HTTP_REQUEST}）。
@@ -49,7 +50,7 @@ public class HttpRequestExecutor implements StepExecutor {
         long start = System.currentTimeMillis();
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -65,7 +66,7 @@ public class HttpRequestExecutor implements StepExecutor {
                                     resp.body(), resp.durationMs()));
             sr.setAssertions(assertionResults);
             if (assertionResults.stream().anyMatch(a -> !a.isPassed())) {
-                sr.setStatus("failed");
+                sr.setStatus(RunStatus.FAILED.getCode());
             }
 
             // 2. 提取
@@ -88,7 +89,7 @@ public class HttpRequestExecutor implements StepExecutor {
                     "durationMs", resp.durationMs(),
                     "body", bodyPreview)));
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("HTTP 请求失败: " + e.getMessage());
             sr.setDurationMs(System.currentTimeMillis() - start);
         }

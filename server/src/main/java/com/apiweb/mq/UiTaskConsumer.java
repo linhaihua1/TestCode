@@ -24,7 +24,7 @@ public class UiTaskConsumer {
 
     private final UiExecutionService uiExecutionService;
 
-    @RabbitListener(queues = "apiweb.task.ui.queue")
+    @RabbitListener(queues = "${apiweb.mq.queue.ui}")
     public void onMessage(EngineDtos.TaskMessage message) {
         log.info("收到 UI 任务: runId={}, caseId={}", message.getRunId(), message.getCaseId());
         uiExecutionService.executeAsync(message);

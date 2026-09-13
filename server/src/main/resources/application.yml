@@ -77,22 +77,87 @@ minio:
 
 apiweb:
   jwt:
-    secret: ${JWT_SECRET:change-me-in-production-0123456789abcdef}
-    expire-hours: 24
+    # 签名密钥（HS256，≥32 字节）。未配置时启动自动生成随机密钥并告警；
+    # localdev profile 已提供固定的开发用密钥；生产务必通过 JWT_SECRET 注入。
+    secret: ${JWT_SECRET:}
+    expire-hours: ${JWT_EXPIRE_HOURS:24}
   mq:
     # 是否启用 RabbitMQ 消费端（@RabbitListener）。localdev 单机调试时关闭，
     # 此时 UI/性能任务改用 @Async 本地异步执行。
     enabled: ${MQ_ENABLED:true}
+    # 任务交换机（topic）；名称可通过环境变量覆盖，代码中不硬编码
+    exchange: ${MQ_TASK_EXCHANGE:apiweb.task.exchange}
+    # 执行结果回传交换机（fanout）
+    result-exchange: ${MQ_RESULT_EXCHANGE:apiweb.result.exchange}
+    # 三类任务队列名
+    queue:
+      api: ${MQ_API_QUEUE:apiweb.task.api.queue}
+      ui: ${MQ_UI_QUEUE:apiweb.task.ui.queue}
+      perf: ${MQ_PERF_QUEUE:apiweb.task.perf.queue}
+    # 生产者投递路由键
+    routing-key:
+      api: ${MQ_API_ROUTING_KEY:task.api.execute}
+      ui: ${MQ_UI_ROUTING_KEY:task.ui.execute}
+      perf: ${MQ_PERF_ROUTING_KEY:task.perf.execute}
+    # 队列绑定到交换机的通配路由键
+    binding-key:
+      api: ${MQ_API_BINDING_KEY:task.api.#}
+      ui: ${MQ_UI_BINDING_KEY:task.ui.#}
+      perf: ${MQ_PERF_BINDING_KEY:task.perf.#}
   security:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步
-    permit-paths: /api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger
+    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger}
+    # 密码最小长度（注册 / 改密 / 管理员建号共用）
+    min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
+  bootstrap:
+    # 首次启动（库中无用户）时自动创建的默认管理员；生产请改密或关闭
+    enabled: ${BOOTSTRAP_ADMIN_ENABLED:true}
+    admin-username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:admin@123}
   executor:
     # 执行机心跳超时（秒），超时视为离线，从资源池剔除
-    heartbeat-timeout: 60
+    heartbeat-timeout: ${EXECUTOR_HEARTBEAT_TIMEOUT:60}
+    # 扫描心跳超时节点的间隔（毫秒）
+    cleanup-interval-ms: ${EXECUTOR_CLEANUP_INTERVAL_MS:30000}
+    # 执行机心跳在 Redis 中的 key 前缀
+    redis-key-prefix: ${EXECUTOR_REDIS_KEY_PREFIX:apiweb:executor:heartbeat:}
+    # 注册时未声明能力时的默认能力
+    default-capabilities: ${EXECUTOR_DEFAULT_CAPABILITIES:api}
+  recycle-bin:
+    # 回收站自动清理 cron（Quartz 风格：秒 分 时 日 月 周）
+    clean-cron: ${RECYCLE_BIN_CLEAN_CRON:0 0 3 * * ?}
+  engine:
+    # 执行引擎默认参数（各步骤可在用例中覆盖）
+    wait-default-ms: ${ENGINE_WAIT_DEFAULT_MS:1000}
+    wait-dynamic-interval-ms: ${ENGINE_WAIT_DYNAMIC_INTERVAL_MS:500}
+    wait-dynamic-timeout-ms: ${ENGINE_WAIT_DYNAMIC_TIMEOUT_MS:30000}
+    while-max-timeout-ms: ${ENGINE_WHILE_MAX_TIMEOUT_MS:60000}
+    while-max-iterations: ${ENGINE_WHILE_MAX_ITERATIONS:1000}
+    perf-poll-interval-ms: ${ENGINE_PERF_POLL_INTERVAL_MS:500}
+    perf-max-duration-hours: ${ENGINE_PERF_MAX_DURATION_HOURS:2}
+    list-max-limit: ${ENGINE_LIST_MAX_LIMIT:100}
+    default-parallel-pool-size: ${ENGINE_DEFAULT_PARALLEL_POOL_SIZE:5}
+    max-parallel-pool-size: ${ENGINE_MAX_PARALLEL_POOL_SIZE:200}
+    executor-queue-capacity: ${ENGINE_EXECUTOR_QUEUE_CAPACITY:1024}
+    parallel-wait-timeout-seconds: ${ENGINE_PARALLEL_WAIT_TIMEOUT_SECONDS:60}
+    ui:
+      # 元素等待超时默认值 / 下限、wait 动作默认时长（毫秒）
+      element-timeout-ms: ${UI_ELEMENT_TIMEOUT_MS:5000}
+      wait-default-ms: ${UI_WAIT_DEFAULT_MS:1000}
+      min-element-timeout-ms: ${UI_MIN_ELEMENT_TIMEOUT_MS:1000}
+      # 浏览器运行参数
+      headless: ${UI_HEADLESS:true}
+      window-size: ${UI_WINDOW_SIZE:1920,1080}
+      page-load-timeout-seconds: ${UI_PAGE_LOAD_TIMEOUT_SECONDS:30}
+      implicit-wait-seconds: ${UI_IMPLICIT_WAIT_SECONDS:3}
+      # 浏览器驱动路径（留空则按 环境变量 > 系统属性 > 自动解析）
+      driver-path: ${UI_DRIVER_PATH:}
   oss:
-    # 请求/响应体超过该大小（字节）时转存 MinIO
-    large-body-threshold: 1048576
+    # 请求/响应体超过该大小（字节）时转存对象存储
+    large-body-threshold: ${OSS_LARGE_BODY_THRESHOLD:1048576}
+    # MinIO 不可用时的本地降级目录（留空则落到 ${java.io.tmpdir}/apiweb-oss）
+    local-root: ${OSS_LOCAL_ROOT:}
 
 logging:
   level:

@@ -63,7 +63,7 @@
                 <a-tag :color="statusColor(item.status)" class="step-line__tag">
                   {{ statusText(item.status) }}
                 </a-tag>
-                <strong class="step-line__name">{{ item.segment }} / {{ item.step?.name || '步骤' }}</strong>
+                <strong class="step-line__name">{{ UI_SEGMENT_LABELS[item.segment] || item.segment }} / {{ item.step?.name || '步骤' }}</strong>
                 <span class="step-line__dur">{{ item.durationMs }} ms</span>
               </div>
               <a-alert
@@ -95,6 +95,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import { UiApi } from '@/api'
+import {
+  ALLURE_STATUS_LABELS,
+  RUN_STATUS,
+  UI_SEGMENT_LABELS,
+  statusColor as statusTagColor,
+  statusHexColor,
+  statusLabel
+} from '@/constants'
+import { formatDateTime } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'
 import type { UiReport } from '@/types'
 import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
@@ -120,10 +129,10 @@ const columns = [
 const statusStats = computed<StatusStat[]>(() => {
   const count = (s: string) => reports.value.filter((r) => r.status === s).length
   return [
-    { key: 'passed', label: '通过', value: count('success') },
-    { key: 'failed', label: '失败', value: count('failed') },
-    { key: 'broken', label: '异常', value: count('error') },
-    { key: 'skipped', label: '跳过', value: count('skipped') }
+    { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: count(RUN_STATUS.SUCCESS) },
+    { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: count(RUN_STATUS.FAILED) },
+    { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: count(RUN_STATUS.ERROR) },
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) }
   ]
 })
 
@@ -134,32 +143,30 @@ const stepDetails = computed<any[]>(() => (currentReport.value?.details as any[]
 const detailStats = computed<StatusStat[]>(() => {
   const count = (s: string) => stepDetails.value.filter((d) => d.status === s).length
   return [
-    { key: 'passed', label: '通过', value: count('success') },
-    { key: 'failed', label: '失败', value: count('failed') },
-    { key: 'broken', label: '异常', value: count('error') },
-    { key: 'skipped', label: '跳过', value: count('skipped') }
+    { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: count(RUN_STATUS.SUCCESS) },
+    { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: count(RUN_STATUS.FAILED) },
+    { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: count(RUN_STATUS.ERROR) },
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) }
   ]
 })
 
-function formatDate(iso?: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleString()
-}
+/* ============================================================
+   展示辅助：统一委托给 @/constants 与 @/utils/format，避免各页硬编码
+   ============================================================ */
+const formatDate = formatDateTime
+const statusColor = (s: string) => statusTagColor(s)
+const statusDotColor = (s: string) => statusHexColor(s)
+const statusText = (s: string) => statusLabel(s)
 
-function statusColor(s: string) {
-  return s === 'success' ? 'green' : s === 'failed' ? 'red' : s === 'error' ? 'orange' : 'default'
-}
-
-function statusDotColor(s: string) {
-  return s === 'success' ? '#16a34a' : s === 'failed' ? '#dc2626' : s === 'error' ? '#ea580c' : '#94a3b8'
-}
-
-function statusText(s: string) {
-  return s === 'success' ? '通过' : s === 'failed' ? '失败' : s === 'error' ? '异常' : s === 'skipped' ? '跳过' : (s || '未知')
-}
-
+/** 时间轴（a-timeline）颜色仅支持预设色名，由十六进制语义色映射而来 */
 function timelineColor(s: string) {
-  return s === 'success' ? 'green' : s === 'failed' ? 'red' : s === 'error' ? 'orange' : 'gray'
+  const hex = statusHexColor(s)
+  switch (hex) {
+    case '#16a34a': return 'green'
+    case '#dc2626': return 'red'
+    case '#ea580c': return 'orange'
+    default: return 'gray'
+  }
 }
 
 async function reload() {

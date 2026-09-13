@@ -9,8 +9,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * 性能测试任务消费者：调用 JMeter 运行时执行压测，结果回写 t_perf_report。
- * JMeter 运行时需存在于执行机上：环境变量 JMETER_HOME 或 server/jmeter/ 目录。
+ * 性能测试任务消费者：调用内嵌 JMeter 引擎执行压测，结果回写 t_perf_report。
+ * 消费的队列名来自配置 {@code apiweb.mq.queue.perf}，不硬编码。
  */
 @Slf4j
 @Component
@@ -20,7 +20,7 @@ public class PerfTaskConsumer {
 
     private final com.apiweb.service.PerfExecutionService perfExecutionService;
 
-    @RabbitListener(queues = "apiweb.task.perf.queue")
+    @RabbitListener(queues = "${apiweb.mq.queue.perf}")
     public void onMessage(EngineDtos.TaskMessage message) {
         log.info("收到性能测试任务: runId={}, caseId={}", message.getRunId(), message.getCaseId());
         perfExecutionService.executeAsync(message);

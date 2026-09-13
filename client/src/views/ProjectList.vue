@@ -24,7 +24,7 @@
         :columns="columns"
         row-key="id"
         :loading="loading"
-        :pagination="{ pageSize: 20 }"
+        :pagination="{ pageSize: DEFAULT_PAGE_SIZE }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'updatedAt'">
@@ -79,6 +79,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined, EnterOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { ProjectApi } from '@/api'
+import { DEFAULT_PAGE_SIZE } from '@/constants'
 import { useProjectStore } from '@/stores/project'
 import type { Project } from '@/types'
 

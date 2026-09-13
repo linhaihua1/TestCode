@@ -13,7 +13,7 @@
       <a-table :data-source="users" :columns="columns" row-key="id" :loading="loading">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'role'">
-            <a-tag :color="record.role === 'admin' ? 'red' : 'blue'">{{ record.role }}</a-tag>
+            <a-tag :color="roleColor(record.role)">{{ roleLabel(record.role) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
@@ -51,6 +51,8 @@ import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { UserApi } from '@/api'
+import { ROLES, ROLE_OPTIONS, roleColor, roleLabel } from '@/constants'
+import { formatDateTime } from '@/utils/format'
 import type { User } from '@/types'
 
 const users = ref<User[]>([])
@@ -59,21 +61,17 @@ const modal = ref(false)
 const form = reactive<{ id?: string; username: string; password: string; role: string }>({
   username: '',
   password: '',
-  role: 'member'
+  role: ROLES.MEMBER
 })
 
 const columns = [
   { title: '用户名', dataIndex: 'username' },
   { title: '角色', key: 'role', width: 100 },
-  { title: '创建时间', dataIndex: 'createdAt' },
+  { title: '创建时间', key: 'createdAt', customRender: ({ record }: any) => formatDateTime(record.createdAt) },
   { title: '操作', key: 'action', width: 140 }
 ]
 
-const roleOptions = [
-  { value: 'admin', label: '管理员' },
-  { value: 'member', label: '成员' },
-  { value: 'viewer', label: '查看者' }
-]
+const roleOptions = ROLE_OPTIONS
 
 async function reload() {
   loading.value = true
@@ -85,7 +83,7 @@ async function reload() {
 }
 
 function openCreate() {
-  Object.assign(form, { id: undefined, username: '', password: '', role: 'member' })
+  Object.assign(form, { id: undefined, username: '', password: '', role: ROLES.MEMBER })
   modal.value = true
 }
 

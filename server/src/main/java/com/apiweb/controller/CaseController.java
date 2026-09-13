@@ -17,6 +17,7 @@ import com.apiweb.mapper.CaseVersionMapper;
 import com.apiweb.mapper.DebugRecordMapper;
 import com.apiweb.security.UserContext;
 import com.apiweb.service.ExecutionSupportService;
+import com.apiweb.service.OssKeys;
 import com.apiweb.service.OssService;
 import com.apiweb.util.JsonUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -245,11 +246,11 @@ public class CaseController {
         record.setErrorLog(result.getErrorLog());
         record.setCreatedBy(UserContext.username());
         record.setCreatedAt(Instant.now());
-        // 超 1MB 的步骤明细转存 MinIO
+        // 超过阈值（默认 1MB）的步骤明细转存对象存储，数据库只存引用
         String stepResultsJson = record.getStepResults();
-        if (stepResultsJson != null && stepResultsJson.length() > 1_048_576) {
+        if (ossService.exceedsThreshold(stepResultsJson)) {
             record.setRequestBodyRef(ossService.putIfLarge(stepResultsJson,
-                    "debug-records/" + id + "/" + System.currentTimeMillis() + "/steps.json"));
+                    OssKeys.debugRecordSteps(id, System.currentTimeMillis())));
             record.setStepResults("{}");
         }
         debugRecordMapper.insert(record);

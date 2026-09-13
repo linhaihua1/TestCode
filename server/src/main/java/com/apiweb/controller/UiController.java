@@ -4,6 +4,7 @@ import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.TaskType;
 import com.apiweb.entity.UiReportEntity;
 import com.apiweb.entity.UiScenarioEntity;
 import com.apiweb.entity.UiScenarioStepEntity;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import com.apiweb.engine.RunStatus;
 
 /**
  * UI 自动化：测试用例 / 执行场景 / 执行与报告。
@@ -194,7 +196,7 @@ public class UiController {
         report.setProjectId(t.getProjectId());
         report.setTestCaseId(id);
         report.setName(t.getName());
-        report.setStatus("pending");
+        report.setStatus(RunStatus.PENDING.getCode());
         report.setStartedAt(Instant.now());
         report.setDetails("[]");
         uiReportMapper.insert(report);
@@ -203,7 +205,7 @@ public class UiController {
         } else {
             // localdev：消费端关闭，改用 @Async 异步执行，保证报告能被回写且不阻塞请求
             uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                    "ui", report.getId(), t.getProjectId(), id, null, null, null));
+                    TaskType.UI.getCode(), report.getId(), t.getProjectId(), id, null, null, null));
         }
         return Result.ok(report);
     }
@@ -250,7 +252,7 @@ public class UiController {
             report.setProjectId(scenario.getProjectId());
             report.setTestCaseId(t.getId());
             report.setName(scenario.getName() + " / " + t.getName());
-            report.setStatus("pending");
+            report.setStatus(RunStatus.PENDING.getCode());
             report.setStartedAt(Instant.now());
             report.setDetails("[]");
             uiReportMapper.insert(report);
@@ -259,7 +261,7 @@ public class UiController {
                         scenario.getEnvironmentId(), extra);
             } else {
                 uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                        "ui", report.getId(), scenario.getProjectId(), t.getId(),
+                        TaskType.UI.getCode(), report.getId(), scenario.getProjectId(), t.getId(),
                         null, scenario.getEnvironmentId(), extra));
             }
             reports.add(report);
@@ -268,12 +270,14 @@ public class UiController {
     }
 
     @GetMapping("/reports")
-    public Result<List<UiReportEntity>> listReports(@RequestParam String projectId) {
+    public Result<List<UiReportEntity>> listReports(
+            @RequestParam String projectId,
+            @RequestParam(defaultValue = "${apiweb.engine.list-max-limit:100}") int limit) {
         List<UiReportEntity> reports = uiReportMapper.selectList(
                 new LambdaQueryWrapper<UiReportEntity>()
                         .eq(UiReportEntity::getProjectId, projectId)
                         .orderByDesc(UiReportEntity::getStartedAt)
-                        .last("LIMIT 100"));
+                        .last("LIMIT " + Math.max(1, limit)));
         for (UiReportEntity r : reports) {
             if (r.getDetails() != null && r.getDetails().startsWith("minio://")) {
                 r.setDetails(ossService.get(r.getDetails()));

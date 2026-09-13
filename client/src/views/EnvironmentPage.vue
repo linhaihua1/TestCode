@@ -76,7 +76,21 @@ const projectId = computed(() => projectStore.currentProjectId)
 const envs = ref<Environment[]>([])
 const loading = ref(false)
 const modal = ref(false)
-const form = reactive<Partial<Environment>>({
+/**
+ * 环境新建 / 编辑表单模型。
+ *
+ * <p>headers / variables 在模板里直接绑定 KeyValueEditor（要求数组），
+ * 因此不声明为可选，避免多余的空值分支。
+ */
+interface EnvironmentForm {
+  id?: string
+  name: string
+  baseUrl: string
+  headers: KeyValueItem[]
+  variables: KeyValueItem[]
+}
+
+const form = reactive<EnvironmentForm>({
   name: '',
   baseUrl: '',
   headers: [],
@@ -113,7 +127,12 @@ function openCreate() {
 }
 
 function openEdit(record: Environment) {
-  Object.assign(form, record)
+  // baseUrl 在 Environment 中可选，补齐为 ''；数组字段保证非空
+  Object.assign(form, record, {
+    baseUrl: record.baseUrl ?? '',
+    headers: record.headers ?? [],
+    variables: record.variables ?? []
+  })
   modal.value = true
 }
 

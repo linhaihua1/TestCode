@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.apiweb.engine.RunStatus;
 
 /**
  * 事务控制器（{@link StepType#TRANSACTION}）。
@@ -43,7 +44,7 @@ public class TransactionStepExecutor implements StepExecutor {
     public EngineDtos.StepResult execute(StepDef step, StepContext ctx) {
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
-                .status("success")
+                .status(RunStatus.SUCCESS.getCode())
                 .assertions(new ArrayList<>())
                 .extracts(new ArrayList<>())
                 .build();
@@ -60,16 +61,16 @@ public class TransactionStepExecutor implements StepExecutor {
             int passed = 0, failed = 0, error = 0;
             for (int i = sizeBefore; i < sizeAfter; i++) {
                 String s = ctx.getResult().getSteps().get(i).getStatus();
-                if ("success".equals(s)) passed++;
-                else if ("failed".equals(s)) failed++;
-                else if ("error".equals(s)) error++;
+                if (RunStatus.SUCCESS.getCode().equals(s)) passed++;
+                else if (RunStatus.FAILED.getCode().equals(s)) failed++;
+                else if (RunStatus.ERROR.getCode().equals(s)) error++;
             }
             boolean txPassed = switch (rule.toLowerCase()) {
                 case "one_pass" -> passed > 0;
                 case "ignore" -> true;
                 default -> failed == 0 && error == 0;
             };
-            sr.setStatus(txPassed ? "success" : "failed");
+            sr.setStatus(txPassed ? RunStatus.SUCCESS.getCode() : RunStatus.FAILED.getCode());
             if (!txPassed) {
                 sr.setError("事务失败 (passed=" + passed + ", failed=" + failed + ", error=" + error + ")");
             }
@@ -78,7 +79,7 @@ public class TransactionStepExecutor implements StepExecutor {
             sr.getExtracts().add(EngineDtos.ExtractResult.builder()
                     .variable("__tx_failed__").value(String.valueOf(failed)).build());
         } catch (Exception e) {
-            sr.setStatus("error");
+            sr.setStatus(RunStatus.ERROR.getCode());
             sr.setError("TRANSACTION 控制器异常: " + e.getMessage());
         }
         sr.setDurationMs(System.currentTimeMillis() - start);
