@@ -71,9 +71,9 @@
  * 调试记录弹窗：查看某条用例的历史调试记录与每次的请求/响应摘要。
  */
 import { ref, watch } from 'vue'
-import dayjs from 'dayjs'
 import { CaseApi } from '@/api'
 import { RUN_STATUS, statusColor } from '@/constants'
+import { formatDateTime } from '@/utils/format'
 import type { DebugRecord } from '@/types'
 
 const props = defineProps<{ open: boolean; caseId: string }>()
@@ -81,8 +81,9 @@ const emit = defineEmits<{ 'update:open': [v: boolean] }>()
 
 const records = ref<DebugRecord[]>([])
 
+/** 时间展示：统一走 utils/format（UTC → 本地时区） */
 function formatTime(iso: string) {
-  return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm:ss')
+  return formatDateTime(iso)
 }
 
 watch(

@@ -30,6 +30,14 @@ public final class ErrorCode {
     public static final int NOT_FOUND = 1004;
     /** 资源名称冲突（同名已存在） */
     public static final int CONFLICT = 1005;
+    /**
+     * 登录失败：账号或密码错误。
+     *
+     * <p>必须与 {@link #UNAUTHORIZED} 区分：1002 的语义是「登录态失效」，
+     * 前端会据此清空凭证并跳转登录页；而登录失败只是本次提交的凭证不对，
+     * 若复用 1002，用户会看到「登录已过期」这种与操作不符的提示。</p>
+     */
+    public static final int LOGIN_FAILED = 1006;
 
     // -------- 业务校验（2001~2006） --------
     /** 变量名不合法 */

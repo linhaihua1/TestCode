@@ -66,6 +66,16 @@ public class BizException extends RuntimeException {
     }
 
     /**
+     * 登录失败：账号或密码错误（1006）。
+     *
+     * <p>与 {@link #unauthorized(String)} 的区别：本异常仅表示本次提交的凭证不正确，
+     * 不会导致前端清理登录态或跳转登录页。</p>
+     */
+    public static BizException loginFailed(String message) {
+        return new BizException(ErrorCode.LOGIN_FAILED, message);
+    }
+
+    /**
      * 资源冲突（1005）。
      */
     public static BizException conflict(String message) {

@@ -20,7 +20,10 @@
         @row-click="(r: any) => router.push({ name: 'scenario-editor', params: { id: r.id } })"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'action'">
+          <template v-if="column.key === 'updatedAt'">
+            {{ formatDateTime(record.updatedAt) }}
+          </template>
+          <template v-else-if="column.key === 'action'">
             <a-space @click.stop>
               <a-button size="small" type="link" @click="execute(record)">
                 <play-circle-outlined />执行
@@ -64,6 +67,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { ScenarioApi } from '@/api'
+import { formatDateTime } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'
 import type { Scenario } from '@/types'
 
@@ -79,7 +83,7 @@ const form = reactive<Partial<Scenario>>({ name: '', description: '' })
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '描述', dataIndex: 'description', ellipsis: true },
-  { title: '更新时间', dataIndex: 'updatedAt' },
+  { title: '更新时间', key: 'updatedAt', width: 180 },
   { title: '操作', key: 'action', width: 140 }
 ]
 

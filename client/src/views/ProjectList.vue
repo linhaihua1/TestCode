@@ -49,27 +49,31 @@
         </template>
       </a-table>
     </div>
-  </div>
 
-  <a-modal
-    v-model:open="modal"
-    :title="editing.id ? '编辑项目' : '新建项目'"
-    @ok="save"
-    :confirm-loading="saving"
-    width="520"
-  >
-    <a-form layout="vertical">
-      <a-form-item label="项目名称" required>
-        <a-input v-model:value="editing.name" placeholder="例如 电商主站" />
-      </a-form-item>
-      <a-form-item label="描述">
-        <a-textarea
-          v-model:value="editing.description"
-          :auto-size="{ minRows: 2, maxRows: 5 }"
-        />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+    <!--
+      弹窗必须放在根节点内部：组件若出现多个根节点（fragment），
+      外层 <transition mode="out-in"> 无法完成动画，会导致离开本页后内容区永久空白。
+    -->
+    <a-modal
+      v-model:open="modal"
+      :title="editing.id ? '编辑项目' : '新建项目'"
+      @ok="save"
+      :confirm-loading="saving"
+      width="520"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="项目名称" required>
+          <a-input v-model:value="editing.name" placeholder="例如 电商主站" />
+        </a-form-item>
+        <a-form-item label="描述">
+          <a-textarea
+            v-model:value="editing.description"
+            :auto-size="{ minRows: 2, maxRows: 5 }"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -83,9 +87,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, EnterOutlined } from '@ant-design/icons-vue'
-import dayjs from 'dayjs'
 import { ProjectApi } from '@/api'
 import { DEFAULT_PAGE_SIZE } from '@/constants'
+import { formatDateTime, DATETIME_FORMAT_MINUTE } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'
 import type { Project } from '@/types'
 
@@ -106,8 +110,9 @@ const columns = [
   { title: '操作', key: 'action', width: 200 }
 ]
 
+/** 列表时间展示：统一走 utils/format，避免各页重复实现（含时区转换） */
 function formatTime(iso: string) {
-  return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm')
+  return formatDateTime(iso, DATETIME_FORMAT_MINUTE)
 }
 
 async function reload() {

@@ -94,7 +94,8 @@
           </a-popover>
 
           <!-- 用户菜单 -->
-          <a-dropdown placement="bottomRight">
+          <!-- 用户菜单：hover 与 click 双触发，触屏 / 键盘用户也能打开 -->
+          <a-dropdown placement="bottomRight" :trigger="['hover', 'click']">
             <button class="header__user">
               <a-avatar :size="28" class="header__avatar">
                 {{ auth.user?.username?.[0]?.toUpperCase() }}

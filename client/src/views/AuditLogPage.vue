@@ -56,8 +56,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
-import dayjs from 'dayjs'
 import { AuditApi } from '@/api'
+import { formatDateTime } from '@/utils/format'
 import type { AuditLog } from '@/types'
 
 const records = ref<AuditLog[]>([])
@@ -94,8 +94,9 @@ const entityOptions = [
   { value: 'user', label: '用户' }
 ]
 
+/** 时间展示：统一走 utils/format（UTC → 本地时区） */
 function formatTime(iso: string) {
-  return dayjs.utc(iso).local().format('YYYY-MM-DD HH:mm:ss')
+  return formatDateTime(iso)
 }
 
 /** 按当前筛选条件与分页参数加载日志 */

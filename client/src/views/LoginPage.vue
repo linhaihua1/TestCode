@@ -19,10 +19,11 @@
         <a-form
           layout="vertical"
           :model="form"
+          :rules="rules"
           @finish="onLogin"
           class="login__form"
         >
-          <a-form-item label="用户名" required>
+          <a-form-item label="用户名" name="username">
             <a-input
               v-model:value="form.username"
               size="large"
@@ -32,7 +33,7 @@
               <template #prefix><user-outlined /></template>
             </a-input>
           </a-form-item>
-          <a-form-item label="密码" required>
+          <a-form-item label="密码" name="password">
             <a-input-password
               v-model:value="form.password"
               size="large"
@@ -55,7 +56,8 @@
         </a-form>
 
         <footer class="login__footer">
-          <div class="login__tip">默认管理员：admin / admin@123</div>
+          <!-- 演示账号提示由 VITE_DEMO_HINT 配置，生产环境不配置即不展示，避免泄露默认口令 -->
+          <div v-if="demoHint" class="login__tip">{{ demoHint }}</div>
           <div class="login__copyright">© {{ year }} Api-Web · v1.0</div>
         </footer>
       </section>
@@ -87,6 +89,18 @@ const form = ref({
   password: prefillDemo ? (import.meta.env.VITE_DEMO_PASSWORD ?? '') : ''
 })
 const loading = ref(false)
+
+/** 登录页底部的演示账号提示（VITE_DEMO_HINT，未配置则不展示） */
+const demoHint = import.meta.env.VITE_DEMO_HINT ?? ''
+
+/**
+ * 表单校验规则：先在前端拦下空值，避免用空表单去打后端接口。
+ * 用户能立即在输入框下方看到提示，而不是等一次网络往返。
+ */
+const rules = {
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
 
 const year = new Date().getFullYear()
 

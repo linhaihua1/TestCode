@@ -47,12 +47,14 @@ public class GlobalExceptionHandler {
     /**
      * 处理 {@code @Valid} 校验失败（如 {@code @NotBlank @RequestBody}）。
      *
-     * <p>返回首个字段错误（如 {@code "username: 用户名不能为空"}），便于前端定位。</p>
+     * <p>直接返回字段自身的校验文案（如 {@code "用户名不能为空"}）。
+     * 不再拼接 Java 字段名前缀：message 会原样展示给终端用户，
+     * 出现 {@code "username: ..."} 这类内部字段名会让人困惑。</p>
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleValidation(MethodArgumentNotValidException e) {
         FieldError fe = e.getBindingResult().getFieldError();
-        String msg = fe == null ? "参数校验失败" : fe.getField() + ": " + fe.getDefaultMessage();
+        String msg = fe == null ? "参数校验失败" : fe.getDefaultMessage();
         return Result.fail(ErrorCode.BAD_REQUEST, msg);
     }
 

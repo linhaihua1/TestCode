@@ -11,6 +11,8 @@
  */
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as monaco from 'monaco-editor'
+// 注册 Monaco 的 Worker（副作用导入，必须在创建编辑器之前完成）
+import '@/utils/monacoWorkers'
 
 const props = withDefaults(
   defineProps<{

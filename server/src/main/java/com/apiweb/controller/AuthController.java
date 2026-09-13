@@ -67,7 +67,7 @@ public class AuthController {
      *
      * @param req 登录请求（用户名 + 密码，均非空校验）
      * @return 成功返回 token + 用户基本信息（id/username/role）
-     * @throws BizException 用户名不存在或密码错误时抛 unauthorized(401)；用户名/密码为空校验失败
+     * @throws BizException 用户名不存在或密码错误时抛 loginFailed(1006)；用户名/密码为空校验失败
      */
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@RequestBody @Validated LoginRequest req) {
@@ -76,7 +76,8 @@ public class AuthController {
                         .eq(UserEntity::getUsername, req.getUsername()));
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
             // 故意不区分"用户不存在"与"密码错"，避免账号枚举攻击
-            throw BizException.unauthorized("用户名或密码错误");
+            // 用 LOGIN_FAILED(1006) 而非 UNAUTHORIZED(1002)：后者会让前端误判为登录态失效
+            throw BizException.loginFailed("用户名或密码错误");
         }
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
         return Result.ok(Map.of(

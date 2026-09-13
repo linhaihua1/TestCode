@@ -56,7 +56,7 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+            <a-tag :color="statusColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'triggerType'">
             <a-tag color="blue">{{ triggerLabel(record.triggerType) }}</a-tag>
@@ -125,7 +125,8 @@ import {
   DEFAULT_PAGE_SIZE,
   TRIGGER_LABELS,
   TRIGGER_TYPES,
-  statusColor
+  statusColor,
+  statusLabel
 } from '@/constants'
 import { formatDateTime } from '@/utils/format'
 import { useProjectStore } from '@/stores/project'

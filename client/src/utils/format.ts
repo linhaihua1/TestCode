@@ -19,6 +19,9 @@ export const EMPTY_PLACEHOLDER = '-'
 /** 默认日期时间格式 */
 export const DATETIME_FORMAT = 'YYYY-MM-DD HH:mm:ss'
 
+/** 分钟精度格式：列表页空间紧张时使用 */
+export const DATETIME_FORMAT_MINUTE = 'YYYY-MM-DD HH:mm'
+
 /**
  * UTC 时间字符串 → 本地时间文本。
  *
