@@ -85,7 +85,7 @@ cd api-web
 | 入口 | URL | 账号 |
 |---|---|---|
 | 前端 | http://localhost:5173 | admin / admin@123 |
-| 后端 API | http://localhost:8080/api | 同上 |
+| 后端 API | http://localhost:8080/api/v1 | 同上 |
 | RabbitMQ 管理 | http://localhost:15672 | apiweb / apiweb123 |
 | MinIO 控制台 | http://localhost:9001 | apiweb / apiweb123 |
 
@@ -130,9 +130,11 @@ npm install && npm run dev
 说明：
 
 - 旧库升级时执行幂等迁移：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
-- 对象存储（MinIO）在 localdev 下自动降级为本地文件系统（`C:\dev\apiweb-oss` 或 `/tmp/apiweb-oss`）
-- 登录账号：`admin / admin@123`
-- localdev 下 `apiweb.mq.enabled=false`，RabbitMQ 消费者不注册；UI / 性能任务改由进程内 `@Async` 直接执行，仍可正常生成报告
+- 对象存储（MinIO）在 localdev 下自动降级为本地文件系统（`OSS_LOCAL_ROOT` 环境变量覆盖，缺省落到 `${java.io.tmpdir}/apiweb-oss`，即 `C:\Users\<user>\AppData\Local\Temp\apiweb-oss` 或 `/tmp/apiweb-oss`）
+- 登录账号：`admin / admin@123`（首次启动由 `apiweb.bootstrap.admin-username` / `admin-password` 配置初始化，可用同名环境变量覆盖）
+- localdev 下 `apiweb.mq.enabled=false`，RabbitMQ 消费者不注册；UI / 性能任务改由进程内 `@Async` 直接执行，仍会正常生成报告
+- localdev 下 `apiweb.quartz.enabled=false`，定时任务（含回收站清理）不会自动调度；如需触发，可手动调对应 Service 方法
+- 前端默认账号是否预填到登录框由 `VITE_PREFILL_DEMO_ACCOUNT`（`client/.env.example`）控制，默认 `false`；生产环境务必保持 `false` 避免泄露默认口令
 
 ---
 
@@ -401,6 +403,33 @@ set WEBDRIVER_CHROME_DRIVER=C:\path\to\chromedriver.exe
 ```
 
 后端启动后，UI 用例执行将优先使用该路径的驱动。
+
+### Q9: 浏览器打开页面空白（Vue 警告 `Component inside <Transition> renders non-element root node`）
+
+A: 这通常是某个页面组件返回了多个根节点（页面 div 与 `<a-modal>` 并列）。`AppLayout` 的 `<transition>` 要求子节点单根，导致离开该页后其它页面内容区永久空白。
+
+修复方法：把弹窗/抽屉节点移入页面根 `<div>` 内。提交前可用仓库内置扫描脚本快速排查：
+
+```bash
+# 在 client/ 下运行，找出含多个根节点的组件
+node tools_scan_multiroot.mjs
+```
+
+### Q10: 登录失败提示「登录已过期」
+
+A: 这是历史 bug。早期版本用业务码 `1002` 表示密码错误，前端把它当成「token 过期」处理，会清登录态并跳登录页。新版本已修复：
+
+- 业务码 `1002 UNAUTHORIZED`：登录态失效（token 过期 / 缺失）→ 前端跳登录页
+- 业务码 `1006 LOGIN_FAILED`：账号或密码错误 → 仅弹错提示，不动登录态
+
+如果仍看到旧提示，请确认 `server/src/main/java/com/apiweb/common/ErrorCode.java` 的 `LOGIN_FAILED=1006` 已被正确编译，并清掉浏览器 localStorage 中的旧 token。
+
+### Q11: 编辑器加载失败（控制台 `monaco-editor worker` 报错）
+
+A: 配置文件 `client/src/utils/monacoWorkers.ts` 在 `window.MonacoEnvironment.getWorker` 注册了 worker 构造器，Vite 通过 `?worker` 后缀处理。报错通常原因：
+
+- 客户端构建使用了 `npm run build`，但忘了 `npm run dev` 启动时会复制 worker —— 直接 `vite` 启动即可
+- 自定义了 `vite.config.ts` 且移除了 worker 插件 → 在 `optimizeDeps.exclude` 不要排除 `monaco-editor`
 
 ---
 

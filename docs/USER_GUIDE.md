@@ -35,6 +35,8 @@
 
 首次登录建议立即修改密码（右上角头像 → 个人设置）。
 
+> **生产部署提示**：登录页默认不预填演示账号（`VITE_PREFILL_DEMO_ACCOUNT=false`），避免向最终用户泄露默认口令。本地演示可在 `client/.env.development` 中打开。
+
 ### 1.2 主界面布局
 
 ```
@@ -297,9 +299,9 @@ user03,wrongpwd,fail
 - **失败原因聚合**：相同错误聚合展示
 - **明细列表**：每条用例的执行结果，可点击展开请求/响应/断言/提取
 
-报告支持导出 PDF（图表由 ECharts / vue-echarts 渲染）。
+报告支持导出 **HTML**（默认）和 **PDF**（ECharts 渲染图表）。报告列表右侧「导出」菜单可任选其一；报告详情页工具栏也有 PDF 按钮。
 
-三类报告分别对应：接口自动化 → 接口报告；UI 自动化 → UI 报告；性能测试 → 性能报告。三者均按当前项目（projectId）过滤展示，若页面无数据，请先确认该报告对应的执行确实已完成（而非仍在 pending/执行中）。
+三类报告分别对应：接口自动化 → 接口报告；UI 自动化 → UI 报告；性能测试 → 性能报告。三者均按当前项目（projectId）过滤展示，若页面无数据，请先确认该报告对应的执行确实已完成（而非仍在 pending/执行中）。报告状态枚举（`passed` / `failed` / `error` / `running`）由前端 `STATUS_LABELS` 映射为中文标签展示。
 
 ---
 
@@ -392,20 +394,29 @@ UI 场景 = 多个 UI 用例的有序编排，与接口场景用法相同。
 
 ### 8.1 内置角色
 
-| 角色 | 权限 |
-|---|---|
-| 管理员（admin） | 全部权限 |
-| 项目经理 | 项目内全部权限 + 成员管理 |
-| 测试工程师 | 用例/场景/任务/报告 读写 |
-| 只读用户 | 查看所有数据，无修改权限 |
+平台固定三种角色（由后端 `Role` 枚举驱动，前端据其控制按钮可见性）：
+
+| 角色代码 | 显示名 | 权限 |
+|---|---|---|
+| `admin` | 管理员 | 全部权限（含用户管理、审计日志、系统配置） |
+| `member` | 业务用户 | 项目内读写（用例 / 场景 / 任务 / 报告） |
+| `viewer` | 只读用户 | 查看所有数据，无修改权限（前端自动禁用写按钮） |
 
 ### 8.2 用户管理（管理员）
 
-「系统管理 → 用户管理」可创建/禁用/重置密码用户。
+「系统管理 → 用户管理」可创建 / 禁用 / 重置密码用户。
 
-### 8.3 项目成员
+### 8.3 错误码速查（前端弹错时定位）
 
-「项目管理 → 成员」可为单个项目分配成员角色。
+| 弹错内容 | 码值 | 说明与处理建议 |
+|---|---|---|
+| `登录已过期，请重新登录` | `1002 UNAUTHORIZED` | token 过期或失效 → 系统已自动跳登录页，重新登录即可 |
+| `用户名或密码错误` | `1006 LOGIN_FAILED` | 仅登录时出现，不会清登录态；检查账号或重置密码 |
+| `权限不足` | `1003 FORBIDDEN` | 当前角色无权操作 → 联系管理员提升为 admin / member |
+| `xxx 已被使用` / `xxx 不存在` | `1005 CONFLICT` / `1004 NOT_FOUND` | 名称冲突或资源不存在 → 改用唯一名称或刷新列表 |
+| `xxx: 字段不能为空` | `1001 BAD_REQUEST` | 表单校验失败 → 按提示补全 |
+
+错误码契约受后端 `LoginErrorCodeTest` / `AuthInterceptorTest` 与前端 `constants/index.ts` 的 `API_CODE` 常量双向锁死，发现提示文本与上表不符请通过 GitHub Issue 反馈。
 
 ---
 
@@ -540,4 +551,49 @@ A: 浏览器可能拦截了下载。在浏览器设置中允许 `localhost:5173`
 
 ### Q6: 时间显示与本地时间差 8 小时
 
-A: 这是正常的——平台所有时间按 UTC 存储，前端会按浏览器时区转换。如果差异异常，检查浏览器时区设置。
+A: 这是正常的——平台所有时间按 UTC 存储，前端通过 `dayjs.utc(str).local()` 按浏览器时区转换。如果显示 `Invalid Date`，说明后端返回了 `null` 字段（例如该用例未填写更新时间），请检查用例是否已保存。
+
+### Q7: 报告列表显示英文状态码（如 `passed`、`failed`）
+
+A: 页面应显示中文标签（通过/失败/错误）。若直接显示枚举英文，请清浏览器缓存后刷新——前端依赖 `STATUS_LABELS` 常量做映射，老版本 chunk 缓存可能导致映射缺失。
+
+### Q8: 重置 / 清理测试数据
+
+A: 平台未提供「一键清库」UI 入口（防止误操作）。开发或演示环境清空脏数据：
+
+```bash
+# 1. 清 MySQL 业务表（保留 admin 账号）
+mysql -uapiweb -papiweb123 api_web <<'SQL'
+SET FOREIGN_KEY_CHECKS=0;
+DELETE FROM t_case_version; DELETE FROM t_case_step; DELETE FROM t_case_review; DELETE FROM t_case;
+DELETE FROM t_scenario_step; DELETE FROM t_scenario;
+DELETE FROM t_ui_scenario_step; DELETE FROM t_ui_scenario;
+DELETE FROM t_test_task_run; DELETE FROM t_test_task;
+DELETE FROM t_report_detail; DELETE FROM t_report_share_log; DELETE FROM t_report_share; DELETE FROM t_report;
+DELETE FROM t_ui_report;
+DELETE FROM t_perf_report;
+DELETE FROM t_debug_record;
+DELETE FROM t_perf_case;
+DELETE FROM t_api_definition;
+DELETE FROM t_ui_test_case;
+DELETE FROM t_environment;
+DELETE FROM t_module;
+DELETE FROM t_global_variable;
+DELETE FROM t_audit_log;
+DELETE FROM t_ci_pipeline_run; DELETE FROM t_ci_pipeline;
+DELETE FROM t_ci_jenkins_server;
+DELETE FROM t_executor_node;
+DELETE FROM t_recycle_bin_config;
+DELETE FROM t_project;
+DELETE FROM t_user WHERE username <> 'admin';
+SET FOREIGN_KEY_CHECKS=1;
+SQL
+
+# 2. 清 Redis 缓存与执行机心跳
+redis-cli FLUSHDB
+
+# 3. 清 OSS 兜底文件（localdev profile 下）
+rm -rf "$TMPDIR/apiweb-oss"/*   # Windows: %TEMP%\apiweb-oss\*
+```
+
+生产环境严禁执行上述脚本，请使用备份/恢复流程（`mysqldump` → 删表 → 重导）。

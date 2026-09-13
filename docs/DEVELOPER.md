@@ -284,7 +284,7 @@ public class BugService {
 
 ```java
 @RestController
-@RequestMapping("/api/bugs")
+@RequestMapping("/api/v1/bugs")  // 注意统一 /api/v1 前缀
 @RequiredArgsConstructor
 public class BugController {
     private final BugService bugService;
@@ -306,7 +306,7 @@ public class BugController {
 }
 ```
 
-6. **重启后端**，调用 `curl http://localhost:8080/api/bugs` 验证。
+6. **重启后端**，调用 `curl http://localhost:8080/api/v1/bugs` 验证。
 
 ### 4.3 通用响应格式
 
@@ -323,17 +323,48 @@ public class BugController {
 - `code = 0`：成功
 - `code != 0`：失败，`message` 为错误描述
 - HTTP 状态码：成功 200，业务失败 400，未授权 401，权限不足 403，未找到 404，服务异常 500
+- 所有 Controller 统一加 `/api/v1` 前缀（`@RequestMapping("/api/v1/xxx")`），前端 `axios.baseURL = /api/v1`，vite dev proxy `/api` → `http://localhost:8080`
 
 业务异常抛 `BizException(ErrorCode.XXX, "附加信息")`，由 `GlobalExceptionHandler` 统一转换为 `Result`。
+
+### 4.3.1 业务码契约（前后端必须一致，禁止裸字符串）
+
+`server/src/main/java/com/apiweb/common/ErrorCode.java` 定义了所有业务码，**`code` 是前后端 / DB / 审计日志的协议位**：
+
+| 码值 | 常量 | 含义 | 前端处理 |
+|---|---|---|---|
+| `0` | `SUCCESS` | 成功 | 取 `data` |
+| `1001` | `BAD_REQUEST` | 参数校验失败 | 弹错 |
+| `1002` | `UNAUTHORIZED` | 登录态失效（token 过期 / 缺失 / 无效） | 清登录态并跳 `/login` |
+| `1003` | `FORBIDDEN` | 无权限（被 `@RequireRole` 拒绝） | 提示「权限不足」 |
+| `1004` | `NOT_FOUND` | 资源不存在 | 弹错 |
+| `1005` | `CONFLICT` | 名称冲突 | 弹错 |
+| `1006` | `LOGIN_FAILED` | 账号或密码错误 | 弹错，**不动登录态** |
+| `2001+` | 业务校验（如 `CASE_NAME_EMPTY`） | 业务规则违反 | 弹错 |
+| `3001+` | 解析 / 导入失败（`SWAGGER_PARSE_FAILED` 等） | 数据格式问题 | 弹错 |
+| `4001+` | 执行失败（`DEBUG_EXECUTION_FAILED` 等） | 运行时异常 | 弹错 |
+
+> **关键纪律**：`1002` 与 `1006` 严格区分。前者必须返回 HTTP 401 + `Result(code=1002)` 结构，由 `AuthInterceptor` 写出；后者是普通业务错误，HTTP 200 + `Result(code=1006)`。`server/src/test/java/com/apiweb/security/LoginErrorCodeTest.java` 与 `AuthInterceptorTest.java` 已锁死这两条契约，修改任意一处会被测试拦截。
+
+修改 / 新增错误码时，必须同步前端 `client/src/constants/index.ts` 的 `API_CODE` 常量，并提交一节使用该码的前端分支处理。
+
+### 4.3.2 角色与权限注解
+
+- 角色枚举 `Role`：admin / member / viewer；常量 `ADMIN_CODE` / `MEMBER_CODE` / `VIEWER_CODE` 是 `String` 常量，供 `@RequireRole` 注解使用（注解属性必须编译期常量）。
+- 类级 `@RequireRole("admin")` 限制接口仅管理员可访问；方法级 `@RequireRole` 优先级更高。
+- 非 admin 访问被拦截时返回 HTTP 403 + `Result(code=1003)`。
+- 切换为 admin 的角色判断：`UserContext.getCurrentUser().isAdmin()`。
 
 ### 4.4 鉴权
 
 需要登录的接口走 JWT 流程：
 
-1. `POST /api/auth/login` 获取 token
+1. `POST /api/v1/auth/login` 获取 token
 2. 后续请求 Header 携带 `Authorization: Bearer <token>`
 3. `AuthInterceptor` 校验 token，解析出 userId，写入 `UserContext`（ThreadLocal）
 4. 业务代码通过 `UserContext.getCurrentUserId()` 获取当前用户
+
+**401 响应体**：当 token 缺失 / 无效 / 过期时，`AuthInterceptor` 返回 HTTP 401 + `Result.fail(1002, "登录已过期，请重新登录")` 的统一 JSON 结构。前端 `api/client.ts` 拦截器会清 localStorage 的 `token` / `user` 并跳 `/login`。该响应体格式受 `AuthInterceptorTest` 保护，禁止退化为手写 JSON 或其它业务码。
 
 ### 4.5 审计日志
 
@@ -444,14 +475,21 @@ export WEBDRIVER_CHROME_DRIVER=/path/to/chromedriver   # Windows: set WEBDRIVER_
 import { http } from '@/api/client';
 
 export const listCases = (projectId: string) =>
-  http.get<CaseEntity[]>('/api/cases', { params: { projectId } });
+  http.get<CaseEntity[]>('/cases', { params: { projectId } });
+// 实际请求 URL: /api/v1/cases?projectId=xxx
+//   - 前缀 /api/v1 由 client.ts 的 baseURL 自动拼接
+//   - 调用方传路径以 / 开头，不重复 /api/v1 前缀
 ```
 
-响应统一解包 `data`：
+响应统一解包 `data`，并处理业务码：
 
 ```ts
 // client.ts 中已设置 interceptor
-http.interceptors.response.use(resp => resp.data.data);
+//   - code=0   → 返回 data.data
+//   - code=1002 或 HTTP 401 → 清 localStorage('token'/'user')，window.location 跳 /login
+//   - code=1003 → 弹「权限不足」提示
+//   - code=1006 → 弹「用户名或密码错误」（业务校验错误，不影响登录态）
+//   - 其它 code → throw new Error(message)
 ```
 
 ### 5.3 状态管理
@@ -517,6 +555,12 @@ export const useProjectStore = defineStore('project', () => {
 <Monaco v-model="code" language="javascript" height="300px" />
 ```
 
+Worker 配置在 `src/utils/monacoWorkers.ts`：
+
+- 注册 `window.MonacoEnvironment.getWorker(...)`，根据 `workerId + label` 返回对应 worker 构造器；
+- Vite 通过 `?worker` 后缀处理 worker bundle，开发服务器启动时会复制到 `/monacoeditorwork/` 子路径；
+- 漏配该文件会在控制台看到「Could not find worker」错误，且编辑器失去语法高亮与补全。
+
 ### 5.8 虚拟滚动树
 
 `components/VirtualTree.vue`：基于 Ant Design Vue Tree 二次封装，支持 10 万级节点流畅滚动。
@@ -538,7 +582,9 @@ export const useProjectStore = defineStore('project', () => {
 - 序列化统一：`application.yml` 设置 `spring.jackson.time-zone: UTC`
 
 **前端约定**：
-- API 返回 ISO 字符串，前端用 `dayjs.utc(str).local().format('YYYY-MM-DD HH:mm:ss')` 转本地
+- API 返回 ISO 字符串，前端通过 `utils/format.ts` 的 `formatDateTime(iso)` 转本地时间
+- `formatDateTime` 内部 `dayjs.utc(str).local().format('YYYY-MM-DD HH:mm:ss')`，已注册 utc 插件
+- **禁止在页面里直接 `dayjs.utc(iso)`** —— 各页面曾复制过该逻辑，因依赖加载顺序出现 `Invalid Date`，统一收敛到 `utils/format.ts`
 
 ### 6.2 大对象存储
 
@@ -561,6 +607,8 @@ if (responseBody.length() > 1024 * 1024) {
 ```
 
 前端透明：HTTP 接口返回的字段已经是 OSS 路径，调试回显时调用 `get-oss?ref=xxx` 反向取回。
+
+localdev profile 下 MinIO 不可用时，`OssService` 自动降级到本地文件系统（`OSS_LOCAL_ROOT` 环境变量覆盖，缺省 `${java.io.tmpdir}/apiweb-oss`），无需额外配置。
 
 ### 6.3 异步任务调度
 
@@ -601,6 +649,8 @@ if (responseBody.length() > 1024 * 1024) {
 
 进度推送（可选）：执行器把进度消息发到 Redis Pub/Sub，前端通过 SSE 订阅。
 
+`localdev` profile 下 MQ 消费者不注册，UI / 性能任务改走 `@Async` 进程内执行（详见 §3.4）。
+
 ### 6.4 执行机资源池
 
 ```
@@ -621,6 +671,48 @@ if (responseBody.length() > 1024 * 1024) {
 - 数据库表 `QRTZ_*` 由 Quartz 自动建（`application.yml` 中 `spring.quartz.job-store-type: jdbc`）
 - 多节点部署时，只有一个节点会触发到期的 Trigger（基于数据库行锁）
 - Trigger 持久化在 DB，节点重启不丢失
+
+### 6.6 零硬编码（配置外置 + 领域枚举）
+
+> 自提交 `9c908a4` 起，工程不允许出现魔法值：可变参数走 `application.yml` 的 `apiweb.*` 段；参与判断 / 落库 / 传输的状态值必须引用枚举常量。
+
+**后端配置类**（`com/apiweb/config/*.Properties.java`）：
+
+| 类 | 前缀 | 覆盖内容 |
+|---|---|---|
+| `MqProperties` | `apiweb.mq` | 交换机、结果交换机、队列名、路由键、`enabled` |
+| `BootstrapProperties` | `apiweb.bootstrap` | 初始化管理员开关 / 用户名 / 密码 |
+| `ExecutorProperties` | `apiweb.executor` | 心跳超时、巡检间隔、Redis key 前缀、默认能力 |
+| `EngineProperties` | `apiweb.engine` | UI 等待 / 元素超时、WHILE 上限、性能轮询间隔 |
+| `OssProperties` | `apiweb.oss` | bucket、大 body 阈值、本地兜底目录 |
+| `CiProperties` | `apiweb.ci` | CI/CD public-base-url、最小触发间隔、Jenkins Remote API 超时 |
+
+所有 `*Properties` 都支持同名环境变量覆盖（`${MQ_ENABLED:false}` 风格），可无缝切换 dev / test / prod。
+
+**领域枚举**（即协议位，**改动等于改协议**）：
+
+| 包 | 枚举 | 取值 |
+|---|---|---|
+| `engine` | `RunStatus` | pending / running / success / failed / error / skipped |
+| `engine` | `ReportStatus` | running / passed / failed / error |
+| `engine` | `TriggerType` | manual / schedule / webhook / api |
+| `engine` | `ExecutorStatus` | online / busy / offline |
+| `engine` | `TaskType` | api / ui / perf |
+| `engine` | `FailStrategy` | stop_on_fail / continue_all / retry_then_stop |
+| `engine` | `ExecuteMode` | sequential / parallel |
+| `engine` | `UiSegment` | setup / test / teardown / error |
+| `security` | `Role` | admin / member / viewer（附 `*_CODE` 常量供注解） |
+| `report` | `ShareAccessStatus` | success / not_found / revoked / expired / rate_limited / wrong_password / ip_blocked |
+| `service` | `ExtractType` | jsonpath / regex / header / cookie / body |
+| `engine.step` | `ExtractType.DEFAULT = JSONPATH` | 默认提取方式 |
+
+修改 / 新增枚举时：
+
+1. **必须** 同步前端常量（`client/src/constants/index.ts` 的 `STATUS_LABELS` 等）；
+2. **必须** 补一节单测（参考 `server/src/test/java/com/apiweb/engine/EngineEnumsTest.java` / `RoleTest.java` / `ShareAccessStatusTest.java` / `security/LoginErrorCodeTest.java`）；
+3. 提交前跑 `mvn test` 确认全绿。
+
+**前端常量集中**（`client/src/constants/index.ts`）：枚举、标签、颜色、分页、HTTP 方法、提取方式、角色 → 全部在唯一来源处声明；时间与耗时格式化统一走 `src/utils/format.ts`。禁止在页面里写字面量。
 
 ---
 
@@ -666,12 +758,35 @@ cd server
 mvn test
 ```
 
-测试目录：`server/src/test/java/`。推荐覆盖：
-- Service 业务方法（Mock Mapper）
-- Util 工具类
-- 关键 Controller（MockMvc）
+测试目录：`server/src/test/java/`。当前覆盖 49 个用例（推荐覆盖）：
 
-### 8.2 前端单元测试（待补充）
+| 测试类 | 锁死的契约 |
+|---|---|
+| `engine/EngineEnumsTest` | `RunStatus` / `ReportStatus` / `TriggerType` / `ExecutorStatus` / `TaskType` / `FailStrategy` / `ExecuteMode` / `UiSegment` 的 `getCode()` |
+| `engine/step/ExtractTypeTest` | 5 种提取方式 code + JSONPATH 为默认 |
+| `security/RoleTest` | admin / member / viewer code + `*_CODE` 常量 |
+| `security/LoginErrorCodeTest` | `1002` ≠ `1006`，且分别锁定码值 |
+| `security/AuthInterceptorTest` | 401 响应体格式（`Result(code=1002)` JSON） |
+| `report/ShareAccessStatusTest` | 7 种分享访问结果码 |
+| `service/QualityGateTest` | 7 条 CI 质量门禁规则语义 |
+| `engine/CiEnumsTest` | CI 流水线的 6 种状态枚举 |
+
+**推荐新模块测试覆盖**：
+- Service 业务方法（`@MockBean` Mapper）
+- Util 工具类（`Assertions.*` 工具断言）
+- 关键 Controller（`MockMvc`）
+- **新枚举 / 新错误码** 必须有 `*Test` 锁死 `getCode()`（否则提交前可能被 `mvn test` 拦截要求补）
+
+### 8.2 前端类型检查
+
+```bash
+cd client
+npx vue-tsc --noEmit
+```
+
+类型检查覆盖 `.vue` 与 `.ts`，`vite build` 也会触发。`package.json` 的 `type-check` 脚本等同。
+
+### 8.3 前端单元测试（待补充）
 
 `vitest` + `@vue/test-utils` 尚未接入。如需添加：
 
@@ -680,14 +795,23 @@ cd client
 npm install -D vitest @vue/test-utils
 ```
 
-### 8.3 接口联调
+### 8.4 接口联调
 
 推荐用 Apifox / Postman 调试。导入 OpenAPI：访问 `http://localhost:8080/v3/api-docs`（如已集成 springdoc）。
 
-### 8.4 端到端测试（待补充）
+### 8.5 端到端 / UI 探测（无依赖）
 
-Playwright / Cypress 暂未接入。推荐补充路径：
-- 登录 → 新建用例 → 调试 → 加入场景 → 执行 → 看报告
+工程内置了基于 Chrome DevTools Protocol 的 UI 探测脚本（`tools_ui_probe.mjs` 等），无需安装额外 npm 依赖（`puppeteer` / `playwright`）：
+
+```bash
+# 1. 用任一本地 Chrome 以远程调试模式启动
+chrome --remote-debugging-port=9222 --no-first-run
+
+# 2. 运行探测脚本（默认连 127.0.0.1:9222）
+node tools_ui_probe.mjs
+```
+
+脚本会按「登录 → 19 个页面遍历 → 新建/删除 → 退出登录」的顺序操作，捕获控制台错误、网络失败、内容区空白、Monaco worker 加载失败等异常，并把每页截图写到 `ui-shots/`。Vue `Transition` 报警后内容区空白的根因（页面组件多根节点）可通过 `tools_scan_multiroot.mjs` 一键扫描全部 `.vue` 组件。
 
 ---
 
@@ -820,7 +944,7 @@ A: 检查 `logs/backend.log`，常见原因：
 | 场景如何执行 | `server/src/main/java/com/apiweb/controller/ScenarioController.java` |
 | .jmx 导入导出 | `server/src/main/java/com/apiweb/service/JmxImportExportService.java` |
 | 三栏工作台如何联动 | `client/src/views/Workbench.vue` + `client/src/components/workbench/*.vue` |
-| Monaco 如何集成 | `client/src/components/Monaco.vue` |
+| Monaco 如何集成 | `client/src/components/Monaco.vue` + `client/src/utils/monacoWorkers.ts` |
 | 虚拟滚动树如何实现 | `client/src/components/VirtualTree.vue` |
 
 ## 附录 B：常用命令速查
@@ -833,8 +957,8 @@ mvn test                                           # 跑单元测试
 
 # 前端
 npm run dev                                        # 开发服务器
-npm run build                                      # 生产构建
-npm run type-check                                 # TypeScript 检查（待补充）
+npm run build                                      # 生产构建（含 vue-tsc 类型检查）
+npx vue-tsc --noEmit                               # 仅类型检查
 
 # 数据库
 docker exec -i apiweb-mysql mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql
