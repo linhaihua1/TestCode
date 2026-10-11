@@ -47,6 +47,7 @@
  */
 import { computed, ref, watch } from 'vue';
 import type { KeyValueItem } from '@/types';
+import { normalizeRows, appendEmptyRow, removeRowByKey, toKeyValueItems } from '@/utils/kvRows';
 
 const props = defineProps<{
   modelValue: KeyValueItem[];
@@ -57,20 +58,15 @@ const emit = defineEmits<{
   'update:modelValue': [value: KeyValueItem[]];
 }>();
 
-const rows = ref<Array<KeyValueItem & { rowKey: string }>>(normalize(props.modelValue));
+const rows = ref(normalizeRows(props.modelValue));
 
 watch(
   () => props.modelValue,
   (val) => {
-    rows.value = normalize(val ?? []);
+    rows.value = normalizeRows(val ?? []);
   },
   { deep: true },
 );
-
-function normalize(list: KeyValueItem[]) {
-  const base = list && list.length > 0 ? [...list] : [{ key: '', value: '', enabled: true }];
-  return base.map((r, i) => ({ ...r, rowKey: String(i) + '-' + Math.random() }));
-}
 
 const columns = computed(() => [
   {
@@ -95,27 +91,17 @@ const columns = computed(() => [
 ]);
 
 function addRow() {
-  rows.value.push({ key: '', value: '', enabled: true, rowKey: String(Date.now()) });
+  rows.value = appendEmptyRow(rows.value);
   emitChange();
 }
 
 function removeRow(rowKey: string) {
-  rows.value = rows.value.filter((r) => r.rowKey !== rowKey);
-  if (rows.value.length === 0) {
-    rows.value.push({ key: '', value: '', enabled: true, rowKey: String(Date.now()) });
-  }
+  rows.value = removeRowByKey(rows.value, rowKey);
   emitChange();
 }
 
 function emitChange() {
-  emit(
-    'update:modelValue',
-    rows.value.map(({ key, value, enabled }) => ({
-      key: key ?? '',
-      value: value ?? '',
-      enabled: enabled ?? true,
-    })),
-  );
+  emit('update:modelValue', toKeyValueItems(rows.value));
 }
 </script>
 

@@ -31,14 +31,13 @@
 import { computed, ref, watch } from 'vue';
 import {
   FolderOutlined,
-  FolderOpenOutlined,
   AppstoreOutlined,
   CodeOutlined,
   RobotOutlined,
   ThunderboltOutlined,
-  FileTextOutlined,
 } from '@ant-design/icons-vue';
 import type { ModuleNode } from '@/types';
+import { filterTreeDeeply } from '@/utils/treeFilter';
 
 const props = withDefaults(
   defineProps<{
@@ -100,18 +99,6 @@ const filteredTree = computed(() => {
   if (!props.keyword) return props.tree;
   return filterTreeDeeply(props.tree, props.keyword);
 });
-
-function filterTreeDeeply(nodes: ModuleNode[], keyword: string): ModuleNode[] {
-  const out: ModuleNode[] = [];
-  for (const n of nodes) {
-    const match = n.title.toLowerCase().includes(keyword.toLowerCase());
-    const children = filterTreeDeeply(n.children || [], keyword);
-    if (match || children.length > 0) {
-      out.push({ ...n, children });
-    }
-  }
-  return out;
-}
 
 function iconFor(key: string) {
   const node = findNode(props.tree, key);
