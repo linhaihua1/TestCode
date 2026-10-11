@@ -1,12 +1,11 @@
 package com.apiweb.controller;
 
 import com.apiweb.audit.AuditLog;
-import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
-import com.apiweb.entity.GlobalVariableEntity;
-import com.apiweb.mapper.GlobalVariableMapper;
-import com.apiweb.security.AesGcm;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.apiweb.dto.globalvariable.GlobalVariableReq;
+import com.apiweb.service.GlobalVariableService;
+import com.apiweb.vo.globalvariable.GlobalVariableVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,11 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GlobalVariableController {
 
-    private static final String TYPE_SECRET = "SECRET";
-    private static final String TYPE_RANDOM = "RANDOM";
-    private static final String TYPE_TIMESTAMP = "TIMESTAMP";
-
-    private final GlobalVariableMapper globalVariableMapper;
+    private final GlobalVariableService globalVariableService;
 
     /**
      * 查询项目的全局变量列表（按变量名升序）。
@@ -47,85 +42,35 @@ public class GlobalVariableController {
      * @return 变量列表；SECRET 类型的值已替换为掩码 {@code **********}，不向外部泄漏明文
      */
     @GetMapping
-    public Result<List<GlobalVariableEntity>> list(@RequestParam String projectId) {
-        List<GlobalVariableEntity> vars = globalVariableMapper.selectList(
-                new LambdaQueryWrapper<GlobalVariableEntity>()
-                        .eq(GlobalVariableEntity::getProjectId, projectId)
-                        .orderByAsc(GlobalVariableEntity::getName));
-        // SECRET 变量前端只能看掩码
-        for (GlobalVariableEntity v : vars) {
-            if (TYPE_SECRET.equalsIgnoreCase(v.getType())) {
-                v.setValue("**********");
-            }
-        }
-        return Result.ok(vars);
-    }
-
-    /** 内部使用：拿到解密后的明文（用例执行时由 VariableMerger 调用） */
-    public String resolveValue(String varName, String projectId) {
-        GlobalVariableEntity v = globalVariableMapper.selectOne(
-                new LambdaQueryWrapper<GlobalVariableEntity>()
-                        .eq(GlobalVariableEntity::getProjectId, projectId)
-                        .eq(GlobalVariableEntity::getName, varName));
-        if (v == null) return null;
-        if (TYPE_SECRET.equalsIgnoreCase(v.getType())) {
-            try {
-                return AesGcm.decrypt(v.getValue());
-            } catch (Exception e) {
-                throw BizException.badRequest("密钥解密失败: " + varName);
-            }
-        }
-        return v.getValue();
+    public Result<List<GlobalVariableVO>> list(@RequestParam String projectId) {
+        return Result.ok(globalVariableService.list(projectId));
     }
 
     /**
      * 新建全局变量。
-     * <p>TIMESTAMP/RANDOM 类型的值由后端生成（忽略前端传入值）；SECRET 类型入库前用 AES-256-GCM 加密，
-     * 返回给前端时脱敏为掩码，避免密钥外泄。
      *
-     * @param variable 变量实体（请求体），name 必填
+     * @param req 变量请求 DTO（请求体），name 必填
      * @return 已落库的变量（SECRET 值已脱敏为掩码）
-     * @throws BizException 变量名缺失时抛 badRequest
      * @audit 写审计日志：action=create, entityType=global_variable
      */
     @AuditLog(action = "create", entityType = "global_variable")
     @PostMapping
-    public Result<GlobalVariableEntity> create(@RequestBody GlobalVariableEntity variable) {
-        validateAndPrepare(variable);
-        variable.setValue(encryptIfSecret(variable));
-        globalVariableMapper.insert(variable);
-        // 返回前脱敏
-        if (TYPE_SECRET.equalsIgnoreCase(variable.getType())) {
-            variable.setValue("**********");
-        }
-        return Result.ok(variable);
+    public Result<GlobalVariableVO> create(@Valid @RequestBody GlobalVariableReq req) {
+        return Result.ok(globalVariableService.create(req));
     }
 
     /**
      * 更新全局变量。
-     * <p>SECRET 类型更新时保留原库密文（前端只回传掩码，避免对掩码二次加密）；
-     * 非 SECRET 类型按规则重新生成/加密后入库。
      *
-     * @param id       变量 ID（路径参数，必填）
-     * @param variable 变量实体（请求体）
+     * @param id  变量 ID（路径参数，必填）
+     * @param req 变量请求 DTO（请求体）
      * @return 无业务数据
-     * @throws BizException 变量不存在时抛 notFound
      * @audit 写审计日志：action=update, entityType=global_variable
      */
     @AuditLog(action = "update", entityType = "global_variable")
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable String id, @RequestBody GlobalVariableEntity variable) {
-        validateAndPrepare(variable);
-        if (TYPE_SECRET.equalsIgnoreCase(variable.getType())) {
-            // 保留原密文：前端只传掩码,不应重新加密掩码
-            GlobalVariableEntity origin = globalVariableMapper.selectById(id);
-            if (origin == null) throw BizException.notFound("变量不存在");
-            variable.setValue(origin.getValue());
-        } else {
-            variable.setValue(encryptIfSecret(variable));
-        }
-        variable.setId(id);
-        globalVariableMapper.updateById(variable);
+    public Result<Void> update(@PathVariable String id, @Valid @RequestBody GlobalVariableReq req) {
+        globalVariableService.update(id, req);
         return Result.ok();
     }
 
@@ -139,26 +84,7 @@ public class GlobalVariableController {
     @AuditLog(action = "delete", entityType = "global_variable")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
-        globalVariableMapper.deleteById(id);
+        globalVariableService.delete(id);
         return Result.ok();
-    }
-
-    private void validateAndPrepare(GlobalVariableEntity v) {
-        if (v.getName() == null || v.getName().isBlank()) {
-            throw BizException.badRequest("变量名必填");
-        }
-        // TIMESTAMP / RANDOM 类型由后端生成,忽略前端传来的值
-        if (TYPE_TIMESTAMP.equalsIgnoreCase(v.getType())) {
-            v.setValue(String.valueOf(System.currentTimeMillis()));
-        } else if (TYPE_RANDOM.equalsIgnoreCase(v.getType())) {
-            v.setValue(String.valueOf(System.nanoTime() ^ System.currentTimeMillis()));
-        }
-    }
-
-    private String encryptIfSecret(GlobalVariableEntity v) {
-        if (!TYPE_SECRET.equalsIgnoreCase(v.getType())) return v.getValue();
-        if (v.getValue() == null || v.getValue().isBlank()) return "";
-        if (AesGcm.isCipherText(v.getValue())) return v.getValue();  // 已是密文
-        return AesGcm.encrypt(v.getValue());
     }
 }
