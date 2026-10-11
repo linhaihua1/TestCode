@@ -36,10 +36,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RecycleBinService {
 
+    /** 用例数据访问层 */
     private final CaseMapper caseMapper;
+    /** 模块数据访问层 */
     private final ModuleMapper moduleMapper;
+    /** 接口定义数据访问层 */
     private final ApiDefinitionMapper apiMapper;
+    /** 测试任务数据访问层 */
     private final TestTaskMapper testTaskMapper;
+    /** 回收站自动清理配置数据访问层 */
     private final RecycleBinConfigMapper configMapper;
 
     /** 回收对象类型 */

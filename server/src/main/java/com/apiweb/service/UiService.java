@@ -43,13 +43,21 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UiService {
 
+    /** UI 用例数据访问层 */
     private final UiTestCaseMapper uiTestCaseMapper;
+    /** UI 场景数据访问层 */
     private final UiScenarioMapper uiScenarioMapper;
+    /** UI 场景步骤数据访问层 */
     private final UiScenarioStepMapper uiScenarioStepMapper;
+    /** UI 报告数据访问层 */
     private final UiReportMapper uiReportMapper;
+    /** 任务生产者（投递 MQ 异步执行） */
     private final TaskProducer taskProducer;
+    /** 对象存储服务（大报告明细转存） */
     private final OssService ossService;
+    /** UI 执行服务（Selenium 驱动真实浏览器） */
     private final UiExecutionService uiExecutionService;
+    /** UI 相关实体 ↔ DTO/VO 转换器 */
     private final UiConverter converter;
 
     /** 是否启用 RabbitMQ 消费端。localdev 下为 false，run 接口改为 @Async 异步执行。 */

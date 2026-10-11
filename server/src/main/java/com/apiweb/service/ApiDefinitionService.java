@@ -35,11 +35,17 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApiDefinitionService {
 
+    /** 接口定义数据访问层 */
     private final ApiDefinitionMapper apiMapper;
+    /** 实体 ↔ DTO/VO 转换器 */
     private final ApiDefinitionConverter converter;
+    /** Swagger/OpenAPI 导入器 */
     private final SwaggerImporter swaggerImporter;
+    /** 一键生成用例服务 */
     private final CaseGenerator caseGenerator;
+    /** 用例数据访问层（生成用例时落库） */
     private final CaseMapper caseMapper;
+    /** 用例步骤数据访问层（生成用例步骤时落库） */
     private final CaseStepMapper caseStepMapper;
 
     /** 单页上限 */

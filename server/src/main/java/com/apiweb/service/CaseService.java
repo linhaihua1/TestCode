@@ -43,13 +43,21 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CaseService {
 
+    /** 用例数据访问层 */
     private final CaseMapper caseMapper;
+    /** 用例版本快照数据访问层 */
     private final CaseVersionMapper caseVersionMapper;
+    /** 用例评审记录数据访问层 */
     private final CaseReviewMapper caseReviewMapper;
+    /** 用例步骤数据访问层 */
     private final CaseStepMapper caseStepMapper;
+    /** 调试记录数据访问层 */
     private final DebugRecordMapper debugRecordMapper;
+    /** 执行支撑服务（变量组装/执行器） */
     private final ExecutionSupportService executionSupport;
+    /** 对象存储服务（大报文转存） */
     private final OssService ossService;
+    /** 用例相关实体 ↔ DTO/VO 转换器 */
     private final CaseConverter converter;
 
     private static final long MAX_SIZE = 200;
