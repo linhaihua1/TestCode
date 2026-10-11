@@ -8,17 +8,8 @@ import com.apiweb.engine.PipelineTestType;
 import com.apiweb.engine.TriggerType;
 import com.apiweb.entity.CiPipelineEntity;
 import com.apiweb.entity.CiPipelineRunEntity;
-import com.apiweb.entity.PerfCaseEntity;
-import com.apiweb.entity.TestTaskEntity;
-import com.apiweb.entity.UiScenarioEntity;
-import com.apiweb.entity.UiTestCaseEntity;
-import com.apiweb.mapper.PerfCaseMapper;
-import com.apiweb.mapper.TestTaskMapper;
-import com.apiweb.mapper.UiScenarioMapper;
-import com.apiweb.mapper.UiTestCaseMapper;
 import com.apiweb.security.UserContext;
 import com.apiweb.service.CiPipelineService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,10 +40,6 @@ import java.util.Map;
 public class CiPipelineController {
 
     private final CiPipelineService pipelineService;
-    private final TestTaskMapper testTaskMapper;
-    private final UiScenarioMapper uiScenarioMapper;
-    private final UiTestCaseMapper uiTestCaseMapper;
-    private final PerfCaseMapper perfCaseMapper;
 
     // ==================================================================
     // 查询
@@ -92,36 +79,7 @@ public class CiPipelineController {
     public Result<List<Map<String, String>>> targets(@RequestParam String projectId,
                                                      @RequestParam(defaultValue = "api") String testType) {
         PipelineTestType type = PipelineTestType.parseOrDefault(testType);
-        List<Map<String, String>> result = new java.util.ArrayList<>();
-        switch (type) {
-            case API -> testTaskMapper.selectList(
-                    new LambdaQueryWrapper<TestTaskEntity>()
-                            .eq(TestTaskEntity::getProjectId, projectId)
-                            .isNull(TestTaskEntity::getDeletedAt)
-                            .orderByDesc(TestTaskEntity::getUpdatedAt))
-                    .forEach(t -> result.add(target(t.getId(), t.getName(), PipelineTargetType.TEST_TASK)));
-            case UI -> {
-                // UI 场景与 UI 用例都可执行，前端按 targetType 区分
-                // 注：t_ui_scenario / t_ui_test_case 无软删除字段，无需追加 deletedAt 过滤
-                uiScenarioMapper.selectList(
-                        new LambdaQueryWrapper<UiScenarioEntity>()
-                                .eq(UiScenarioEntity::getProjectId, projectId)
-                                .orderByDesc(UiScenarioEntity::getUpdatedAt))
-                        .forEach(s -> result.add(target(s.getId(), s.getName(), PipelineTargetType.UI_SCENARIO)));
-                uiTestCaseMapper.selectList(
-                        new LambdaQueryWrapper<UiTestCaseEntity>()
-                                .eq(UiTestCaseEntity::getProjectId, projectId)
-                                .orderByDesc(UiTestCaseEntity::getUpdatedAt))
-                        .forEach(t -> result.add(target(t.getId(), t.getName(), PipelineTargetType.UI_TEST)));
-            }
-            case PERF -> perfCaseMapper.selectList(
-                    new LambdaQueryWrapper<PerfCaseEntity>()
-                            .eq(PerfCaseEntity::getProjectId, projectId)
-                            .isNull(PerfCaseEntity::getDeletedAt)
-                            .orderByDesc(PerfCaseEntity::getUpdatedAt))
-                    .forEach(c -> result.add(target(c.getId(), c.getName(), PipelineTargetType.PERF_CASE)));
-        }
-        return Result.ok(result);
+        return Result.ok(pipelineService.listTargets(projectId, type));
     }
 
     // ==================================================================
@@ -267,14 +225,5 @@ public class CiPipelineController {
         private Boolean wait;
         /** 触发者标识（页面触发时留空则用当前登录用户名） */
         private String triggerBy;
-    }
-
-    /** 构造目标选项（id / name / type） */
-    private static Map<String, String> target(String id, String name, PipelineTargetType type) {
-        Map<String, String> m = new LinkedHashMap<>();
-        m.put("id", id);
-        m.put("name", name);
-        m.put("targetType", type.getCode());
-        return m;
     }
 }

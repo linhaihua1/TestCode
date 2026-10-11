@@ -1,166 +1,70 @@
 package com.apiweb.controller;
 
-import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
-import com.apiweb.entity.UserEntity;
-import com.apiweb.mapper.UserMapper;
-import com.apiweb.security.JwtUtil;
-import com.apiweb.security.Role;
-import com.apiweb.security.UserContext;
-import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+import com.apiweb.dto.auth.AuthRequest;
+import com.apiweb.dto.auth.ChangePasswordReq;
+import com.apiweb.service.AuthService;
+import com.apiweb.vo.auth.CurrentUserVO;
+import com.apiweb.vo.auth.LoginVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 认证相关接口。
  *
  * <p>提供登录、注册、改密、当前用户信息 4 个端点。
  * 全部接口无需 token（白名单，由 {@code WebConfig} 排除 AuthInterceptor）。
- *
- * <h3>密码安全</h3>
- * <ul>
- *   <li>密码用 BCrypt 哈希存储（{@code BCryptPasswordEncoder}），不存明文</li>
- *   <li>登录比对：{@code matches(rawPassword, hashedPassword)}</li>
- *   <li>注册/改密：{@code encode(rawPassword)}</li>
- * </ul>
- *
- * <h3>错误码约定</h3>
- * <ul>
- *   <li>用户名/密码错误 → 401 BizException</li>
- *   <li>用户名已存在 → 400 BizException</li>
- *   <li>原密码错误 → 400 BizException</li>
- * </ul>
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Validated
 public class AuthController {
 
-    private final UserMapper userMapper;
-    private final JwtUtil jwtUtil;
-    private final BCryptPasswordEncoder passwordEncoder;
-
-    /** 密码最小长度（配置项 apiweb.security.min-password-length，默认 6） */
-    @Value("${apiweb.security.min-password-length:6}")
-    private int minPasswordLength;
-
-    /**
-     * 登录请求体：用户名 + 密码。
-     */
-    @Data
-    public static class LoginRequest {
-        @NotBlank(message = "用户名不能为空")
-        private String username;
-        @NotBlank(message = "密码不能为空")
-        private String password;
-    }
+    private final AuthService authService;
 
     /**
      * 登录接口。
      *
-     * @param req 登录请求（用户名 + 密码，均非空校验）
-     * @return 成功返回 token + 用户基本信息（id/username/role）
-     * @throws BizException 用户名不存在或密码错误时抛 loginFailed(1006)；用户名/密码为空校验失败
+     * @param req 登录请求（用户名 + 密码）
+     * @return token + 用户基本信息
      */
     @PostMapping("/login")
-    public Result<Map<String, Object>> login(@RequestBody @Validated LoginRequest req) {
-        UserEntity user = userMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserEntity>()
-                        .eq(UserEntity::getUsername, req.getUsername()));
-        if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
-            // 故意不区分"用户不存在"与"密码错"，避免账号枚举攻击
-            // 用 LOGIN_FAILED(1006) 而非 UNAUTHORIZED(1002)：后者会让前端误判为登录态失效
-            throw BizException.loginFailed("用户名或密码错误");
-        }
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
-        return Result.ok(Map.of(
-                "token", token,
-                "user", Map.of(
-                        "id", user.getId(),
-                        "username", user.getUsername(),
-                        "role", user.getRole())));
+    public Result<LoginVO> login(@Valid @RequestBody AuthRequest req) {
+        return Result.ok(authService.login(req));
     }
 
     /**
-     * 用户注册（开放注册，生产环境可禁用或加权限）。
+     * 用户注册（开放注册，新用户默认 member 角色）。
      *
-     * <p>新用户默认角色为 {@code member}（普通成员），无管理权限。</p>
-     *
-     * <p>密码长度下限由 {@code apiweb.security.min-password-length} 决定，
-     * 与「修改密码」「管理员建号」共用同一配置，避免弱密码账号被创建。</p>
-     *
-     * @param req 注册请求（用户名 + 密码，均非空校验）
+     * @param req 注册请求
      * @return 无业务数据
-     * @throws BizException 用户名已存在、用户名或密码为空、密码过短时抛 badRequest(400)
      */
     @PostMapping("/register")
-    public Result<Void> register(@RequestBody @Validated LoginRequest req) {
-        if (req.getUsername() == null || req.getUsername().isBlank()) {
-            throw BizException.badRequest("用户名必填");
-        }
-        if (req.getPassword() == null || req.getPassword().length() < minPasswordLength) {
-            throw BizException.badRequest("密码长度至少 " + minPasswordLength + " 位");
-        }
-        Long exists = userMapper.selectCount(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserEntity>()
-                        .eq(UserEntity::getUsername, req.getUsername()));
-        if (exists != null && exists > 0) {
-            throw BizException.badRequest("用户名已存在");
-        }
-        UserEntity user = new UserEntity();
-        user.setUsername(req.getUsername());
-        user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        user.setRole(Role.MEMBER_CODE);
-        userMapper.insert(user);
+    public Result<Void> register(@Valid @RequestBody AuthRequest req) {
+        authService.register(req);
         return Result.ok();
     }
 
     /**
      * 修改当前用户密码。
      *
-     * @param body 含 {@code oldPassword} / {@code newPassword} 两个字段，
-     *             newPassword 长度下限由 {@code apiweb.security.min-password-length} 决定
+     * @param req 含 oldPassword / newPassword
      * @return 无业务数据
-     * @throws BizException 新密码过短、原密码错误或用户不存在时抛 badRequest(400)
      */
     @PostMapping("/change-password")
-    public Result<Void> changePassword(@RequestBody Map<String, String> body) {
-        String oldPassword = body.get("oldPassword");
-        String newPassword = body.get("newPassword");
-        if (newPassword == null || newPassword.length() < minPasswordLength) {
-            throw BizException.badRequest("新密码长度至少 " + minPasswordLength + " 位");
-        }
-        UserEntity user = userMapper.selectById(UserContext.userId());
-        if (user == null || !passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-            throw BizException.badRequest("原密码错误");
-        }
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
+    public Result<Void> changePassword(@Valid @RequestBody ChangePasswordReq req) {
+        authService.changePassword(req);
         return Result.ok();
     }
 
     /**
-     * 获取当前登录用户信息（前端刷新页面时验证 token 有效性）。
+     * 获取当前登录用户信息。
      *
-     * @return 当前用户基本信息（id/username/role）
-     * @throws BizException 未登录或 token 失效时抛 unauthorized(401)
+     * @return 当前用户基本信息
      */
     @GetMapping("/me")
-    public Result<Map<String, Object>> me() {
-        var u = UserContext.get();
-        if (u == null) {
-            throw BizException.unauthorized("未登录");
-        }
-        return Result.ok(Map.of(
-                "id", u.getUserId(),
-                "username", u.getUsername(),
-                "role", u.getRole()));
+    public Result<CurrentUserVO> me() {
+        return Result.ok(authService.me());
     }
 }

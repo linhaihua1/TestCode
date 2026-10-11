@@ -9,8 +9,16 @@ import com.apiweb.engine.PipelineTestType;
 import com.apiweb.engine.TriggerType;
 import com.apiweb.entity.CiPipelineEntity;
 import com.apiweb.entity.CiPipelineRunEntity;
+import com.apiweb.entity.PerfCaseEntity;
+import com.apiweb.entity.TestTaskEntity;
+import com.apiweb.entity.UiScenarioEntity;
+import com.apiweb.entity.UiTestCaseEntity;
 import com.apiweb.mapper.CiPipelineMapper;
 import com.apiweb.mapper.CiPipelineRunMapper;
+import com.apiweb.mapper.PerfCaseMapper;
+import com.apiweb.mapper.TestTaskMapper;
+import com.apiweb.mapper.UiScenarioMapper;
+import com.apiweb.mapper.UiTestCaseMapper;
 import com.apiweb.security.UserContext;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +54,10 @@ public class CiPipelineService {
     private final CiPipelineRunMapper runMapper;
     private final CiExecutionService ciExecutionService;
     private final CiProperties ciProperties;
+    private final TestTaskMapper testTaskMapper;
+    private final UiScenarioMapper uiScenarioMapper;
+    private final UiTestCaseMapper uiTestCaseMapper;
+    private final PerfCaseMapper perfCaseMapper;
 
     /** webhook Token 字符集（仅小写字母与数字，便于命令行传参） */
     private static final char[] TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
@@ -295,6 +307,53 @@ public class CiPipelineService {
         return "curl -s -X POST '" + trimSlash(ciProperties.getPublicBaseUrl())
                 + "/api/v1/webhook/ci/pipelines/trigger?token=" + token
                 + "&triggerBy=${BUILD_TAG:-ci}&wait=false'";
+    }
+
+    /**
+     * 查询某测试类型下可选的执行目标（供前端下拉选择）。
+     *
+     * @param projectId 项目 ID
+     * @param testType  测试类型：api / ui / perf
+     * @return 目标列表：[{id, name, targetType}]
+     */
+    public List<Map<String, String>> listTargets(String projectId, PipelineTestType type) {
+        List<Map<String, String>> result = new java.util.ArrayList<>();
+        switch (type) {
+            case API -> testTaskMapper.selectList(
+                    new LambdaQueryWrapper<TestTaskEntity>()
+                            .eq(TestTaskEntity::getProjectId, projectId)
+                            .isNull(TestTaskEntity::getDeletedAt)
+                            .orderByDesc(TestTaskEntity::getUpdatedAt))
+                    .forEach(t -> result.add(target(t.getId(), t.getName(), PipelineTargetType.TEST_TASK)));
+            case UI -> {
+                uiScenarioMapper.selectList(
+                        new LambdaQueryWrapper<UiScenarioEntity>()
+                                .eq(UiScenarioEntity::getProjectId, projectId)
+                                .orderByDesc(UiScenarioEntity::getUpdatedAt))
+                        .forEach(s -> result.add(target(s.getId(), s.getName(), PipelineTargetType.UI_SCENARIO)));
+                uiTestCaseMapper.selectList(
+                        new LambdaQueryWrapper<UiTestCaseEntity>()
+                                .eq(UiTestCaseEntity::getProjectId, projectId)
+                                .orderByDesc(UiTestCaseEntity::getUpdatedAt))
+                        .forEach(t -> result.add(target(t.getId(), t.getName(), PipelineTargetType.UI_TEST)));
+            }
+            case PERF -> perfCaseMapper.selectList(
+                    new LambdaQueryWrapper<PerfCaseEntity>()
+                            .eq(PerfCaseEntity::getProjectId, projectId)
+                            .isNull(PerfCaseEntity::getDeletedAt)
+                            .orderByDesc(PerfCaseEntity::getUpdatedAt))
+                    .forEach(c -> result.add(target(c.getId(), c.getName(), PipelineTargetType.PERF_CASE)));
+        }
+        return result;
+    }
+
+    /** 构造目标选项（id / name / targetType） */
+    private static Map<String, String> target(String id, String name, PipelineTargetType type) {
+        Map<String, String> m = new java.util.LinkedHashMap<>();
+        m.put("id", id);
+        m.put("name", name);
+        m.put("targetType", type.getCode());
+        return m;
     }
 
     /** Jenkinsfile 模板：占位符在生成时替换（避免使用 String.format，减少 % 与 $ 的转义困扰） */
