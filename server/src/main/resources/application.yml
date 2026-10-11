@@ -50,6 +50,15 @@ spring:
       org.quartz.jobStore.clusterCheckinInterval: 10000
       org.quartz.jobStore.tablePrefix: QRTZ_
       org.quartz.threadPool.threadCount: 10
+  flyway:
+    # 已存在非空库时自动 baseline（记录当前为 V1），不重复执行 V1，避免覆盖老数据
+    baseline-on-migrate: true
+    baseline-version: 1
+    # 迁移脚本位置
+    locations: classpath:db/migration
+    # 禁止在迁移时清理数据库（防止误删生产数据）
+    clean-disabled: true
+    validate-on-migrate: true
   servlet:
     multipart:
       max-file-size: 50MB
@@ -108,7 +117,7 @@ apiweb:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步
     # /api/v1/public/** 为报告分享链接的免登录访问入口，缺失会导致外部拿不到分享报告
-    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**}
+    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html}
     # 密码最小长度（注册 / 改密 / 管理员建号共用）
     min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
   bootstrap:
@@ -183,3 +192,30 @@ logging:
   level:
     com.apiweb: info
     org.quartz: warn
+
+# 可观测性：Actuator 端点（health 公开，其余纳入认证由 AuthInterceptor 保护）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# API 文档：springdoc-openapi
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.apiweb.controller

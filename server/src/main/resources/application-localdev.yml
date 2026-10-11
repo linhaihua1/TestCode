@@ -34,6 +34,13 @@ spring:
 minio:
   enabled: false
 
+# localdev 下 RabbitMQ 本就不启用（只保留 ConnectionFactory 供 RabbitTemplate），
+# 关闭其健康探针，避免 health 因 MQ 连接失败而整体 DOWN。
+management:
+  health:
+    rabbit:
+      enabled: false
+
 apiweb:
   jwt:
     # dev 环境使用固定 JWT secret，避免每次启动变掉导致旧 token 失效
