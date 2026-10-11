@@ -25,6 +25,8 @@
         <hutool.version>5.8.27</hutool.version>
         <jmeter.version>5.6.3</jmeter.version>
         <springdoc.version>2.5.0</springdoc.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <archunit.version>1.2.1</archunit.version>
     </properties>
 
     <dependencies>
@@ -161,6 +163,13 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- MapStruct：Entity ↔ DTO/VO 编译期类型安全转换（企业级分层） -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
         <!-- Selenium（UI 自动化） -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
@@ -203,6 +212,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- ArchUnit：架构约束测试（防止 Controller 注入 Mapper 等分层回退） -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -217,6 +233,25 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <!-- 注解处理器：Lombok 先于 MapStruct，保证 MapStruct 能读到 Lombok 生成的 getter/setter -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>
