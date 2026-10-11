@@ -2,13 +2,11 @@ package com.apiweb.controller;
 
 import com.apiweb.audit.AuditLog;
 import com.apiweb.common.Result;
-import com.apiweb.converter.ReportShareConverter;
-import com.apiweb.entity.ReportShareEntity;
+import com.apiweb.dto.report.ReportShareReq;
 import com.apiweb.report.ReportShareService;
 import com.apiweb.security.UserContext;
 import com.apiweb.vo.report.ReportShareVO;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,7 +32,6 @@ import java.util.List;
 public class ReportShareController {
 
     private final ReportShareService shareService;
-    private final ReportShareConverter shareConverter;
 
     /**
      * 创建报告分享链接（需登录）。
@@ -47,11 +44,11 @@ public class ReportShareController {
     @AuditLog(action = "create_share", entityType = "report_share")
     @PostMapping("/api/v1/reports/{id}/share")
     public Result<ReportShareVO> createShare(@PathVariable String id,
-                                             @RequestBody(required = false) ShareRequest body) {
-        if (body == null) body = new ShareRequest();
-        int expireDays = body.expireDays == null ? 30 : body.expireDays;
-        return Result.ok(shareConverter.toVO(
-                shareService.create(id, UserContext.username(), expireDays, body.password)));
+                                             @RequestBody(required = false) ReportShareReq body) {
+        if (body == null) body = new ReportShareReq();
+        int expireDays = body.getExpireDays() == null ? 30 : body.getExpireDays();
+        return Result.ok(shareService.createVO(
+                id, UserContext.username(), expireDays, body.getPassword()));
     }
 
     /**
@@ -77,7 +74,7 @@ public class ReportShareController {
      */
     @GetMapping("/api/v1/reports/{id}/shares")
     public Result<List<ReportShareVO>> listShares(@PathVariable String id) {
-        return Result.ok(shareConverter.toVOList(shareService.listByReport(id)));
+        return Result.ok(shareService.listByReportVO(id));
     }
 
     /**
@@ -93,8 +90,7 @@ public class ReportShareController {
                                               @RequestParam(required = false) String password,
                                               HttpServletRequest req) {
         String clientIp = clientIp(req);
-        ReportShareEntity s = shareService.verify(token, clientIp, password);
-        return Result.ok(shareConverter.toVO(s));
+        return Result.ok(shareService.verifyVO(token, clientIp, password));
     }
 
     private static String clientIp(HttpServletRequest req) {
@@ -104,11 +100,5 @@ public class ReportShareController {
             return (comma > 0 ? xff.substring(0, comma) : xff).trim();
         }
         return req.getRemoteAddr();
-    }
-
-    @Data
-    public static class ShareRequest {
-        private Integer expireDays;
-        private String password;
     }
 }

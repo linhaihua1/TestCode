@@ -3,6 +3,7 @@ package com.apiweb.controller;
 import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
+import com.apiweb.dto.ci.CiPipelineTriggerReq;
 import com.apiweb.engine.PipelineTargetType;
 import com.apiweb.engine.PipelineTestType;
 import com.apiweb.engine.TriggerType;
@@ -10,7 +11,6 @@ import com.apiweb.entity.CiPipelineEntity;
 import com.apiweb.entity.CiPipelineRunEntity;
 import com.apiweb.security.UserContext;
 import com.apiweb.service.CiPipelineService;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -153,7 +153,7 @@ public class CiPipelineController {
     @AuditLog(action = "execute", entityType = "ci_pipeline")
     @PostMapping("/{id}/trigger")
     public Result<CiPipelineRunEntity> trigger(@PathVariable String id,
-                                               @RequestBody(required = false) TriggerRequest request) {
+                                               @RequestBody(required = false) CiPipelineTriggerReq request) {
         boolean wait = request != null && Boolean.TRUE.equals(request.getWait());
         String triggerBy = request == null || request.getTriggerBy() == null || request.getTriggerBy().isBlank()
                 ? UserContext.username() : request.getTriggerBy();
@@ -216,14 +216,5 @@ public class CiPipelineController {
                 pipeline.getWebhookToken() == null ? "<CI_TOKEN>" : pipeline.getWebhookToken()));
         data.put("pipelineId", pipeline.getId());
         return Result.ok(data);
-    }
-
-    /** 触发请求体 */
-    @Data
-    public static class TriggerRequest {
-        /** 是否阻塞等待执行完成（默认 false，立即返回 runId） */
-        private Boolean wait;
-        /** 触发者标识（页面触发时留空则用当前登录用户名） */
-        private String triggerBy;
     }
 }

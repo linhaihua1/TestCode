@@ -19,7 +19,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -148,14 +147,19 @@ public class ApiDefinitionService {
     }
 
     /**
-     * 从上传的文件导入。
+     * 从上传的文件字节导入（Service 层不感知 Spring MVC 的 MultipartFile，
+     * 由 Controller 负责将上传文件转换为字节数组后传入）。
+     *
+     * @param fileBytes 上传文件的原始字节
+     * @param projectId 目标项目 ID
+     * @param moduleId  目标模块 ID
+     * @return 导入结果（解析数量与插入数量）
      */
     @Transactional
-    public ImportResult importFromFile(MultipartFile file, String projectId, String moduleId) {
+    public ImportResult importFromFile(byte[] fileBytes, String projectId, String moduleId) {
         try {
-            byte[] bytes = file.getBytes();
             List<SwaggerImporter.ApiDefinitionDraft> drafts =
-                    swaggerImporter.importFromFileContent(bytes);
+                    swaggerImporter.importFromFileContent(fileBytes);
             int inserted = saveDrafts(drafts, projectId, moduleId);
             return new ImportResult(drafts.size(), inserted);
         } catch (Exception e) {

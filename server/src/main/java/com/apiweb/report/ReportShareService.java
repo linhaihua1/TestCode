@@ -1,10 +1,12 @@
 package com.apiweb.report;
 
 import com.apiweb.common.BizException;
+import com.apiweb.converter.ReportShareConverter;
 import com.apiweb.entity.ReportShareEntity;
 import com.apiweb.entity.ReportShareLogEntity;
 import com.apiweb.mapper.ReportShareLogMapper;
 import com.apiweb.mapper.ReportShareMapper;
+import com.apiweb.vo.report.ReportShareVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class ReportShareService {
 
     private final ReportShareMapper shareMapper;
     private final ReportShareLogMapper logMapper;
+    private final ReportShareConverter shareConverter;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final char[] ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
@@ -161,6 +164,41 @@ public class ReportShareService {
                 new LambdaQueryWrapper<ReportShareEntity>()
                         .eq(ReportShareEntity::getReportId, reportId)
                         .orderByDesc(ReportShareEntity::getCreatedAt));
+    }
+
+    /**
+     * 创建分享链接并转换为 VO（供 Controller 直接透传，避免在表现层做转换）。
+     *
+     * @param reportId   报告 ID
+     * @param createdBy  创建者用户名
+     * @param expireDays 有效期（天,1-365）
+     * @param password   访问密码（可选）
+     * @return 分享记录 VO（含 token，不含敏感字段）
+     */
+    public ReportShareVO createVO(String reportId, String createdBy, int expireDays, String password) {
+        return shareConverter.toVO(create(reportId, createdBy, expireDays, password));
+    }
+
+    /**
+     * 列出某报告的全部分享并转换为 VO 列表。
+     *
+     * @param reportId 报告 ID
+     * @return 分享记录 VO 列表（不含敏感字段）
+     */
+    public List<ReportShareVO> listByReportVO(String reportId) {
+        return shareConverter.toVOList(listByReport(reportId));
+    }
+
+    /**
+     * 校验分享访问并转换为 VO。
+     *
+     * @param token     URL 中的 token
+     * @param clientIp  客户端 IP
+     * @param password  用户输入的密码（可选）
+     * @return 验证通过的分享 VO（不含敏感字段）
+     */
+    public ReportShareVO verifyVO(String token, String clientIp, String password) {
+        return shareConverter.toVO(verify(token, clientIp, password));
     }
 
     /**

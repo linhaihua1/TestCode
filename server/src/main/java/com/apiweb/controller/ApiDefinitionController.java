@@ -134,7 +134,11 @@ public class ApiDefinitionController {
     public Result<ApiDefinitionService.ImportResult> importFromFile(@RequestParam("file") MultipartFile file,
                                                                     @RequestParam String projectId,
                                                                     @RequestParam(required = false) String moduleId) {
-        return Result.ok(apiService.importFromFile(file, projectId, moduleId));
+        try {
+            return Result.ok(apiService.importFromFile(file.getBytes(), projectId, moduleId));
+        } catch (java.io.IOException e) {
+            throw com.apiweb.common.BizException.badRequest("文件读取失败: " + e.getMessage());
+        }
     }
 
     /**

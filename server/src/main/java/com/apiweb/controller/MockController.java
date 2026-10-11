@@ -1,22 +1,15 @@
-package com.apiweb.openapi;
+package com.apiweb.controller;
 
-import com.apiweb.engine.HttpExecutor;
-import com.apiweb.engine.VariablesResolver;
 import com.apiweb.entity.ApiDefinitionEntity;
-import com.apiweb.mapper.ApiDefinitionMapper;
+import com.apiweb.openapi.MockService;
 import com.apiweb.openapi.mock.MockEngine;
-import com.apiweb.util.JsonUtils;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.AntPathMatcher;
-import org.springframework.util.PathMatcher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Mock 控制器（按需求文档 §5.4 提供 4 档 Mock 服务）。
@@ -40,10 +33,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MockController {
 
-    private final ApiDefinitionMapper apiMapper;
-    private final MockEngine mockEngine;
-
-    private static final PathMatcher MATCHER = new AntPathMatcher();
+    private final MockService mockService;
 
     /**
      * 兜底路由：匹配所有方法、所有 path。
@@ -69,38 +59,19 @@ public class MockController {
         String mockPath = "/" + sub.substring(slash + 1);
         String method = request.getMethod().toUpperCase();
 
-        // 查询该项目的所有 mock 接口
-        List<ApiDefinitionEntity> candidates = apiMapper.selectList(
-                new LambdaQueryWrapper<ApiDefinitionEntity>()
-                        .eq(ApiDefinitionEntity::getProjectId, projectId)
-                        .eq(ApiDefinitionEntity::getMethod, method)
-                        .eq(ApiDefinitionEntity::getMockEnabled, true));
-        if (candidates.isEmpty()) {
-            return ResponseEntity.status(404).body("{\"error\":\"no mock api found\"}");
-        }
-        // 路径匹配：Ant 风格
-        ApiDefinitionEntity matched = candidates.stream()
-                .filter(c -> matchPath(mockPath, c.getPath()))
-                .findFirst().orElse(null);
+        // 匹配 mock 接口（数据访问与 Ant 路径匹配下沉到 MockService）
+        ApiDefinitionEntity matched = mockService.match(projectId, method, mockPath);
         if (matched == null) {
             return ResponseEntity.status(404).body("{\"error\":\"no mock matched: " + method + " " + mockPath + "\"}");
         }
 
         Map<String, List<String>> query = parseQuery(request.getQueryString());
-        MockEngine.MockResponse resp = mockEngine.execute(matched, method, mockPath, query, body);
+        MockEngine.MockResponse resp = mockService.execute(matched, method, mockPath, query, body);
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(resp.getStatus());
         if (resp.getHeaders() != null) {
             resp.getHeaders().forEach(builder::header);
         }
         return builder.body(resp.getBody() == null ? "{}" : resp.getBody());
-    }
-
-    /**
-     * 路径匹配（Ant 风格）。
-     */
-    private boolean matchPath(String actual, String pattern) {
-        if (actual == null || pattern == null) return false;
-        return MATCHER.match(pattern, actual);
     }
 
     /**
