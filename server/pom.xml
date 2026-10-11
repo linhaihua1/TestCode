@@ -283,20 +283,61 @@
                         </goals>
                         <configuration>
                             <rules>
+                                <!-- 全局门槛：防止整体覆盖率倒退（随测试补充逐步提升） -->
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
-                                        <!-- 指令覆盖率最低门槛：当前为基线值，随测试补充逐步提升 -->
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.02</minimum>
+                                            <minimum>0.06</minimum>
                                         </limit>
-                                        <!-- 行覆盖率最低门槛 -->
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.04</minimum>
+                                            <minimum>0.07</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- 核心契约层：响应/错误码（全局前后端共享契约，必须高覆盖） -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>com.apiweb.common</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.70</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- 步骤类型解析：执行引擎分发入口，解析错误会导致静默执行错误步骤 -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>com.apiweb.engine.step</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- 认证契约：JWT 解析失败必须返回 null 而非抛异常，否则认证链路崩溃 -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>com.apiweb.security</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.35</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
