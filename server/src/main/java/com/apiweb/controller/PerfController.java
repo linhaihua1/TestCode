@@ -3,28 +3,22 @@ package com.apiweb.controller;
 import com.apiweb.audit.AuditLog;
 import com.apiweb.common.BizException;
 import com.apiweb.common.Result;
-import com.apiweb.engine.EngineDtos;
-import com.apiweb.engine.TaskType;
+import com.apiweb.dto.perf.PerfCaseReq;
 import com.apiweb.entity.PerfCaseEntity;
-import com.apiweb.entity.PerfReportEntity;
-import com.apiweb.mapper.PerfCaseMapper;
-import com.apiweb.mapper.PerfReportMapper;
-import com.apiweb.mq.TaskProducer;
-import com.apiweb.service.JmxImportExportService;
-import com.apiweb.service.OssService;
-import com.apiweb.service.PerfExecutionService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.apiweb.service.PerfService;
+import com.apiweb.vo.perf.PerfCaseVO;
+import com.apiweb.vo.perf.PerfReportVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
-import com.apiweb.engine.RunStatus;
 
 /**
  * 性能测试（JMeter）：用例管理 + 异步执行 + 报告。
@@ -34,114 +28,65 @@ import com.apiweb.engine.RunStatus;
 @RequiredArgsConstructor
 public class PerfController {
 
-    private final PerfCaseMapper perfCaseMapper;
-    private final PerfReportMapper perfReportMapper;
-    private final TaskProducer taskProducer;
-    private final OssService ossService;
-    private final JmxImportExportService jmxImportExportService;
-    private final PerfExecutionService perfExecutionService;
-
-    /**
-     * 是否启用 RabbitMQ 消费端。localdev 下为 false，此时 run 接口改为 @Async 异步执行。
-     */
-    @Value("${apiweb.mq.enabled:true}")
-    private boolean mqListenerEnabled;
+    private final PerfService perfService;
 
     // ---------------- 用例 ----------------
 
     /**
      * 查询项目的性能用例列表（仅未删除，按更新时间倒序）。
-     *
-     * @param projectId 项目 ID（必填）
-     * @return 性能用例列表
      */
     @GetMapping("/cases")
-    public Result<List<PerfCaseEntity>> listCases(@RequestParam String projectId) {
-        return Result.ok(perfCaseMapper.selectList(
-                new LambdaQueryWrapper<PerfCaseEntity>()
-                        .eq(PerfCaseEntity::getProjectId, projectId)
-                        .isNull(PerfCaseEntity::getDeletedAt) // 过滤已软删除用例
-                        .orderByDesc(PerfCaseEntity::getUpdatedAt)));
+    public Result<List<PerfCaseVO>> listCases(@RequestParam String projectId) {
+        return Result.ok(perfService.listCases(projectId));
     }
 
     /**
      * 获取性能用例详情。
-     *
-     * @param id 用例 ID（路径参数，必填）
-     * @return 性能用例实体（含 variables/steps/profile 等全量字段）
-     * @throws BizException 用例不存在时抛 notFound
      */
     @GetMapping("/cases/{id}")
-    public Result<PerfCaseEntity> getCase(@PathVariable String id) {
-        PerfCaseEntity c = perfCaseMapper.selectById(id);
-        if (c == null) {
-            throw BizException.notFound("性能用例不存在");
-        }
-        return Result.ok(c);
+    public Result<PerfCaseVO> getCase(@PathVariable String id) {
+        return Result.ok(perfService.getCase(id));
     }
 
     /**
-     * 新建性能用例：补齐 variables/steps/profile 默认空结构后落库。
+     * 新建性能用例。
      *
-     * @param c 性能用例实体（请求体），name 必填
-     * @return 已落库的用例实体
-     * @throws BizException 用例名为空时抛 badRequest
+     * @param req 性能用例请求 DTO，name 必填
+     * @return 已落库的用例 VO
      * @audit 写审计日志：action=create, entityType=perf_case
      */
     @AuditLog(action = "create", entityType = "perf_case")
     @PostMapping("/cases")
-    public Result<PerfCaseEntity> createCase(@RequestBody PerfCaseEntity c) {
-        if (c.getName() == null || c.getName().isBlank()) {
-            throw BizException.badRequest("用例名称必填");
-        }
-        if (c.getVariables() == null) {
-            c.setVariables("[]");
-        }
-        if (c.getSteps() == null) {
-            c.setSteps("[]");
-        }
-        if (c.getProfile() == null) {
-            c.setProfile("{}");
-        }
-        perfCaseMapper.insert(c);
-        return Result.ok(c);
+    public Result<PerfCaseVO> createCase(@Valid @RequestBody PerfCaseReq req) {
+        return Result.ok(perfService.createCase(req));
     }
 
     /**
-     * 更新性能用例（覆盖请求体可写字段）。
+     * 更新性能用例。
      *
-     * @param id 用例 ID（路径参数，必填）
-     * @param c  性能用例实体（请求体）
+     * @param id  用例 ID（路径参数，必填）
+     * @param req 性能用例请求 DTO
      * @return 无业务数据
-     * @throws BizException 用例不存在时抛 notFound
      * @audit 写审计日志：action=update, entityType=perf_case
      */
     @AuditLog(action = "update", entityType = "perf_case")
     @PutMapping("/cases/{id}")
-    public Result<Void> updateCase(@PathVariable String id, @RequestBody PerfCaseEntity c) {
-        if (perfCaseMapper.selectById(id) == null) {
-            throw BizException.notFound("性能用例不存在");
-        }
-        c.setId(id);
-        perfCaseMapper.updateById(c);
+    public Result<Void> updateCase(@PathVariable String id, @Valid @RequestBody PerfCaseReq req) {
+        perfService.updateCase(id, req);
         return Result.ok();
     }
 
     /**
-     * 软删除性能用例（打 deletedAt，后续可在回收站恢复）。
+     * 软删除性能用例。
      *
      * @param id 用例 ID（路径参数，必填）
-     * @return 无业务数据（不存在时静默成功）
+     * @return 无业务数据
      * @audit 写审计日志：action=delete, entityType=perf_case
      */
     @AuditLog(action = "delete", entityType = "perf_case")
     @DeleteMapping("/cases/{id}")
     public Result<Void> deleteCase(@PathVariable String id) {
-        PerfCaseEntity c = perfCaseMapper.selectById(id);
-        if (c != null) {
-            c.setDeletedAt(Instant.now());
-            perfCaseMapper.updateById(c);
-        }
+        perfService.deleteCase(id);
         return Result.ok();
     }
 
@@ -152,17 +97,13 @@ public class PerfController {
      */
     @GetMapping("/cases/{id}/export-jmx")
     public ResponseEntity<byte[]> exportJmx(@PathVariable String id) {
-        PerfCaseEntity c = perfCaseMapper.selectById(id);
-        if (c == null) {
-            throw BizException.notFound("性能用例不存在");
-        }
-        String jmx = jmxImportExportService.exportJmx(c);
-        byte[] bytes = jmx.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        PerfCaseEntity c = perfService.getCaseEntity(id);
+        String jmx = perfService.exportJmx(id);
+        byte[] bytes = jmx.getBytes(StandardCharsets.UTF_8);
         String filename = (c.getName() == null ? "perf-case" : c.getName()) + ".jmx";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(filename,
-                                java.nio.charset.StandardCharsets.UTF_8))
+                        "attachment; filename*=UTF-8''" + URLEncoder.encode(filename, StandardCharsets.UTF_8))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(bytes);
     }
@@ -176,8 +117,7 @@ public class PerfController {
         if (jmx == null || jmx.isBlank()) {
             throw BizException.badRequest("JMX 内容不能为空");
         }
-        PerfCaseEntity parsed = jmxImportExportService.importJmx(jmx);
-        return Result.ok(parsed);
+        return Result.ok(perfService.importJmx(jmx));
     }
 
     /**
@@ -190,14 +130,9 @@ public class PerfController {
         if (ids == null || ids.isEmpty()) {
             throw BizException.badRequest("请选择要导出的用例");
         }
-        List<PerfCaseEntity> cases = perfCaseMapper.selectList(
-                new LambdaQueryWrapper<PerfCaseEntity>().in(PerfCaseEntity::getId, ids));
-        if (cases.isEmpty()) {
-            throw BizException.notFound("未找到要导出的用例");
-        }
-        String jmx = jmxImportExportService.exportJmxMulti(cases);
-        byte[] bytes = jmx.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        String filename = "perf-batch-" + cases.size() + "-cases.jmx";
+        String jmx = perfService.exportBatch(ids);
+        byte[] bytes = jmx.getBytes(StandardCharsets.UTF_8);
+        String filename = "perf-batch-" + ids.size() + "-cases.jmx";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename*=UTF-8''" + filename)
@@ -208,84 +143,41 @@ public class PerfController {
     // ---------------- 执行与报告 ----------------
 
     /**
-     * 触发压测：先创建 pending 状态报告并落库，再按配置投递 MQ 异步执行（localdev 无消费端时改 @Async 当前 JVM 内执行）。
+     * 触发压测：先创建 pending 状态报告并落库，再按配置投递 MQ 异步执行。
      *
      * @param id 性能用例 ID（路径参数，必填）
-     * @return 新创建的压测报告实体（status=pending）
-     * @throws BizException 用例不存在时抛 notFound
+     * @return 新创建的压测报告 VO（status=pending）
      * @audit 写审计日志：action=execute, entityType=perf_case
      */
     @AuditLog(action = "execute", entityType = "perf_case")
     @PostMapping("/cases/{id}/run")
-    public Result<PerfReportEntity> run(@PathVariable String id) {
-        PerfCaseEntity c = perfCaseMapper.selectById(id);
-        if (c == null) {
-            throw BizException.notFound("性能用例不存在");
-        }
-        PerfReportEntity report = new PerfReportEntity();
-        report.setProjectId(c.getProjectId());
-        report.setCaseId(id);
-        report.setName(c.getName());
-        report.setStatus(RunStatus.PENDING.getCode());
-        report.setStartedAt(Instant.now());
-        report.setSummary("{}");
-        report.setSeries("[]");
-        report.setLabels("[]");
-        report.setErrors("[]");
-        perfReportMapper.insert(report);
-        if (mqListenerEnabled) {
-            taskProducer.sendPerfTask(report.getId(), c.getProjectId(), id);
-        } else {
-            // localdev：消费端关闭，改用 @Async 异步执行（嵌入式 JMeter 在当前 JVM 内跑）
-            perfExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                    TaskType.PERF.getCode(), report.getId(), c.getProjectId(), id, null, null, null));
-        }
-        return Result.ok(report);
+    public Result<PerfReportVO> run(@PathVariable String id) {
+        return Result.ok(perfService.run(id));
     }
 
     /**
      * 查询项目的压测报告列表（按开始时间倒序）。
-     * <p>series 字段若为对象存储引用（minio:// 前缀）则实时拉取回填；limit 控制返回条数上限，避免一次回传过多拖垮接口。
      *
      * @param projectId 项目 ID（必填）
-     * @param limit     返回条数上限（默认取配置项 apiweb.engine.list-max-limit，最小 1）
-     * @return 压测报告列表（series 已解析为实际内容）
+     * @param limit     返回条数上限
+     * @return 压测报告列表
      */
     @GetMapping("/reports")
-    public Result<List<PerfReportEntity>> listReports(
+    public Result<List<PerfReportVO>> listReports(
             @RequestParam String projectId,
             @RequestParam(defaultValue = "${apiweb.engine.list-max-limit:100}") int limit) {
-        List<PerfReportEntity> reports = perfReportMapper.selectList(
-                new LambdaQueryWrapper<PerfReportEntity>()
-                        .eq(PerfReportEntity::getProjectId, projectId)
-                        .orderByDesc(PerfReportEntity::getStartedAt)
-                        // Math.max(1, limit)：防止 limit<=0 导致 LIMIT 0 或非法 SQL，至少返回 1 条
-                        .last("LIMIT " + Math.max(1, limit)));
-        for (PerfReportEntity r : reports) {
-            if (r.getSeries() != null && r.getSeries().startsWith("minio://")) {
-                r.setSeries(ossService.get(r.getSeries()));
-            }
-        }
-        return Result.ok(reports);
+        return Result.ok(perfService.listReports(projectId, limit));
     }
 
     /**
-     * 获取压测报告详情（series 若为 minio 引用则实时拉取回填）。
+     * 获取压测报告详情。
      *
      * @param id 报告 ID（路径参数，必填）
-     * @return 报告实体（含聚合指标 summary、时序曲线 series、标签分布 labels、错误明细 errors）
-     * @throws BizException 报告不存在时抛 notFound
+     * @return 报告 VO
      */
     @GetMapping("/reports/{id}")
-    public Result<PerfReportEntity> getReport(@PathVariable String id) {
-        PerfReportEntity r = perfReportMapper.selectById(id);
-        if (r == null) {
-            throw BizException.notFound("报告不存在");
-        }
-        if (r.getSeries() != null && r.getSeries().startsWith("minio://")) {
-            r.setSeries(ossService.get(r.getSeries()));
-        }
-        return Result.ok(r);
+    public Result<PerfReportVO> getReport(@PathVariable String id) {
+        return Result.ok(perfService.getReport(id));
     }
 
     /**
@@ -296,7 +188,7 @@ public class PerfController {
      */
     @DeleteMapping("/reports/{id}")
     public Result<Void> deleteReport(@PathVariable String id) {
-        perfReportMapper.deleteById(id);
+        perfService.deleteReport(id);
         return Result.ok();
     }
 }
