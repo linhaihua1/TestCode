@@ -2,12 +2,16 @@
 <Configuration status="WARN">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT" follow="true">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{traceId}] %-5level %logger{36} - %msg%n"/>
         </Console>
     </Appenders>
     <Loggers>
         <!-- 业务包 INFO -->
         <Logger name="com.apiweb" level="INFO"/>
+        <!-- 慢 SQL 监控：DEBUG 级别输出全量 SQL 耗时，WARN 级别输出慢 SQL（由 SlowSqlInterceptor 控制） -->
+        <Logger name="com.apiweb.observability.SlowSqlInterceptor" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
         <!-- Spring 容器 WARN -->
         <Logger name="org.springframework" level="WARN"/>
         <Logger name="org.apache.ibatis" level="WARN"/>

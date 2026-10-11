@@ -187,6 +187,9 @@ apiweb:
     large-body-threshold: ${OSS_LARGE_BODY_THRESHOLD:1048576}
     # MinIO 不可用时的本地降级目录（留空则落到 ${java.io.tmpdir}/apiweb-oss）
     local-root: ${OSS_LOCAL_ROOT:}
+  observability:
+    # 慢 SQL 阈值（毫秒）：单条 SQL 执行耗时超过该值打 WARN 日志，便于运维定位慢查询
+    slow-sql-threshold-ms: ${OBS_SLOW_SQL_THRESHOLD_MS:1000}
 
 logging:
   level:
