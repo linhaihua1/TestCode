@@ -27,6 +27,7 @@
         <springdoc.version>2.5.0</springdoc.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <archunit.version>1.2.1</archunit.version>
+        <jacoco.version>0.8.11</jacoco.version>
     </properties>
 
     <dependencies>
@@ -253,6 +254,66 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <!-- JaCoCo：代码覆盖率统计，报告输出到 target/site/jacoco -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <!-- 在测试前准备 JaCoCo 运行时 agent -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <!-- 测试后生成报告 -->
+                    <execution>
+                        <id>report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <!-- verify 阶段执行覆盖率门槛校验（未达标则构建失败） -->
+                    <execution>
+                        <id>check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <!-- 指令覆盖率最低门槛：当前为基线值，随测试补充逐步提升 -->
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.02</minimum>
+                                        </limit>
+                                        <!-- 行覆盖率最低门槛 -->
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.04</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                            <!-- 排除纯配置/入口/生成代码，避免无意义拉低覆盖率 -->
+                            <excludes>
+                                <exclude>com/apiweb/ApiWebApplication.class</exclude>
+                                <exclude>com/apiweb/config/**</exclude>
+                                <exclude>com/apiweb/converter/**</exclude>
+                                <exclude>com/apiweb/dto/**</exclude>
+                                <exclude>com/apiweb/vo/**</exclude>
+                                <exclude>com/apiweb/entity/**</exclude>
+                                <exclude>com/apiweb/audit/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
