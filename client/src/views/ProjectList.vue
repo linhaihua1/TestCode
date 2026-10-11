@@ -9,11 +9,9 @@
           placeholder="按名称搜索"
           style="width: 220px"
           @search="reload"
-          @pressEnter="reload"
+          @press-enter="reload"
         />
-        <a-button type="primary" @click="openModal()">
-          <plus-outlined /> 新建项目
-        </a-button>
+        <a-button type="primary" @click="openModal()"> <plus-outlined /> 新建项目 </a-button>
       </a-space>
     </div>
 
@@ -35,13 +33,8 @@
               <a-button size="small" type="link" @click="enterProject(record)">
                 <enter-outlined />进入
               </a-button>
-              <a-button size="small" type="link" @click="openModal(record)">
-                编辑
-              </a-button>
-              <a-popconfirm
-                title="确认删除该项目及其下属数据？"
-                @confirm="remove(record)"
-              >
+              <a-button size="small" type="link" @click="openModal(record)"> 编辑 </a-button>
+              <a-popconfirm title="确认删除该项目及其下属数据？" @confirm="remove(record)">
                 <a-button size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
@@ -57,19 +50,16 @@
     <a-modal
       v-model:open="modal"
       :title="editing.id ? '编辑项目' : '新建项目'"
-      @ok="save"
       :confirm-loading="saving"
       width="520"
+      @ok="save"
     >
       <a-form layout="vertical">
         <a-form-item label="项目名称" required>
           <a-input v-model:value="editing.name" placeholder="例如 电商主站" />
         </a-form-item>
         <a-form-item label="描述">
-          <a-textarea
-            v-model:value="editing.description"
-            :auto-size="{ minRows: 2, maxRows: 5 }"
-          />
+          <a-textarea v-model:value="editing.description" :auto-size="{ minRows: 2, maxRows: 5 }" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -83,92 +73,92 @@
  * <p>项目是全部数据的隔离单元；进入项目会把它写入 projectStore，
  * 之后各业务页按 currentProjectId 拉取数据。删除项目会同步刷新顶栏项目列表。</p>
  */
-import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, EnterOutlined } from '@ant-design/icons-vue'
-import { ProjectApi } from '@/api'
-import { DEFAULT_PAGE_SIZE } from '@/constants'
-import { formatDateTime, DATETIME_FORMAT_MINUTE } from '@/utils/format'
-import { useProjectStore } from '@/stores/project'
-import type { Project } from '@/types'
+import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import { PlusOutlined, EnterOutlined } from '@ant-design/icons-vue';
+import { ProjectApi } from '@/api';
+import { DEFAULT_PAGE_SIZE } from '@/constants';
+import { formatDateTime, DATETIME_FORMAT_MINUTE } from '@/utils/format';
+import { useProjectStore } from '@/stores/project';
+import type { Project } from '@/types';
 
-const router = useRouter()
-const projectStore = useProjectStore()
+const router = useRouter();
+const projectStore = useProjectStore();
 
-const keyword = ref('')
-const projects = ref<Project[]>([])
-const loading = ref(false)
-const modal = ref(false)
-const saving = ref(false)
-const editing = reactive<Partial<Project>>({ name: '', description: '' })
+const keyword = ref('');
+const projects = ref<Project[]>([]);
+const loading = ref(false);
+const modal = ref(false);
+const saving = ref(false);
+const editing = reactive<Partial<Project>>({ name: '', description: '' });
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '描述', dataIndex: 'description', ellipsis: true },
   { title: '更新时间', key: 'updatedAt', width: 180 },
-  { title: '操作', key: 'action', width: 200 }
-]
+  { title: '操作', key: 'action', width: 200 },
+];
 
 /** 列表时间展示：统一走 utils/format，避免各页重复实现（含时区转换） */
 function formatTime(iso: string) {
-  return formatDateTime(iso, DATETIME_FORMAT_MINUTE)
+  return formatDateTime(iso, DATETIME_FORMAT_MINUTE);
 }
 
 async function reload() {
-  loading.value = true
+  loading.value = true;
   try {
-    projects.value = await ProjectApi.list(keyword.value)
+    projects.value = await ProjectApi.list(keyword.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function openModal(record?: Project) {
   if (record) {
-    Object.assign(editing, record)
+    Object.assign(editing, record);
   } else {
-    Object.assign(editing, { id: undefined, name: '', description: '' })
+    Object.assign(editing, { id: undefined, name: '', description: '' });
   }
-  modal.value = true
+  modal.value = true;
 }
 
 async function save() {
   if (!editing.name) {
-    message.warning('请填写项目名称')
-    return
+    message.warning('请填写项目名称');
+    return;
   }
-  saving.value = true
+  saving.value = true;
   try {
     if (editing.id) {
-      await ProjectApi.update(editing.id!, editing)
-      message.success('已保存')
+      await ProjectApi.update(editing.id!, editing);
+      message.success('已保存');
     } else {
-      await ProjectApi.create(editing)
-      message.success('已创建')
+      await ProjectApi.create(editing);
+      message.success('已创建');
     }
-    modal.value = false
-    await reload()
-    await projectStore.fetchAll()
+    modal.value = false;
+    await reload();
+    await projectStore.fetchAll();
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 async function remove(record: Project) {
-  await ProjectApi.remove(record.id)
-  message.success('已删除')
-  await reload()
-  await projectStore.fetchAll()
+  await ProjectApi.remove(record.id);
+  message.success('已删除');
+  await reload();
+  await projectStore.fetchAll();
 }
 
 /** 进入项目：写入 store 后跳转到工作台 */
 function enterProject(record: Project) {
-  projectStore.switchProject(record.id)
-  router.push({ name: 'workbench' })
+  projectStore.switchProject(record.id);
+  router.push({ name: 'workbench' });
 }
 
-onMounted(reload)
+onMounted(reload);
 </script>
 
 <style scoped>

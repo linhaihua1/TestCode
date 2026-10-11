@@ -22,17 +22,17 @@
   <a-layout class="app-layout">
     <!-- ============ 左侧侧边栏 ============ -->
     <a-layout-sider class="sider" width="224" theme="dark">
-      <div class="sider__logo" @click="goTo('projects')" title="回到项目列表">
+      <div class="sider__logo" title="回到项目列表" @click="goTo('projects')">
         <span class="sider__logo-icon">⚡</span>
         <span class="sider__logo-name">Api-Web</span>
       </div>
 
       <a-menu
+        v-model:open-keys="openKeys"
         class="sider__menu"
         mode="inline"
         theme="dark"
         :selected-keys="selectedKeys"
-        v-model:open-keys="openKeys"
         :items="menuItems"
         @select="onMenuSelect"
       />
@@ -59,7 +59,9 @@
             <template #option="opt">
               <div class="project-option">
                 <span class="project-option__name">{{ opt.label }}</span>
-                <span v-if="opt.value === projectStore.currentProjectId" class="project-option__tag">当前</span>
+                <span v-if="opt.value === projectStore.currentProjectId" class="project-option__tag"
+                  >当前</span
+                >
               </div>
             </template>
           </a-auto-complete>
@@ -107,7 +109,10 @@
               <a-menu class="user-menu">
                 <div class="user-menu__head">
                   <div class="user-menu__name">{{ auth.user?.username }}</div>
-                  <a-tag :color="auth.isAdmin() ? 'blue' : auth.isMember() ? 'green' : 'default'" class="user-menu__role">
+                  <a-tag
+                    :color="auth.isAdmin() ? 'blue' : auth.isMember() ? 'green' : 'default'"
+                    class="user-menu__role"
+                  >
                     {{ auth.roleLabel }}
                   </a-tag>
                 </div>
@@ -174,10 +179,7 @@
         <a-input-password v-model:value="passwordForm.oldPassword" placeholder="请输入当前密码" />
       </a-form-item>
       <a-form-item label="新密码" required>
-        <a-input-password
-          v-model:value="passwordForm.newPassword"
-          placeholder="至少 6 位"
-        />
+        <a-input-password v-model:value="passwordForm.newPassword" placeholder="至少 6 位" />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -194,37 +196,47 @@
  *   <li>承载新建项目、修改密码、退出登录、快捷键说明等全局交互。</li>
  * </ul>
  */
-import { computed, h, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { message } from 'ant-design-vue';
 import {
-  ApiOutlined, RobotOutlined, ThunderboltOutlined, SettingOutlined,
-  UserOutlined, AuditOutlined, ProjectOutlined, DownOutlined,
-  LockOutlined, LogoutOutlined, SearchOutlined, PlusOutlined,
-  QuestionCircleOutlined, BranchesOutlined
-} from '@ant-design/icons-vue'
-import { useAuthStore } from '@/stores/auth'
-import { useProjectStore } from '@/stores/project'
-import { AuthApi, ProjectApi } from '@/api'
+  ApiOutlined,
+  RobotOutlined,
+  ThunderboltOutlined,
+  SettingOutlined,
+  UserOutlined,
+  AuditOutlined,
+  ProjectOutlined,
+  DownOutlined,
+  LockOutlined,
+  LogoutOutlined,
+  SearchOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined,
+  BranchesOutlined,
+} from '@ant-design/icons-vue';
+import { useAuthStore } from '@/stores/auth';
+import { useProjectStore } from '@/stores/project';
+import { AuthApi, ProjectApi } from '@/api';
 
-const router = useRouter()
-const route = useRoute()
-const auth = useAuthStore()
-const projectStore = useProjectStore()
+const router = useRouter();
+const route = useRoute();
+const auth = useAuthStore();
+const projectStore = useProjectStore();
 
 /** 当前项目名（显示在查询框里） */
-const currentProjectName = computed(() => projectStore.currentProject?.name ?? '')
+const currentProjectName = computed(() => projectStore.currentProject?.name ?? '');
 
 /** 项目名搜索：按关键字过滤项目列表，作为下拉候选项 */
 const projectSearchOptions = computed(() => {
-  const kw = projectKeyword.value.trim().toLowerCase()
+  const kw = projectKeyword.value.trim().toLowerCase();
   const list = kw
     ? projectStore.projects.filter((p) => p.name.toLowerCase().includes(kw))
-    : projectStore.projects
-  return list.map((p) => ({ value: p.id, label: p.name }))
-})
+    : projectStore.projects;
+  return list.map((p) => ({ value: p.id, label: p.name }));
+});
 
-const projectKeyword = ref('')
+const projectKeyword = ref('');
 
 /* ============================================================
    菜单数据：叶子 key → 路由 name（+可选 query）
@@ -254,23 +266,31 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
   'ci-jenkins': { name: 'ci-jenkins' },
   // 顶层叶子
   users: { name: 'users' },
-  'audit-logs': { name: 'audit-logs' }
-}
+  'audit-logs': { name: 'audit-logs' },
+};
 
 /** 叶子 key → 所属一级分组 key（用于自动展开） */
 const GROUP_OF: Record<string, string> = {
-  workbench: 'g-api', apis: 'g-api',
-  tasks: 'g-api', reports: 'g-api',
-  'ui-tests': 'g-ui', 'ui-run': 'g-ui', 'ui-reports': 'g-ui',
-  perf: 'g-perf', 'perf-reports': 'g-perf',
-  environments: 'g-env', 'global-variables': 'g-env',
-  'environment-config': 'g-env', 'recycle-bin': 'g-env',
-  'ci-pipelines': 'g-ci', 'ci-jenkins': 'g-ci'
-}
+  workbench: 'g-api',
+  apis: 'g-api',
+  tasks: 'g-api',
+  reports: 'g-api',
+  'ui-tests': 'g-ui',
+  'ui-run': 'g-ui',
+  'ui-reports': 'g-ui',
+  perf: 'g-perf',
+  'perf-reports': 'g-perf',
+  environments: 'g-env',
+  'global-variables': 'g-env',
+  'environment-config': 'g-env',
+  'recycle-bin': 'g-env',
+  'ci-pipelines': 'g-ci',
+  'ci-jenkins': 'g-ci',
+};
 
 const menuItems = computed(() => {
   // 查看者：仅接口自动化 + UI 自动化（只读，操作按钮由各页面禁用）
-  const isViewer = auth.isViewer()
+  const isViewer = auth.isViewer();
   const items: any[] = [
     {
       key: 'g-api',
@@ -280,8 +300,8 @@ const menuItems = computed(() => {
         { key: 'apis', label: '接口定义' },
         { key: 'workbench', label: '接口用例' },
         { key: 'tasks', label: '测试执行' },
-        { key: 'reports', label: '测试报告' }
-      ]
+        { key: 'reports', label: '测试报告' },
+      ],
     },
     {
       key: 'g-ui',
@@ -290,10 +310,10 @@ const menuItems = computed(() => {
       children: [
         { key: 'ui-tests', label: 'UI 用例' },
         { key: 'ui-run', label: 'UI 用例执行' },
-        { key: 'ui-reports', label: '测试报告' }
-      ]
-    }
-  ]
+        { key: 'ui-reports', label: '测试报告' },
+      ],
+    },
+  ];
   // 成员/管理员：额外显示性能测试 + 环境配置
   if (!isViewer) {
     items.push(
@@ -303,8 +323,8 @@ const menuItems = computed(() => {
         label: '性能测试',
         children: [
           { key: 'perf', label: '创建用例' },
-          { key: 'perf-reports', label: '测试报告' }
-        ]
+          { key: 'perf-reports', label: '测试报告' },
+        ],
       },
       {
         key: 'g-env',
@@ -314,56 +334,60 @@ const menuItems = computed(() => {
           { key: 'environments', label: '环境管理' },
           { key: 'global-variables', label: '全局变量' },
           { key: 'environment-config', label: '变量与模块' },
-          { key: 'recycle-bin', label: '回收站' }
-        ]
-      }
-    )
+          { key: 'recycle-bin', label: '回收站' },
+        ],
+      },
+    );
   }
   // CI/CD：流水线所有登录用户可见（写操作按角色拦截）；Jenkins 服务器仅管理员可维护
-  const ciChildren: any[] = [{ key: 'ci-pipelines', label: '流水线' }]
+  const ciChildren: any[] = [{ key: 'ci-pipelines', label: '流水线' }];
   if (auth.isAdmin()) {
-    ciChildren.push({ key: 'ci-jenkins', label: 'Jenkins 服务器' })
+    ciChildren.push({ key: 'ci-jenkins', label: 'Jenkins 服务器' });
   }
   items.push({
     key: 'g-ci',
     icon: () => h(BranchesOutlined),
     label: 'CI/CD',
-    children: ciChildren
-  })
+    children: ciChildren,
+  });
   // 仅管理员：用户管理 + 操作日志
   if (auth.isAdmin()) {
     items.push(
       { key: 'users', icon: () => h(UserOutlined), label: '用户管理' },
-      { key: 'audit-logs', icon: () => h(AuditOutlined), label: '操作日志' }
-    )
+      { key: 'audit-logs', icon: () => h(AuditOutlined), label: '操作日志' },
+    );
   }
-  return items
-})
+  return items;
+});
 
 /* ============================================================
    选中态与展开态：根据当前路由反查
    ============================================================ */
 
 const selectedKeys = computed(() => {
-  const name = String(route.name)
+  const name = String(route.name);
   // 普通叶子菜单
   for (const [key, target] of Object.entries(ROUTE_MAP)) {
-    if (target.name === name && !target.query) return [key]
+    if (target.name === name && !target.query) return [key];
   }
-  return []
-})
+  return [];
+});
 
-const openKeys = ref<string[]>(['g-api'])
+const openKeys = ref<string[]>(['g-api']);
 
 // 选中某个叶子时，自动展开其所属一级分组
-watch(selectedKeys, (keys) => {
-  if (keys.length) {
-    const group = GROUP_OF[keys[0]]
-    if (group && !openKeys.value.includes(group)) {
-      openKeys.value = [...openKeys.value, group]
+watch(
+  selectedKeys,
+  (keys) => {
+    if (keys.length) {
+      const group = GROUP_OF[keys[0]];
+      if (group && !openKeys.value.includes(group)) {
+        openKeys.value = [...openKeys.value, group];
+      }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+);
 
 /* ============================================================
    事件
@@ -371,18 +395,18 @@ watch(selectedKeys, (keys) => {
 
 /** 点击菜单：按 ROUTE_MAP 跳转到对应路由（带 query 的一并带上） */
 function onMenuSelect({ key }: { key: string }) {
-  const target = ROUTE_MAP[key]
-  if (!target) return
-  router.push({ name: target.name, query: target.query })
+  const target = ROUTE_MAP[key];
+  if (!target) return;
+  router.push({ name: target.name, query: target.query });
 }
 
 /** 按路由 name 直接跳转（顶栏快捷入口用） */
 function goTo(name: string) {
-  router.push({ name })
+  router.push({ name });
 }
 
 function onProjectSearch(value: string) {
-  projectKeyword.value = value
+  projectKeyword.value = value;
 }
 
 /**
@@ -392,52 +416,52 @@ function onProjectSearch(value: string) {
  */
 function onProjectChange(id: string) {
   // 点击候选项切换项目：清空关键字，切换后刷新
-  projectKeyword.value = ''
-  if (id === projectStore.currentProjectId) return
-  projectStore.switchProject(id)
-  router.go(0)
+  projectKeyword.value = '';
+  if (id === projectStore.currentProjectId) return;
+  projectStore.switchProject(id);
+  router.go(0);
 }
 
 /* ---------------- 新增项目 ---------------- */
 
-const createProjectModal = ref(false)
+const createProjectModal = ref(false);
 /** 正在提交新建项目，用于按钮 loading */
-const creatingProject = ref(false)
-const createProjectForm = reactive({ name: '', description: '' })
+const creatingProject = ref(false);
+const createProjectForm = reactive({ name: '', description: '' });
 
 /** 打开新建项目弹窗并清空表单 */
 function openCreateProject() {
-  createProjectForm.name = ''
-  createProjectForm.description = ''
-  createProjectModal.value = true
+  createProjectForm.name = '';
+  createProjectForm.description = '';
+  createProjectModal.value = true;
 }
 
 /** 新建项目：创建成功后立即切换到该项目并刷新整页 */
 async function createProject() {
   if (!createProjectForm.name.trim()) {
-    message.warning('请填写项目名称')
-    return
+    message.warning('请填写项目名称');
+    return;
   }
-  creatingProject.value = true
+  creatingProject.value = true;
   try {
     const created = await ProjectApi.create({
       name: createProjectForm.name.trim(),
-      description: createProjectForm.description.trim() || undefined
-    })
-    message.success('项目已创建')
-    createProjectModal.value = false
-    await projectStore.fetchAll()
-    projectStore.switchProject(created.id)
-    router.go(0)
+      description: createProjectForm.description.trim() || undefined,
+    });
+    message.success('项目已创建');
+    createProjectModal.value = false;
+    await projectStore.fetchAll();
+    projectStore.switchProject(created.id);
+    router.go(0);
   } finally {
-    creatingProject.value = false
+    creatingProject.value = false;
   }
 }
 
 /** 退出登录：清空本地 token 与用户信息后回登录页 */
 function logout() {
-  auth.logout()
-  router.push({ name: 'login' })
+  auth.logout();
+  router.push({ name: 'login' });
 }
 
 /* ============================================================
@@ -448,38 +472,38 @@ function logout() {
 const shortcuts = [
   { k: 'Ctrl + S', desc: '保存当前用例' },
   { k: 'Ctrl + Enter', desc: '调试当前用例' },
-  { k: 'Ctrl + F', desc: '搜索当前面板' }
-]
+  { k: 'Ctrl + F', desc: '搜索当前面板' },
+];
 
-const passwordModal = ref(false)
-const changingPassword = ref(false)
-const passwordForm = ref({ oldPassword: '', newPassword: '' })
+const passwordModal = ref(false);
+const changingPassword = ref(false);
+const passwordForm = ref({ oldPassword: '', newPassword: '' });
 
 function showChangePassword() {
-  passwordForm.value = { oldPassword: '', newPassword: '' }
-  passwordModal.value = true
+  passwordForm.value = { oldPassword: '', newPassword: '' };
+  passwordModal.value = true;
 }
 
 /** 修改密码：新旧密码都不能为空，新密码至少 6 位 */
 async function changePassword() {
   if (!passwordForm.value.oldPassword || passwordForm.value.newPassword.length < 6) {
-    message.warning('请填写完整；新密码至少 6 位')
-    return
+    message.warning('请填写完整；新密码至少 6 位');
+    return;
   }
-  changingPassword.value = true
+  changingPassword.value = true;
   try {
-    await AuthApi.changePassword(passwordForm.value.oldPassword, passwordForm.value.newPassword)
-    message.success('密码已修改')
-    passwordModal.value = false
+    await AuthApi.changePassword(passwordForm.value.oldPassword, passwordForm.value.newPassword);
+    message.success('密码已修改');
+    passwordModal.value = false;
   } finally {
-    changingPassword.value = false
+    changingPassword.value = false;
   }
 }
 
 /** 进入应用时先拉一次项目列表，保证顶栏项目切换可用 */
 onMounted(async () => {
-  await projectStore.fetchAll()
-})
+  await projectStore.fetchAll();
+});
 </script>
 
 <style scoped>
@@ -668,8 +692,9 @@ onMounted(async () => {
   border-radius: var(--rd-full);
   cursor: pointer;
   color: var(--tx-2);
-  transition: background var(--dur-fast) var(--ease),
-              border-color var(--dur-fast) var(--ease);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 
 .header__user:hover {
@@ -775,8 +800,9 @@ onMounted(async () => {
 /* 路由切换过渡 */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity var(--dur-base) var(--ease),
-              transform var(--dur-base) var(--ease);
+  transition:
+    opacity var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease);
 }
 
 .fade-slide-enter-from {

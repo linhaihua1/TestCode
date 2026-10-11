@@ -20,9 +20,15 @@
         @row-click="(r: any) => router.push({ name: 'ui-test-editor', params: { id: r.id } })"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'action'" @click.stop>
+          <template v-if="column.key === 'action'">
             <a-space>
-              <a-button v-can-write size="small" type="link" @click="run(record)" :loading="runningId === record.id">
+              <a-button
+                v-can-write
+                size="small"
+                type="link"
+                :loading="runningId === record.id"
+                @click="run(record)"
+              >
                 <play-circle-outlined />运行
               </a-button>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
@@ -34,12 +40,7 @@
       </a-table>
     </div>
 
-    <a-modal
-      v-model:open="modal"
-      title="新建用例"
-      @ok="save"
-      width="480"
-    >
+    <a-modal v-model:open="modal" title="新建用例" width="480" @ok="save">
       <a-form layout="vertical">
         <a-form-item label="名称" required>
           <a-input v-model:value="form.name" />
@@ -62,77 +63,82 @@
  * <p>执行为异步投递（MQ），创建后跳转到步骤编辑器编排
  * 前置/测试/后置三段步骤。</p>
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
-import { UiApi } from '@/api'
-import { useProjectStore } from '@/stores/project'
-import type { UiTestCase } from '@/types'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons-vue';
+import { UiApi } from '@/api';
+import { useProjectStore } from '@/stores/project';
+import type { UiTestCase } from '@/types';
 
-const router = useRouter()
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const router = useRouter();
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const tests = ref<UiTestCase[]>([])
-const loading = ref(false)
-const runningId = ref('')
+const tests = ref<UiTestCase[]>([]);
+const loading = ref(false);
+const runningId = ref('');
 
-const modal = ref(false)
-const form = reactive<Partial<UiTestCase>>({ name: '', description: '', baseUrl: '' })
+const modal = ref(false);
+const form = reactive<Partial<UiTestCase>>({ name: '', description: '', baseUrl: '' });
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: 'BaseURL', dataIndex: 'baseUrl', ellipsis: true },
-  { title: '步骤数', key: 'stepCount', width: 100, customRender: ({ record }: any) => record.steps?.length || 0 },
-  { title: '操作', key: 'action', width: 160 }
-]
+  {
+    title: '步骤数',
+    key: 'stepCount',
+    width: 100,
+    customRender: ({ record }: any) => record.steps?.length || 0,
+  },
+  { title: '操作', key: 'action', width: 160 },
+];
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    tests.value = await UiApi.listTests(projectId.value)
+    tests.value = await UiApi.listTests(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function openCreate() {
-  Object.assign(form, { id: undefined, name: '', description: '', baseUrl: '' })
-  modal.value = true
+  Object.assign(form, { id: undefined, name: '', description: '', baseUrl: '' });
+  modal.value = true;
 }
 
 async function save() {
   if (!form.name) {
-    message.warning('请填写名称')
-    return
+    message.warning('请填写名称');
+    return;
   }
-  const created = await UiApi.createTest({ ...form, projectId: projectId.value })
-  message.success('已创建')
-  modal.value = false
-  await reload()
-  router.push({ name: 'ui-test-editor', params: { id: created.id } })
+  const created = await UiApi.createTest({ ...form, projectId: projectId.value });
+  message.success('已创建');
+  modal.value = false;
+  await reload();
+  router.push({ name: 'ui-test-editor', params: { id: created.id } });
 }
 
 /** 执行 UI 用例：投递到 MQ，由执行机异步消费 */
 async function run(record: UiTestCase) {
-  runningId.value = record.id
+  runningId.value = record.id;
   try {
-    await UiApi.runTest(record.id)
-    message.success('已投递到 RabbitMQ，等待执行机消费')
+    await UiApi.runTest(record.id);
+    message.success('已投递到 RabbitMQ，等待执行机消费');
   } finally {
-    runningId.value = ''
+    runningId.value = '';
   }
 }
 
 async function remove(record: UiTestCase) {
-  await UiApi.deleteTest(record.id)
-  await reload()
+  await UiApi.deleteTest(record.id);
+  await reload();
 }
 
-watch(projectId, () => reload(), { immediate: false })
-onMounted(reload)
+watch(projectId, () => reload(), { immediate: false });
+onMounted(reload);
 </script>
 
 <style scoped>

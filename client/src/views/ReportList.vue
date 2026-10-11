@@ -7,9 +7,7 @@
         <router-link to="/trend">
           <a-button type="link"><line-chart-outlined />趋势统计</a-button>
         </router-link>
-        <a-button @click="reload" :loading="loading">
-          <reload-outlined />刷新
-        </a-button>
+        <a-button :loading="loading" @click="reload"> <reload-outlined />刷新 </a-button>
       </a-space>
     </div>
 
@@ -28,10 +26,11 @@
           class="value"
           :class="{
             success: recent7PassRate >= 80,
-            warning: recent7PassRate < 80
+            warning: recent7PassRate < 80,
           }"
         >
-          {{ recent7PassRate.toFixed(2) }}<span class="text-3" style="font-size: var(--fs-md); margin-left: 4px">%</span>
+          {{ recent7PassRate.toFixed(2)
+          }}<span class="text-3" style="font-size: var(--fs-md); margin-left: 4px">%</span>
         </div>
       </div>
       <div class="stat-card">
@@ -81,9 +80,7 @@
                 <a-button size="small" type="link">查看</a-button>
               </router-link>
               <a-dropdown>
-                <a-button size="small" type="link">
-                  导出 <down-outlined />
-                </a-button>
+                <a-button size="small" type="link"> 导出 <down-outlined /> </a-button>
                 <template #overlay>
                   <a-menu @click="(e: any) => exportReport(record, e.key)">
                     <a-menu-item key="html">HTML</a-menu-item>
@@ -91,7 +88,9 @@
                   </a-menu>
                 </template>
               </a-dropdown>
-              <router-link :to="{ name: 'report-detail', params: { id: record.id }, hash: '#shares' }">
+              <router-link
+                :to="{ name: 'report-detail', params: { id: record.id }, hash: '#shares' }"
+              >
                 <a-button size="small" type="link">分享</a-button>
               </router-link>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
@@ -112,32 +111,28 @@
  * <p>顶部 Allure 风格汇总把当前列表内所有报告的用例数按状态聚合；
  * "近 7 天通过率"只统计 startedAt 在 7 天内的报告，避免历史数据稀释结论。</p>
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import {
-  ReloadOutlined,
-  LineChartOutlined,
-  DownOutlined
-} from '@ant-design/icons-vue'
-import { ReportApi } from '@/api'
+import { computed, onMounted, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
+import { ReloadOutlined, LineChartOutlined, DownOutlined } from '@ant-design/icons-vue';
+import { ReportApi } from '@/api';
 import {
   ALLURE_STATUS_LABELS,
   DEFAULT_PAGE_SIZE,
   TRIGGER_LABELS,
   TRIGGER_TYPES,
   statusColor,
-  statusLabel
-} from '@/constants'
-import { formatDateTime } from '@/utils/format'
-import { useProjectStore } from '@/stores/project'
-import type { Report } from '@/types'
-import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
+  statusLabel,
+} from '@/constants';
+import { formatDateTime } from '@/utils/format';
+import { useProjectStore } from '@/stores/project';
+import type { Report } from '@/types';
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const reports = ref<Report[]>([])
-const loading = ref(false)
+const reports = ref<Report[]>([]);
+const loading = ref(false);
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
@@ -147,73 +142,65 @@ const columns = [
   { title: '平均响应', key: 'response', width: 120 },
   { title: '耗时 (ms)', key: 'duration', width: 110 },
   { title: '开始时间', key: 'startedAt', width: 180 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' }
-]
+  { title: '操作', key: 'action', width: 220, fixed: 'right' },
+];
 
-const totalCases = computed(() =>
-  reports.value.reduce((acc, r) => acc + (r.totalCases || 0), 0)
-)
+const totalCases = computed(() => reports.value.reduce((acc, r) => acc + (r.totalCases || 0), 0));
 const totalFailed = computed(() =>
-  reports.value.reduce(
-    (acc, r) => acc + (r.failedCases || 0) + (r.errorCases || 0),
-    0
-  )
-)
+  reports.value.reduce((acc, r) => acc + (r.failedCases || 0) + (r.errorCases || 0), 0),
+);
 
 /** Allure 状态汇总（跨报告用例计数聚合） */
 const summaryStats = computed<StatusStat[]>(() => {
   const sum = (fn: (r: Report) => number) =>
-    reports.value.reduce((acc, r) => acc + (fn(r) || 0), 0)
+    reports.value.reduce((acc, r) => acc + (fn(r) || 0), 0);
   return [
     { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: sum((r) => r.passedCases || 0) },
     { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: sum((r) => r.failedCases || 0) },
     { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: sum((r) => r.errorCases || 0) },
-    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: sum((r) => r.skippedCases || 0) }
-  ]
-})
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: sum((r) => r.skippedCases || 0) },
+  ];
+});
 
 /** 近 7 天通过率（百分比）；无数据时返回 0 而不是 NaN */
 const recent7PassRate = computed(() => {
-  const cutoff = Date.now() - 7 * 86400_000
-  const recent = reports.value.filter(
-    (r) => new Date(r.startedAt).getTime() >= cutoff
-  )
-  const total = recent.reduce((acc, r) => acc + (r.totalCases || 0), 0)
-  const passed = recent.reduce((acc, r) => acc + (r.passedCases || 0), 0)
-  return total === 0 ? 0 : (passed * 100) / total
-})
+  const cutoff = Date.now() - 7 * 86400_000;
+  const recent = reports.value.filter((r) => new Date(r.startedAt).getTime() >= cutoff);
+  const total = recent.reduce((acc, r) => acc + (r.totalCases || 0), 0);
+  const passed = recent.reduce((acc, r) => acc + (r.passedCases || 0), 0);
+  return total === 0 ? 0 : (passed * 100) / total;
+});
 
 function triggerLabel(t?: string) {
-  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL]
+  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL];
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    reports.value = await ReportApi.list({ projectId: projectId.value })
+    reports.value = await ReportApi.list({ projectId: projectId.value });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 /** 导出报告：直接在新窗口打开后端的导出地址（HTML/PDF） */
 function exportReport(record: Report, format: 'html' | 'pdf') {
-  const url = format === 'html'
-    ? ReportApi.exportHtmlUrl(record.id)
-    : ReportApi.exportPdfUrl(record.id)
-  window.open(url, '_blank')
-  message.success(`已导出 ${format.toUpperCase()}`)
+  const url =
+    format === 'html' ? ReportApi.exportHtmlUrl(record.id) : ReportApi.exportPdfUrl(record.id);
+  window.open(url, '_blank');
+  message.success(`已导出 ${format.toUpperCase()}`);
 }
 
 async function remove(record: Report) {
-  await ReportApi.remove(record.id)
-  message.success('已删除')
-  await reload()
+  await ReportApi.remove(record.id);
+  message.success('已删除');
+  await reload();
 }
 
-watch(projectId, reload, { immediate: false })
-onMounted(reload)
+watch(projectId, reload, { immediate: false });
+onMounted(reload);
 </script>
 
 <style scoped>

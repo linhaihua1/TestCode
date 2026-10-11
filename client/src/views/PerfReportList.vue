@@ -4,20 +4,13 @@
     <div class="page-header">
       <div class="page-title">性能测试报告</div>
       <a-space>
-        <a-button @click="reload">
-          <reload-outlined />刷新
-        </a-button>
+        <a-button @click="reload"> <reload-outlined />刷新 </a-button>
       </a-space>
     </div>
 
     <!-- 报告列表 -->
     <div class="panel">
-      <a-table
-        :data-source="reports"
-        :columns="columns"
-        row-key="id"
-        :loading="loading"
-      >
+      <a-table :data-source="reports" :columns="columns" row-key="id" :loading="loading">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="statusColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
@@ -40,40 +33,39 @@
 /**
  * 性能测试报告列表页：查看报告概要并跳转详情页看图表。
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
-import { PerfApi } from '@/api'
-import { statusColor, statusLabel } from '@/constants'
-import { formatDateTime } from '@/utils/format'
-import { useProjectStore } from '@/stores/project'
-import type { PerfReport } from '@/types'
+import { computed, onMounted, ref, watch } from 'vue';
+import { ReloadOutlined } from '@ant-design/icons-vue';
+import { PerfApi } from '@/api';
+import { statusColor, statusLabel } from '@/constants';
+import { formatDateTime } from '@/utils/format';
+import { useProjectStore } from '@/stores/project';
+import type { PerfReport } from '@/types';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const reports = ref<PerfReport[]>([])
-const loading = ref(false)
+const reports = ref<PerfReport[]>([]);
+const loading = ref(false);
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '状态', key: 'status', width: 100 },
   { title: '开始时间', key: 'startedAt', width: 200 },
-  { title: '操作', key: 'action', width: 100 }
-]
+  { title: '操作', key: 'action', width: 100 },
+];
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    reports.value = await PerfApi.listReports(projectId.value)
+    reports.value = await PerfApi.listReports(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-watch(projectId, () => reload(), { immediate: false })
-onMounted(reload)
+watch(projectId, () => reload(), { immediate: false });
+onMounted(reload);
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

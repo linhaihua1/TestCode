@@ -12,13 +12,13 @@
  * 类型定义里实际存在的字段（见 {@code es/<component>/style/index.d.ts}），
  * 若升级 antd 需重新核对。
  */
-import type { ThemeConfig } from 'ant-design-vue/es/config-provider/context'
+import type { ThemeConfig } from 'ant-design-vue/es/config-provider/context';
 
 /** 品牌主色（与 tokens.css 的 --c-primary 一致） */
-export const PRIMARY = '#2563eb'
+export const PRIMARY = '#2563eb';
 
 /** 深色导航基色（与 tokens.css 的 --nav-bg 一致） */
-export const NAV_BG = '#0f172a'
+export const NAV_BG = '#0f172a';
 
 /**
  * 组件级 token 覆盖。
@@ -39,7 +39,7 @@ const componentOverrides = {
     colorBgTrigger: '#1e293b',
     layoutHeaderHeight: 52,
     layoutHeaderPaddingInline: 20,
-    layoutHeaderColor: '#cbd5e1'
+    layoutHeaderColor: '#cbd5e1',
   },
 
   /* 水平菜单：深色底导航项，选中态用主色块、去掉底部下划线 */
@@ -58,7 +58,7 @@ const componentOverrides = {
     colorActiveBarBorderSize: 0,
     radiusItem: 8,
     itemMarginInline: 4,
-    menuItemHeight: 38
+    menuItemHeight: 38,
   },
 
   Table: {
@@ -69,12 +69,12 @@ const componentOverrides = {
     tableBorderColor: '#f1f5f9',
     tablePaddingVertical: 12,
     tablePaddingHorizontal: 16,
-    tableRadius: 8
+    tableRadius: 8,
   },
 
   Tabs: {
     tabsHoverColor: PRIMARY,
-    tabsActiveColor: PRIMARY
+    tabsActiveColor: PRIMARY,
   },
 
   Modal: {
@@ -83,18 +83,18 @@ const componentOverrides = {
     modalHeadingColor: '#0f172a',
     modalHeaderTitleFontSize: 16,
     modalBodyPadding: 24,
-    modalFooterBg: '#ffffff'
+    modalFooterBg: '#ffffff',
   },
 
   Input: {
     inputPaddingVertical: 6,
-    inputPaddingHorizontal: 11
+    inputPaddingHorizontal: 11,
   },
 
   Tooltip: {
-    colorBgDefault: NAV_BG
-  }
-} as NonNullable<ThemeConfig['components']>
+    colorBgDefault: NAV_BG,
+  },
+} as NonNullable<ThemeConfig['components']>;
 
 export const antTheme: ThemeConfig = {
   token: {
@@ -154,8 +154,8 @@ export const antTheme: ThemeConfig = {
     // ---- 线宽 ----
     lineWidth: 1,
     lineWidthBold: 2,
-    wireframe: false
+    wireframe: false,
   },
 
-  components: componentOverrides
-}
+  components: componentOverrides,
+};

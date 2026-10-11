@@ -20,10 +20,8 @@
         size="large"
       />
       <a-space class="editor-actions">
-        <a-button v-can-write @click="save" :loading="saving">
-          <save-outlined />保存
-        </a-button>
-        <a-button v-can-write type="primary" @click="debug" :loading="debugging">
+        <a-button v-can-write :loading="saving" @click="save"> <save-outlined />保存 </a-button>
+        <a-button v-can-write type="primary" :loading="debugging" @click="debug">
           <play-circle-outlined />调试
         </a-button>
         <a-popconfirm title="确认删除该用例？" @confirm="remove">
@@ -40,9 +38,25 @@
       <a-tab-pane key="script" tab="脚本">
         <!-- 用例元信息（紧凑） -->
         <div class="meta-row">
-          <a-select v-model:value="form.priority" :options="priorityOptions" size="small" style="width: 100px" />
-          <a-select v-model:value="form.tags" mode="tags" size="small" placeholder="标签" style="flex: 1" />
-          <a-input v-model:value="form.description" size="small" placeholder="用例描述（可选）" style="flex: 2" />
+          <a-select
+            v-model:value="form.priority"
+            :options="priorityOptions"
+            size="small"
+            style="width: 100px"
+          />
+          <a-select
+            v-model:value="form.tags"
+            mode="tags"
+            size="small"
+            placeholder="标签"
+            style="flex: 1"
+          />
+          <a-input
+            v-model:value="form.description"
+            size="small"
+            placeholder="用例描述（可选）"
+            style="flex: 2"
+          />
         </div>
 
         <!-- 前置步骤 -->
@@ -61,7 +75,11 @@
               />
             </template>
           </draggable>
-          <a-empty v-if="!preSteps.length" description="暂无前置步骤" :image-style="{ height: '40px' }" />
+          <a-empty
+            v-if="!preSteps.length"
+            description="暂无前置步骤"
+            :image-style="{ height: '40px' }"
+          />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('PRE')">
             <plus-outlined />新增前置步骤
           </a-button>
@@ -83,7 +101,11 @@
               />
             </template>
           </draggable>
-          <a-empty v-if="!testSteps.length" description="暂无测试步骤" :image-style="{ height: '40px' }" />
+          <a-empty
+            v-if="!testSteps.length"
+            description="暂无测试步骤"
+            :image-style="{ height: '40px' }"
+          />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('TEST')">
             <plus-outlined />新增测试步骤
           </a-button>
@@ -105,7 +127,11 @@
               />
             </template>
           </draggable>
-          <a-empty v-if="!postSteps.length" description="暂无后置步骤" :image-style="{ height: '40px' }" />
+          <a-empty
+            v-if="!postSteps.length"
+            description="暂无后置步骤"
+            :image-style="{ height: '40px' }"
+          />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('POST')">
             <plus-outlined />新增后置步骤
           </a-button>
@@ -131,7 +157,11 @@
                     <template #description>
                       <a-collapse ghost size="small">
                         <a-collapse-panel key="steps" header="步骤明细">
-                          <a-steps :current="item.stepResults?.length || 0" size="small" direction="vertical">
+                          <a-steps
+                            :current="item.stepResults?.length || 0"
+                            size="small"
+                            direction="vertical"
+                          >
                             <a-step
                               v-for="(s, i) in item.stepResults"
                               :key="i"
@@ -146,7 +176,9 @@
                             <template #renderItem="{ item: a }">
                               <a-list-item>
                                 <a-space size="small">
-                                  <a-tag :color="a.passed ? 'green' : 'red'">{{ a.passed ? '✓' : '✗' }}</a-tag>
+                                  <a-tag :color="a.passed ? 'green' : 'red'">{{
+                                    a.passed ? '✓' : '✗'
+                                  }}</a-tag>
                                   <span>{{ a.message }}</span>
                                 </a-space>
                               </a-list-item>
@@ -154,7 +186,9 @@
                           </a-list>
                         </a-collapse-panel>
                         <a-collapse-panel key="extract" header="提取变量">
-                          <pre class="json-pre">{{ JSON.stringify(item.extractedVariables, null, 2) }}</pre>
+                          <pre class="json-pre">{{
+                            JSON.stringify(item.extractedVariables, null, 2)
+                          }}</pre>
                         </a-collapse-panel>
                       </a-collapse>
                     </template>
@@ -182,41 +216,44 @@
  *   <li>调试不在本组件内直接发起，而是 emit('debug') 交给父组件弹窗选择环境后再执行。</li>
  * </ul>
  */
-import { computed, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
+import { computed, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
+import dayjs from 'dayjs';
 import {
-  SaveOutlined, DeleteOutlined, PlayCircleOutlined, PlusOutlined
-} from '@ant-design/icons-vue'
-import draggable from 'vuedraggable'
-import { CaseApi } from '@/api'
-import { statusColor, RUN_STATUS } from '@/constants'
-import { uid, ensureIds } from '@/utils/uid'
-import type { CaseInfo, CaseStep, DebugRecord } from '@/types'
-import StepCard from '@/components/workbench/StepCard.vue'
+  SaveOutlined,
+  DeleteOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+} from '@ant-design/icons-vue';
+import draggable from 'vuedraggable';
+import { CaseApi } from '@/api';
+import { statusColor, RUN_STATUS } from '@/constants';
+import { uid, ensureIds } from '@/utils/uid';
+import type { CaseInfo, CaseStep, DebugRecord } from '@/types';
+import StepCard from '@/components/workbench/StepCard.vue';
 
-const props = defineProps<{ caseData: CaseInfo }>()
+const props = defineProps<{ caseData: CaseInfo }>();
 const emit = defineEmits<{
-  saved: []
-  debug: [caseId: string]
-}>()
+  saved: [];
+  debug: [caseId: string];
+}>();
 
 /** 表单数据：props 的一次性拷贝，之后在组件内编辑 */
 const form = reactive<CaseInfo & { steps: CaseStep[] }>({
   ...props.caseData,
-  steps: (props.caseData.steps || []) as CaseStep[]
-})
+  steps: (props.caseData.steps || []) as CaseStep[],
+});
 
-const saving = ref(false)
-const debugging = ref(false)
+const saving = ref(false);
+const debugging = ref(false);
 /** 当前页签：script=步骤编排 / debug=调试记录 */
-const activeTab = ref<'script' | 'debug'>('script')
+const activeTab = ref<'script' | 'debug'>('script');
 
 /** 调试记录列表 */
-const records = ref<DebugRecord[]>([])
-const recordsLoading = ref(false)
+const records = ref<DebugRecord[]>([]);
+const recordsLoading = ref(false);
 
-const priorityOptions = ['P0', 'P1', 'P2', 'P3'].map((v) => ({ value: v, label: v }))
+const priorityOptions = ['P0', 'P1', 'P2', 'P3'].map((v) => ({ value: v, label: v }));
 
 /* ============================================================
    三个步骤分区（computed get/set，供 draggable v-model 排序）
@@ -230,16 +267,14 @@ function makePartition(position: 'PRE' | 'TEST' | 'POST') {
   return computed<CaseStep[]>({
     get: () => form.steps.filter((s) => (s.position || 'TEST') === position),
     set: (sorted) => {
-      let i = 0
-      form.steps = form.steps.map((s) =>
-        (s.position || 'TEST') === position ? sorted[i++] : s
-      )
-    }
-  })
+      let i = 0;
+      form.steps = form.steps.map((s) => ((s.position || 'TEST') === position ? sorted[i++] : s));
+    },
+  });
 }
-const preSteps = makePartition('PRE')
-const testSteps = makePartition('TEST')
-const postSteps = makePartition('POST')
+const preSteps = makePartition('PRE');
+const testSteps = makePartition('TEST');
+const postSteps = makePartition('POST');
 
 /* ============================================================
    步骤增删 + 复制粘贴
@@ -263,51 +298,51 @@ function addStep(position: 'PRE' | 'TEST' | 'POST') {
     body: '',
     assertions: [],
     extracts: [],
-    __activeTab: 'headers'
-  }
+    __activeTab: 'headers',
+  };
   if (position === 'PRE') {
-    form.steps.unshift(step)
+    form.steps.unshift(step);
   } else if (position === 'POST') {
-    form.steps.push(step)
+    form.steps.push(step);
   } else {
-    const firstPostIdx = form.steps.findIndex((s) => (s.position || 'TEST') === 'POST')
-    if (firstPostIdx === -1) form.steps.push(step)
-    else form.steps.splice(firstPostIdx, 0, step)
+    const firstPostIdx = form.steps.findIndex((s) => (s.position || 'TEST') === 'POST');
+    if (firstPostIdx === -1) form.steps.push(step);
+    else form.steps.splice(firstPostIdx, 0, step);
   }
 }
 
 /** 删除指定分区内第 idx 个步骤（先还原它在总数组中的下标再删） */
 function removeStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
-  const posSteps = form.steps.filter((s) => (s.position || 'TEST') === position)
-  const target = posSteps[idx]
+  const posSteps = form.steps.filter((s) => (s.position || 'TEST') === position);
+  const target = posSteps[idx];
   if (target) {
-    form.steps.splice(form.steps.indexOf(target), 1)
+    form.steps.splice(form.steps.indexOf(target), 1);
   }
 }
 
 /** 剪贴板：只保存一份步骤的深拷贝（组件内临时，刷新即失效） */
-const clipboard = ref<CaseStep | null>(null)
+const clipboard = ref<CaseStep | null>(null);
 
 /** 复制步骤：深拷贝后立即换新的 _id，避免与源步骤的拖拽 key 冲突 */
 function copyStep(step: CaseStep) {
-  clipboard.value = JSON.parse(JSON.stringify(step))
-  clipboard.value!._id = uid()
-  message.success('已复制步骤')
+  clipboard.value = JSON.parse(JSON.stringify(step));
+  clipboard.value!._id = uid();
+  message.success('已复制步骤');
 }
 
 /** 把剪贴板里的步骤插入到指定分区第 idx 个步骤之后 */
 function pasteStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
   if (!clipboard.value) {
-    message.warning('请先复制一个步骤')
-    return
+    message.warning('请先复制一个步骤');
+    return;
   }
-  const clone: CaseStep = JSON.parse(JSON.stringify(clipboard.value))
-  clone._id = uid()
-  clone.position = position
-  const posSteps = form.steps.filter((s) => (s.position || 'TEST') === position)
-  const insertAt = posSteps[idx] ? form.steps.indexOf(posSteps[idx]) + 1 : form.steps.length
-  form.steps.splice(insertAt, 0, clone)
-  message.success('已粘贴步骤')
+  const clone: CaseStep = JSON.parse(JSON.stringify(clipboard.value));
+  clone._id = uid();
+  clone.position = position;
+  const posSteps = form.steps.filter((s) => (s.position || 'TEST') === position);
+  const insertAt = posSteps[idx] ? form.steps.indexOf(posSteps[idx]) + 1 : form.steps.length;
+  form.steps.splice(insertAt, 0, clone);
+  message.success('已粘贴步骤');
 }
 
 /* ============================================================
@@ -316,53 +351,53 @@ function pasteStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
 /** 保存用例（步骤数组整体提交，后端以 JSON 存储） */
 async function save() {
   if (!form.name) {
-    message.warning('请填写用例名称')
-    return
+    message.warning('请填写用例名称');
+    return;
   }
-  saving.value = true
+  saving.value = true;
   try {
-    await CaseApi.update(form.id, { ...form, steps: form.steps })
-    emit('saved')
+    await CaseApi.update(form.id, { ...form, steps: form.steps });
+    emit('saved');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 async function debug() {
   // 调试走弹窗（环境变量选择），由 Workbench 打开 DebugModal
-  emit('debug', form.id)
+  emit('debug', form.id);
 }
 
 /** 删除当前用例（后端软删除，可在回收站恢复） */
 async function remove() {
-  await CaseApi.remove(form.id)
-  emit('saved')
+  await CaseApi.remove(form.id);
+  emit('saved');
 }
 
 /* ============================================================
    调试记录
    ============================================================ */
 function formatTime(iso: string) {
-  return dayjs(iso).format('YYYY-MM-DD HH:mm:ss')
+  return dayjs(iso).format('YYYY-MM-DD HH:mm:ss');
 }
 
 async function loadRecords() {
-  if (!form.id) return
-  recordsLoading.value = true
+  if (!form.id) return;
+  recordsLoading.value = true;
   try {
-    records.value = await CaseApi.debugRecords(form.id)
+    records.value = await CaseApi.debugRecords(form.id);
   } finally {
-    recordsLoading.value = false
+    recordsLoading.value = false;
   }
 }
 
 // 供父组件（Workbench）在调试完成后调用，切换到调试记录 Tab
 function showDebugRecords(_caseId: string) {
-  activeTab.value = 'debug'
-  loadRecords()
+  activeTab.value = 'debug';
+  loadRecords();
 }
 
-defineExpose({ save, debug, showDebugRecords })
+defineExpose({ save, debug, showDebugRecords });
 
 /* ============================================================
    监听 caseData 变化
@@ -372,27 +407,27 @@ defineExpose({ save, debug, showDebugRecords })
  * 保证模板里直接访问 s.headers.length 之类不会报错。
  */
 function ensureStepShape(s: CaseStep) {
-  if (!s.headers) s.headers = []
-  if (!s.query) s.query = []
-  if (!s.assertions) s.assertions = []
-  if (!s.extracts) s.extracts = []
-  if (s.enabled === undefined) s.enabled = true
-  if (!s.position) s.position = 'TEST'
+  if (!s.headers) s.headers = [];
+  if (!s.query) s.query = [];
+  if (!s.assertions) s.assertions = [];
+  if (!s.extracts) s.extracts = [];
+  if (s.enabled === undefined) s.enabled = true;
+  if (!s.position) s.position = 'TEST';
 }
 
 watch(
   () => props.caseData,
   (v) => {
-    Object.assign(form, v)
-    form.steps = (v.steps || []) as CaseStep[]
-    ensureIds(form.steps)
-    form.steps.forEach(ensureStepShape)
+    Object.assign(form, v);
+    form.steps = (v.steps || []) as CaseStep[];
+    ensureIds(form.steps);
+    form.steps.forEach(ensureStepShape);
   },
-  { deep: true }
-)
+  { deep: true },
+);
 
 // 初始加载也补齐一次（旧数据兼容）
-form.steps.forEach(ensureStepShape)
+form.steps.forEach(ensureStepShape);
 </script>
 
 <style scoped>

@@ -37,32 +37,32 @@
  * <p>提取方式（JSONPath / 正则 / Header / Cookie / XPath）取自 constants，
  * 与后端 ExtractType 枚举一一对应。</p>
  */
-import draggable from 'vuedraggable'
-import { watch } from 'vue'
-import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'
-import { uid, ensureIds } from '@/utils/uid'
-import { EXTRACT_TYPE_OPTIONS, EXTRACT_TYPES } from '@/constants'
-import type { ExtractRule } from '@/types'
+import draggable from 'vuedraggable';
+import { watch } from 'vue';
+import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue';
+import { uid, ensureIds } from '@/utils/uid';
+import { EXTRACT_TYPE_OPTIONS, EXTRACT_TYPES } from '@/constants';
+import type { ExtractRule } from '@/types';
 
-const extracts = defineModel<ExtractRule[]>({ required: true })
+const extracts = defineModel<ExtractRule[]>({ required: true });
 
 // 从后端加载的旧数据可能没有 _id，补齐以支撑拖拽排序
-watch(extracts, (list) => ensureIds(list), { immediate: true, deep: true })
+watch(extracts, (list) => ensureIds(list), { immediate: true, deep: true });
 
 /** 提取方式选项：与后端 ExtractType 枚举一一对应，不再局部硬编码 */
-const typeOptions = EXTRACT_TYPE_OPTIONS
+const typeOptions = EXTRACT_TYPE_OPTIONS;
 
 function add() {
   extracts.value.push({
     _id: uid(),
     type: EXTRACT_TYPES.JSONPATH,
     expression: '',
-    variable: ''
-  })
+    variable: '',
+  });
 }
 
 function remove(idx: number) {
-  extracts.value.splice(idx, 1)
+  extracts.value.splice(idx, 1);
 }
 </script>
 

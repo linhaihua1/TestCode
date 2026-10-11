@@ -1,19 +1,17 @@
 <template>
-  <div class="page editor-page" v-if="testCase">
+  <div v-if="testCase" class="page editor-page">
     <!-- 页头 -->
     <header class="page-header">
       <div class="page-title">
-        <a-button type="text" class="page-title__back" @click="goBack" title="返回列表">
+        <a-button type="text" class="page-title__back" title="返回列表" @click="goBack">
           <arrow-left-outlined />
         </a-button>
         <robot-outlined class="page-title__icon" />
         <span class="ellipsis">{{ testCase.name }}</span>
       </div>
       <a-space>
-        <a-button v-can-write @click="save" :loading="saving">
-          <save-outlined />保存
-        </a-button>
-        <a-button v-can-write type="primary" @click="run" :loading="running">
+        <a-button v-can-write :loading="saving" @click="save"> <save-outlined />保存 </a-button>
+        <a-button v-can-write type="primary" :loading="running" @click="run">
           <play-circle-outlined />运行
         </a-button>
       </a-space>
@@ -67,61 +65,64 @@
  * <p>执行前会先自动保存，避免跑的是未保存的草稿；
  * 执行为异步投递，成功后跳转到 UI 报告列表查看结果。</p>
  */
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import {
-  SaveOutlined, PlayCircleOutlined, RobotOutlined, ArrowLeftOutlined
-} from '@ant-design/icons-vue'
-import { UiApi } from '@/api'
-import { UI_SEGMENTS, UI_SEGMENT_LABELS, type UiSegmentCode } from '@/constants'
-import type { UiTestCase, UiStep } from '@/types'
-import StepEditor from '@/components/UiStepEditor.vue'
+  SaveOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
+  ArrowLeftOutlined,
+} from '@ant-design/icons-vue';
+import { UiApi } from '@/api';
+import { UI_SEGMENTS, UI_SEGMENT_LABELS, type UiSegmentCode } from '@/constants';
+import type { UiTestCase, UiStep } from '@/types';
+import StepEditor from '@/components/UiStepEditor.vue';
 
-const route = useRoute()
-const router = useRouter()
-const testCase = ref<UiTestCase | null>(null)
-const activeTab = ref<UiSegmentCode>(UI_SEGMENTS.TEST)
-const saving = ref(false)
-const running = ref(false)
+const route = useRoute();
+const router = useRouter();
+const testCase = ref<UiTestCase | null>(null);
+const activeTab = ref<UiSegmentCode>(UI_SEGMENTS.TEST);
+const saving = ref(false);
+const running = ref(false);
 
 /** 加载用例：三段步骤缺失时补空数组，兼容历史数据 */
 async function load() {
-  testCase.value = await UiApi.getTest(route.params.id as string)
-  if (!testCase.value.setupSteps) testCase.value.setupSteps = []
-  if (!testCase.value.steps) testCase.value.steps = []
-  if (!testCase.value.teardownSteps) testCase.value.teardownSteps = []
+  testCase.value = await UiApi.getTest(route.params.id as string);
+  if (!testCase.value.setupSteps) testCase.value.setupSteps = [];
+  if (!testCase.value.steps) testCase.value.steps = [];
+  if (!testCase.value.teardownSteps) testCase.value.teardownSteps = [];
 }
 
 async function save() {
-  saving.value = true
+  saving.value = true;
   try {
-    await UiApi.updateTest(testCase.value!.id, testCase.value!)
-    message.success('已保存')
+    await UiApi.updateTest(testCase.value!.id, testCase.value!);
+    message.success('已保存');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 /** 保存后执行：先落库再投递，避免执行的是未保存的草稿 */
 async function run() {
-  await save()
-  running.value = true
+  await save();
+  running.value = true;
   try {
-    await UiApi.runTest(testCase.value!.id)
-    message.success('已投递到 RabbitMQ')
-    router.push({ name: 'ui-reports' })
+    await UiApi.runTest(testCase.value!.id);
+    message.success('已投递到 RabbitMQ');
+    router.push({ name: 'ui-reports' });
   } finally {
-    running.value = false
+    running.value = false;
   }
 }
 
 /** 返回 UI 用例列表（不刷新页面，保留草稿编辑状态由列表页自行决定） */
 function goBack() {
-  router.push({ name: 'ui-tests' })
+  router.push({ name: 'ui-tests' });
 }
 
-onMounted(load)
+onMounted(load);
 </script>
 
 <style scoped>

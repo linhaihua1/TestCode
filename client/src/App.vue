@@ -6,11 +6,7 @@
   应用统一的品牌色、圆角、字体与阴影，无需逐页配置。
 -->
 <template>
-  <a-config-provider
-    :theme="antTheme"
-    :locale="zhCN"
-    :wave="{ disabled: false }"
-  >
+  <a-config-provider :theme="antTheme" :locale="zhCN" :wave="{ disabled: false }">
     <router-view />
   </a-config-provider>
 </template>
@@ -19,6 +15,6 @@
 /**
  * 应用根组件：挂载全局配置（Ant Design Vue 的 ConfigProvider）与路由出口。
  */
-import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import { antTheme } from '@/styles/antTheme'
+import zhCN from 'ant-design-vue/es/locale/zh_CN';
+import { antTheme } from '@/styles/antTheme';
 </script>

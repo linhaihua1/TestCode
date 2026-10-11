@@ -34,7 +34,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
   font-weight: 600;
   color: var(--tx-1);
@@ -50,7 +55,9 @@ a:hover {
   color: var(--c-primary-hover);
 }
 
-code, pre, .mono {
+code,
+pre,
+.mono {
   font-family: var(--font-mono);
 }
 
@@ -160,8 +167,9 @@ code, pre, .mono {
 .ant-picker {
   border-radius: var(--rd-md);
   border-color: var(--bd-base);
-  transition: border-color var(--dur-fast) var(--ease),
-              box-shadow var(--dur-fast) var(--ease);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .ant-input:hover,
@@ -359,8 +367,9 @@ code, pre, .mono {
   border-radius: var(--rd-lg);
   padding: var(--sp-5);
   box-shadow: var(--sd-xs);
-  transition: box-shadow var(--dur-base) var(--ease),
-              transform var(--dur-base) var(--ease);
+  transition:
+    box-shadow var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease);
 }
 
 .stat-card:hover {
@@ -382,21 +391,45 @@ code, pre, .mono {
   font-variant-numeric: tabular-nums;
 }
 
-.stat-card .value.success { color: var(--c-success); }
-.stat-card .value.error   { color: var(--c-error); }
-.stat-card .value.warning { color: var(--c-warning); }
-.stat-card .value.primary { color: var(--c-primary); }
+.stat-card .value.success {
+  color: var(--c-success);
+}
+.stat-card .value.error {
+  color: var(--c-error);
+}
+.stat-card .value.warning {
+  color: var(--c-warning);
+}
+.stat-card .value.primary {
+  color: var(--c-primary);
+}
 
 /* 文本工具 */
-.text-1 { color: var(--tx-1); }
-.text-2 { color: var(--tx-2); }
-.text-3 { color: var(--tx-3); }
-.text-4 { color: var(--tx-4); }
-.text-success { color: var(--c-success); }
-.text-error   { color: var(--c-error); }
-.text-warning { color: var(--c-warning); }
+.text-1 {
+  color: var(--tx-1);
+}
+.text-2 {
+  color: var(--tx-2);
+}
+.text-3 {
+  color: var(--tx-3);
+}
+.text-4 {
+  color: var(--tx-4);
+}
+.text-success {
+  color: var(--c-success);
+}
+.text-error {
+  color: var(--c-error);
+}
+.text-warning {
+  color: var(--c-warning);
+}
 
-.tabular { font-variant-numeric: tabular-nums; }
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
 
 /* 截断 */
 .ellipsis {

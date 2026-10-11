@@ -49,17 +49,13 @@
 
     <a-divider>环境管理</a-divider>
     <a-space>
-      <a-button @click="createEnv">
-        <plus-outlined />新建环境
-      </a-button>
+      <a-button @click="createEnv"> <plus-outlined />新建环境 </a-button>
       <a-popconfirm
         title="确认删除当前环境及其变量？"
         :disabled="!selectedEnvId"
         @confirm="deleteEnv"
       >
-        <a-button danger :disabled="!selectedEnvId">
-          <delete-outlined />删除环境
-        </a-button>
+        <a-button danger :disabled="!selectedEnvId"> <delete-outlined />删除环境 </a-button>
       </a-popconfirm>
     </a-space>
   </a-modal>
@@ -69,33 +65,33 @@
 /**
  * 调试弹窗：选择执行环境后发起用例调试，实时展示每个步骤的结果与提取到的变量。
  */
-import { computed, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import { EnvironmentApi, CaseApi } from '@/api'
-import type { Environment, KeyValueItem } from '@/types'
+import { computed, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { EnvironmentApi, CaseApi } from '@/api';
+import type { Environment, KeyValueItem } from '@/types';
 
-const props = defineProps<{ open: boolean; caseId: string; projectId: string }>()
+const props = defineProps<{ open: boolean; caseId: string; projectId: string }>();
 const emit = defineEmits<{
-  'update:open': [v: boolean]
-  finished: [caseId: string]
-}>()
+  'update:open': [v: boolean];
+  finished: [caseId: string];
+}>();
 
-const envs = ref<Environment[]>([])
-const envLoading = ref(false)
-const selectedEnvId = ref<string | undefined>()
-const currentVariables = ref<KeyValueItem[]>([])
-const running = ref(false)
+const envs = ref<Environment[]>([]);
+const envLoading = ref(false);
+const selectedEnvId = ref<string | undefined>();
+const currentVariables = ref<KeyValueItem[]>([]);
+const running = ref(false);
 
-const envOptions = computed(() => envs.value.map((e) => ({ value: e.id, label: e.name })))
+const envOptions = computed(() => envs.value.map((e) => ({ value: e.id, label: e.name })));
 
 async function loadEnvs() {
-  if (!props.projectId) return
-  envLoading.value = true
+  if (!props.projectId) return;
+  envLoading.value = true;
   try {
-    envs.value = await EnvironmentApi.list(props.projectId)
+    envs.value = await EnvironmentApi.list(props.projectId);
   } finally {
-    envLoading.value = false
+    envLoading.value = false;
   }
 }
 
@@ -103,68 +99,68 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
-      selectedEnvId.value = undefined
-      currentVariables.value = []
-      loadEnvs()
+      selectedEnvId.value = undefined;
+      currentVariables.value = [];
+      loadEnvs();
     }
-  }
-)
+  },
+);
 
 watch(selectedEnvId, (id) => {
-  const env = envs.value.find((e) => e.id === id)
-  currentVariables.value = env ? JSON.parse(JSON.stringify(env.variables || [])) : []
-})
+  const env = envs.value.find((e) => e.id === id);
+  currentVariables.value = env ? JSON.parse(JSON.stringify(env.variables || [])) : [];
+});
 
 function addVar() {
-  currentVariables.value.push({ key: '', value: '', enabled: true })
+  currentVariables.value.push({ key: '', value: '', enabled: true });
 }
 
 function removeVar(idx: number) {
-  currentVariables.value.splice(idx, 1)
+  currentVariables.value.splice(idx, 1);
 }
 
 async function createEnv() {
-  const name = window.prompt('请输入环境名称')
-  if (!name) return
+  const name = window.prompt('请输入环境名称');
+  if (!name) return;
   await EnvironmentApi.create({
     projectId: props.projectId,
     name,
     variables: [],
-    headers: []
-  } as Partial<Environment>)
-  await loadEnvs()
-  message.success('环境已创建')
+    headers: [],
+  } as Partial<Environment>);
+  await loadEnvs();
+  message.success('环境已创建');
 }
 
 async function deleteEnv() {
-  if (!selectedEnvId.value) return
-  await EnvironmentApi.remove(selectedEnvId.value)
-  selectedEnvId.value = undefined
-  currentVariables.value = []
-  await loadEnvs()
-  message.success('环境已删除')
+  if (!selectedEnvId.value) return;
+  await EnvironmentApi.remove(selectedEnvId.value);
+  selectedEnvId.value = undefined;
+  currentVariables.value = [];
+  await loadEnvs();
+  message.success('环境已删除');
 }
 
 async function run() {
   // 先保存变量到所选环境
   if (selectedEnvId.value) {
-    await EnvironmentApi.update(selectedEnvId.value, { variables: currentVariables.value })
+    await EnvironmentApi.update(selectedEnvId.value, { variables: currentVariables.value });
   }
-  running.value = true
+  running.value = true;
   try {
-    await CaseApi.debug(props.caseId, selectedEnvId.value)
-    message.success('调试完成')
-    close()
-    emit('finished', props.caseId)
+    await CaseApi.debug(props.caseId, selectedEnvId.value);
+    message.success('调试完成');
+    close();
+    emit('finished', props.caseId);
   } catch (e) {
     // 错误已由 axios 拦截器统一提示
   } finally {
-    running.value = false
+    running.value = false;
   }
 }
 
 function close() {
-  emit('update:open', false)
+  emit('update:open', false);
 }
 </script>
 

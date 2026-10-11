@@ -29,8 +29,8 @@
  * 使用 {@link createWebHashHistory}（路径以 # 开头），便于部署到任意路径（包括子目录）。
  * 生产环境如用 Nginx 反向代理，HTML 路由无需 server 配置。
  */
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 /** 路由表：path / name / component / meta */
 const routes: RouteRecordRaw[] = [
@@ -38,67 +38,170 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginPage.vue'),
-    meta: { public: true }                       // 不需登录
+    meta: { public: true }, // 不需登录
   },
   {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
-    redirect: '/projects',                       // 进入根路径自动跳到项目列表
+    redirect: '/projects', // 进入根路径自动跳到项目列表
     children: [
       { path: 'projects', name: 'projects', component: () => import('@/views/ProjectList.vue') },
-      { path: 'environments', name: 'environments', component: () => import('@/views/EnvironmentPage.vue') },
-      { path: 'environment-config', name: 'environment-config', component: () => import('@/views/EnvironmentConfigPage.vue') },
-      { path: 'workbench', name: 'workbench', component: () => import('@/views/Workbench.vue'), meta: { writeOnly: true } },
-      { path: 'recycle-bin', name: 'recycle-bin', component: () => import('@/views/RecycleBinPage.vue'), meta: { writeOnly: true } },
-      { path: 'global-variables', name: 'global-variables', component: () => import('@/views/GlobalVariablePage.vue'), meta: { writeOnly: true } },
-      { path: 'debug-records', name: 'debug-records', component: () => import('@/views/AuditLogPage.vue') },
-      { path: 'apis', name: 'apis', component: () => import('@/views/ApiList.vue'), meta: { writeOnly: true } },
-      { path: 'scenarios', name: 'scenarios', component: () => import('@/views/ScenarioList.vue'), meta: { writeOnly: true } },
-      { path: 'scenarios/:id', name: 'scenario-editor', component: () => import('@/views/ScenarioEditor.vue'), meta: { writeOnly: true } },
-      { path: 'tasks', name: 'tasks', component: () => import('@/views/TestExecutionPage.vue'), meta: { writeOnly: true } },
+      {
+        path: 'environments',
+        name: 'environments',
+        component: () => import('@/views/EnvironmentPage.vue'),
+      },
+      {
+        path: 'environment-config',
+        name: 'environment-config',
+        component: () => import('@/views/EnvironmentConfigPage.vue'),
+      },
+      {
+        path: 'workbench',
+        name: 'workbench',
+        component: () => import('@/views/Workbench.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'recycle-bin',
+        name: 'recycle-bin',
+        component: () => import('@/views/RecycleBinPage.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'global-variables',
+        name: 'global-variables',
+        component: () => import('@/views/GlobalVariablePage.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'debug-records',
+        name: 'debug-records',
+        component: () => import('@/views/AuditLogPage.vue'),
+      },
+      {
+        path: 'apis',
+        name: 'apis',
+        component: () => import('@/views/ApiList.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'scenarios',
+        name: 'scenarios',
+        component: () => import('@/views/ScenarioList.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'scenarios/:id',
+        name: 'scenario-editor',
+        component: () => import('@/views/ScenarioEditor.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'tasks',
+        name: 'tasks',
+        component: () => import('@/views/TestExecutionPage.vue'),
+        meta: { writeOnly: true },
+      },
       { path: 'reports', name: 'reports', component: () => import('@/views/ReportList.vue') },
-      { path: 'reports/:id', name: 'report-detail', component: () => import('@/views/TestReportPage.vue') },
+      {
+        path: 'reports/:id',
+        name: 'report-detail',
+        component: () => import('@/views/TestReportPage.vue'),
+      },
       { path: 'trend', name: 'trend', component: () => import('@/views/TrendPage.vue') },
-      { path: 'perf', name: 'perf', component: () => import('@/views/PerfCasePage.vue'), meta: { writeOnly: true } },
-      { path: 'perf/reports', name: 'perf-reports', component: () => import('@/views/PerfReportList.vue') },
-      { path: 'perf/reports/:id', name: 'perf-report-detail', component: () => import('@/views/PerfReportPage.vue') },
-      { path: 'ui', name: 'ui-tests', component: () => import('@/views/UiTestList.vue'), meta: { writeOnly: true } },
-      { path: 'ui/run', name: 'ui-run', component: () => import('@/views/UiScenarioList.vue'), meta: { writeOnly: true } },
-      { path: 'ui/:id', name: 'ui-test-editor', component: () => import('@/views/UiTestEditor.vue'), meta: { writeOnly: true } },
-      { path: 'ui/reports', name: 'ui-reports', component: () => import('@/views/UiReportList.vue') },
-      { path: 'ci/pipelines', name: 'ci-pipelines', component: () => import('@/views/CiPipelineList.vue'), meta: { writeOnly: true } },
-      { path: 'ci/jenkins', name: 'ci-jenkins', component: () => import('@/views/JenkinsServerPage.vue'), meta: { adminOnly: true } },
-      { path: 'users', name: 'users', component: () => import('@/views/UserManagement.vue'), meta: { adminOnly: true } },
-      { path: 'audit-logs', name: 'audit-logs', component: () => import('@/views/AuditLogPage.vue'), meta: { adminOnly: true } }
-    ]
+      {
+        path: 'perf',
+        name: 'perf',
+        component: () => import('@/views/PerfCasePage.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'perf/reports',
+        name: 'perf-reports',
+        component: () => import('@/views/PerfReportList.vue'),
+      },
+      {
+        path: 'perf/reports/:id',
+        name: 'perf-report-detail',
+        component: () => import('@/views/PerfReportPage.vue'),
+      },
+      {
+        path: 'ui',
+        name: 'ui-tests',
+        component: () => import('@/views/UiTestList.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'ui/run',
+        name: 'ui-run',
+        component: () => import('@/views/UiScenarioList.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'ui/:id',
+        name: 'ui-test-editor',
+        component: () => import('@/views/UiTestEditor.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'ui/reports',
+        name: 'ui-reports',
+        component: () => import('@/views/UiReportList.vue'),
+      },
+      {
+        path: 'ci/pipelines',
+        name: 'ci-pipelines',
+        component: () => import('@/views/CiPipelineList.vue'),
+        meta: { writeOnly: true },
+      },
+      {
+        path: 'ci/jenkins',
+        name: 'ci-jenkins',
+        component: () => import('@/views/JenkinsServerPage.vue'),
+        meta: { adminOnly: true },
+      },
+      {
+        path: 'users',
+        name: 'users',
+        component: () => import('@/views/UserManagement.vue'),
+        meta: { adminOnly: true },
+      },
+      {
+        path: 'audit-logs',
+        name: 'audit-logs',
+        component: () => import('@/views/AuditLogPage.vue'),
+        meta: { adminOnly: true },
+      },
+    ],
   },
   // 兜底：未匹配路径跳回首页
-  { path: '/:pathMatch(.*)*', redirect: '/' }
-]
+  { path: '/:pathMatch(.*)*', redirect: '/' },
+];
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
-})
+  routes,
+});
 
 /**
  * 全局前置守卫：登录态 + 管理员权限校验。
  */
 router.beforeEach((to, _from, next) => {
-  const auth = useAuthStore()
+  const auth = useAuthStore();
   // 公开页面直接放行
   if (to.meta.public) {
-    return next()
+    return next();
   }
   // 未登录跳登录页（带 redirect 用于登录后跳回）
   if (!auth.token) {
-    return next({ name: 'login', query: { redirect: to.fullPath } })
+    return next({ name: 'login', query: { redirect: to.fullPath } });
   }
   // 管理员专属页面：非管理员跳项目列表
   if (to.meta.adminOnly && !auth.isAdmin()) {
-    return next({ name: 'projects' })
+    return next({ name: 'projects' });
   }
-  return next()
-})
+  return next();
+});
 
-export default router
+export default router;

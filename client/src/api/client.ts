@@ -16,34 +16,34 @@
 import axios, {
   type AxiosInstance,
   type AxiosRequestConfig,
-  type InternalAxiosRequestConfig
-} from 'axios'
-import { API_CODE, LOGIN_ROUTE_PATH } from '@/constants'
+  type InternalAxiosRequestConfig,
+} from 'axios';
+import { API_CODE, LOGIN_ROUTE_PATH } from '@/constants';
 
 /**
  * 后端 API 前缀：优先取构建期环境变量 VITE_API_BASE，未配置时回退到开发约定 /api/v1。
  * 部署到子路径 / 独立域名时只需改环境变量，无需改代码。
  */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE || '/api/v1'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE || '/api/v1';
 
 /** 请求超时（毫秒）：可由 VITE_API_TIMEOUT 覆盖 */
-export const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT) || 60_000
+export const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT) || 60_000;
 
 const instance: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,   // 由 vite.config.ts 的 server.proxy 转发到后端 8080
-  timeout: API_TIMEOUT     // 性能测试 / 大文件下载可单独覆盖
-})
+  baseURL: API_BASE_URL, // 由 vite.config.ts 的 server.proxy 转发到后端 8080
+  timeout: API_TIMEOUT, // 性能测试 / 大文件下载可单独覆盖
+});
 
 /**
  * 请求拦截器：自动注入 JWT。
  */
 instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('token');
   if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return config
-})
+  return config;
+});
 
 /**
  * 清空本地登录态并跳转登录页（带 redirect，登录后回到原页面）。
@@ -51,15 +51,14 @@ instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
  * <p>已在登录页时只清理凭证、不再跳转，避免打断用户正在输入的账号密码。</p>
  */
 function redirectToLogin(): void {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  const loginHash = '#' + LOGIN_ROUTE_PATH
-  if (window.location.hash.startsWith(loginHash)) return
-  const current = window.location.hash.replace(/^#/, '')
-  const redirect = current && current !== LOGIN_ROUTE_PATH
-    ? `?redirect=${encodeURIComponent(current)}`
-    : ''
-  window.location.href = `${import.meta.env.BASE_URL}${loginHash}${redirect}`
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  const loginHash = '#' + LOGIN_ROUTE_PATH;
+  if (window.location.hash.startsWith(loginHash)) return;
+  const current = window.location.hash.replace(/^#/, '');
+  const redirect =
+    current && current !== LOGIN_ROUTE_PATH ? `?redirect=${encodeURIComponent(current)}` : '';
+  window.location.href = `${import.meta.env.BASE_URL}${loginHash}${redirect}`;
 }
 
 /**
@@ -75,33 +74,33 @@ function redirectToLogin(): void {
  */
 instance.interceptors.response.use(
   (response) => {
-    const data = response.data
+    const data = response.data;
     if (data && typeof data === 'object' && 'code' in data) {
       if (data.code === API_CODE.SUCCESS) {
-        return data.data
+        return data.data;
       }
       if (data.code === API_CODE.UNAUTHORIZED) {
         // 登录态失效：清理凭证并回登录页
-        redirectToLogin()
-        throw new Error(data.message || '登录已过期，请重新登录')
+        redirectToLogin();
+        throw new Error(data.message || '登录已过期，请重新登录');
       }
       // 1006 等其它业务码：原样抛出，由调用方（如登录页）展示真实原因
-      throw new Error(data.message || `请求失败(code=${data.code})`)
+      throw new Error(data.message || `请求失败(code=${data.code})`);
     }
     // 非 Result 格式（如文件下载、二进制流）原样返回
-    return data
+    return data;
   },
   (error) => {
     // 鉴权拦截器直接返回 HTTP 401（未经过 Result 包装层）时，同样按登录态失效处理
     if (error.response?.status === 401) {
-      redirectToLogin()
-      throw new Error(error.response?.data?.message || '登录已过期，请重新登录')
+      redirectToLogin();
+      throw new Error(error.response?.data?.message || '登录已过期，请重新登录');
     }
     // 网络异常 / HTTP 5xx / 业务异常 code
-    const message = error.response?.data?.message || error.message
-    return Promise.reject(new Error(message))
-  }
-)
+    const message = error.response?.data?.message || error.message;
+    return Promise.reject(new Error(message));
+  },
+);
 
 /**
  * 类型化的 HTTP 客户端接口。
@@ -115,17 +114,17 @@ instance.interceptors.response.use(
  * 纯类型层面修正，运行时行为零变化。
  */
 export interface HttpClient {
-  request<T = any>(config: AxiosRequestConfig): Promise<T>
-  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
-  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
-  head<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
-  options<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
-  post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
-  put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
-  patch<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+  request<T = any>(config: AxiosRequestConfig): Promise<T>;
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  head<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  options<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  patch<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
 }
 
 /** 已按 {@link HttpClient} 语义修正类型的单例（拦截器完成解包）。 */
-const http = instance as unknown as HttpClient
+const http = instance as unknown as HttpClient;
 
-export default http
+export default http;

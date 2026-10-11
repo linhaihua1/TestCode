@@ -26,17 +26,21 @@
 <template>
   <div class="three-pane-layout" :class="{ dragging }">
     <!-- 左侧面板 -->
-    <aside class="pane pane-left" :class="{ 'pane--collapsed': widths.leftCollapsed }" :style="leftStyle">
+    <aside
+      class="pane pane-left"
+      :class="{ 'pane--collapsed': widths.leftCollapsed }"
+      :style="leftStyle"
+    >
       <div class="pane-header">
         <span v-if="widths.leftCollapsed" class="pane-icon">📁</span>
         <template v-else>
           <span class="pane-title">{{ leftTitle || '左侧' }}</span>
-          <button class="pane-toggle" @click="toggleLeft" title="折叠">
+          <button class="pane-toggle" title="折叠" @click="toggleLeft">
             <LeftOutlined />
           </button>
         </template>
       </div>
-      <div v-if="widths.leftCollapsed" class="pane-rail" @click="toggleLeft" title="展开">
+      <div v-if="widths.leftCollapsed" class="pane-rail" title="展开" @click="toggleLeft">
         <span class="pane-icon">📁</span>
       </div>
       <div v-else class="pane-body">
@@ -45,11 +49,7 @@
     </aside>
 
     <!-- 左侧拖拽手柄 -->
-    <div
-      v-if="!widths.leftCollapsed"
-      class="pane-resizer"
-      @mousedown="startDrag('left', $event)"
-    />
+    <div v-if="!widths.leftCollapsed" class="pane-resizer" @mousedown="startDrag('left', $event)" />
 
     <!-- 中间面板 -->
     <main class="pane pane-middle" :style="middleStyle">
@@ -69,17 +69,21 @@
     />
 
     <!-- 右侧面板 -->
-    <aside class="pane pane-right" :class="{ 'pane--collapsed': widths.rightCollapsed }" :style="rightStyle">
+    <aside
+      class="pane pane-right"
+      :class="{ 'pane--collapsed': widths.rightCollapsed }"
+      :style="rightStyle"
+    >
       <div class="pane-header">
         <span v-if="widths.rightCollapsed" class="pane-icon">📡</span>
         <template v-else>
           <span class="pane-title">{{ rightTitle || '右侧' }}</span>
-          <button class="pane-toggle" @click="toggleRight" title="折叠">
+          <button class="pane-toggle" title="折叠" @click="toggleRight">
             <RightOutlined />
           </button>
         </template>
       </div>
-      <div v-if="widths.rightCollapsed" class="pane-rail" @click="toggleRight" title="展开">
+      <div v-if="widths.rightCollapsed" class="pane-rail" title="展开" @click="toggleRight">
         <span class="pane-icon">📡</span>
       </div>
       <div v-else class="pane-body">
@@ -96,108 +100,108 @@
  * <p>拖拽通过监听 document 的 mousemove/mouseup 实现，结束后立即解绑，避免内存泄漏；
  * 左右栏有最小宽度限制，中间栏保证不小于 400px。</p>
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons-vue'
+import { computed, onMounted, ref, watch } from 'vue';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons-vue';
 
 interface PaneWidths {
-  left: number
-  right: number
-  leftCollapsed: boolean
-  rightCollapsed: boolean
+  left: number;
+  right: number;
+  leftCollapsed: boolean;
+  rightCollapsed: boolean;
 }
 
 const DEFAULTS: PaneWidths = {
   left: 300,
   right: 350,
   leftCollapsed: false,
-  rightCollapsed: false
-}
+  rightCollapsed: false,
+};
 
-const MIN_LEFT = 220
-const MIN_RIGHT = 280
+const MIN_LEFT = 220;
+const MIN_RIGHT = 280;
 
 const props = defineProps<{
-  storageKey: string
-  leftTitle?: string
-  middleTitle?: string
-  rightTitle?: string
-}>()
+  storageKey: string;
+  leftTitle?: string;
+  middleTitle?: string;
+  rightTitle?: string;
+}>();
 
-const widths = ref<PaneWidths>({ ...DEFAULTS })
-const dragging = ref<'' | 'left' | 'right'>('')
+const widths = ref<PaneWidths>({ ...DEFAULTS });
+const dragging = ref<'' | 'left' | 'right'>('');
 
 function loadWidths() {
   try {
-    const raw = localStorage.getItem(props.storageKey)
+    const raw = localStorage.getItem(props.storageKey);
     if (raw) {
-      const parsed = JSON.parse(raw)
+      const parsed = JSON.parse(raw);
       widths.value = {
         left: typeof parsed.left === 'number' ? parsed.left : DEFAULTS.left,
         right: typeof parsed.right === 'number' ? parsed.right : DEFAULTS.right,
         leftCollapsed: !!parsed.leftCollapsed,
-        rightCollapsed: !!parsed.rightCollapsed
-      }
+        rightCollapsed: !!parsed.rightCollapsed,
+      };
     }
   } catch (e) {
-    console.warn('[ThreePaneLayout] 读取 localStorage 失败', e)
+    console.warn('[ThreePaneLayout] 读取 localStorage 失败', e);
   }
 }
 
 function persistWidths() {
   try {
-    localStorage.setItem(props.storageKey, JSON.stringify(widths.value))
+    localStorage.setItem(props.storageKey, JSON.stringify(widths.value));
   } catch (e) {
-    console.warn('[ThreePaneLayout] 写入 localStorage 失败', e)
+    console.warn('[ThreePaneLayout] 写入 localStorage 失败', e);
   }
 }
 
-onMounted(loadWidths)
-watch(widths, persistWidths, { deep: true })
+onMounted(loadWidths);
+watch(widths, persistWidths, { deep: true });
 
 const leftStyle = computed(() => ({
   width: widths.value.leftCollapsed ? '32px' : `${widths.value.left}px`,
-  flex: '0 0 auto'
-}))
+  flex: '0 0 auto',
+}));
 
 const rightStyle = computed(() => ({
   width: widths.value.rightCollapsed ? '32px' : `${widths.value.right}px`,
-  flex: '0 0 auto'
-}))
+  flex: '0 0 auto',
+}));
 
 const middleStyle = computed(() => ({
   flex: '1 1 auto',
-  minWidth: '400px'
-}))
+  minWidth: '400px',
+}));
 
 function startDrag(side: 'left' | 'right', e: MouseEvent) {
-  dragging.value = side
-  e.preventDefault()
-  const startX = e.clientX
-  const startLeft = widths.value.left
-  const startRight = widths.value.right
+  dragging.value = side;
+  e.preventDefault();
+  const startX = e.clientX;
+  const startLeft = widths.value.left;
+  const startRight = widths.value.right;
 
   function onMove(ev: MouseEvent) {
-    const dx = ev.clientX - startX
+    const dx = ev.clientX - startX;
     if (side === 'left') {
-      widths.value.left = Math.max(MIN_LEFT, startLeft + dx)
+      widths.value.left = Math.max(MIN_LEFT, startLeft + dx);
     } else {
-      widths.value.right = Math.max(MIN_RIGHT, startRight - dx)
+      widths.value.right = Math.max(MIN_RIGHT, startRight - dx);
     }
   }
   function onUp() {
-    dragging.value = ''
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
+    dragging.value = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
   }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 }
 
 function toggleLeft() {
-  widths.value = { ...widths.value, leftCollapsed: !widths.value.leftCollapsed }
+  widths.value = { ...widths.value, leftCollapsed: !widths.value.leftCollapsed };
 }
 function toggleRight() {
-  widths.value = { ...widths.value, rightCollapsed: !widths.value.rightCollapsed }
+  widths.value = { ...widths.value, rightCollapsed: !widths.value.rightCollapsed };
 }
 </script>
 
@@ -270,8 +274,9 @@ function toggleRight() {
   border: none;
   border-radius: var(--rd-sm);
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease),
-              background var(--dur-fast) var(--ease);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 
 .pane-toggle:hover {

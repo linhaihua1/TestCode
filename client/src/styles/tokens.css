@@ -24,10 +24,10 @@
 
 :root {
   /* ---------------- 品牌主色 ---------------- */
-  --c-primary: #2563eb;          /* 主色：比 antd 默认 #1890ff 更沉稳，对比度更好 */
+  --c-primary: #2563eb; /* 主色：比 antd 默认 #1890ff 更沉稳，对比度更好 */
   --c-primary-hover: #3b82f6;
   --c-primary-active: #1d4ed8;
-  --c-primary-bg: #eff6ff;       /* 主色浅底（标签、选中行） */
+  --c-primary-bg: #eff6ff; /* 主色浅底（标签、选中行） */
   --c-primary-border: #bfdbfe;
 
   /* ---------------- 语义色 ---------------- */
@@ -48,37 +48,37 @@
   --c-info-border: #a5f3fc;
 
   /* ---------------- 导航（深色区） ---------------- */
-  --nav-bg: #0f172a;              /* 墨蓝黑，比 #001529 更中性 */
+  --nav-bg: #0f172a; /* 墨蓝黑，比 #001529 更中性 */
   --nav-bg-hover: #1e293b;
   --nav-bg-active: #1e40af;
-  --nav-text: #cbd5e1;            /* 未选中：浅灰蓝，可读性优于纯白 */
+  --nav-text: #cbd5e1; /* 未选中：浅灰蓝，可读性优于纯白 */
   --nav-text-strong: #f8fafc;
   --nav-text-dim: #94a3b8;
   --nav-border: #1e293b;
-  --nav-h: 52px;                  /* 导航栏高度 */
+  --nav-h: 52px; /* 导航栏高度 */
 
   /* ---------------- 全局配置栏 ---------------- */
   --confbar-bg: #ffffff;
   --confbar-h: 44px;
 
   /* ---------------- 背景层次 ---------------- */
-  --bg-page: #f1f5f9;             /* 页面底：浅灰蓝，衬托白卡片 */
+  --bg-page: #f1f5f9; /* 页面底：浅灰蓝，衬托白卡片 */
   --bg-card: #ffffff;
-  --bg-subtle: #f8fafc;           /* 次级底：表头、条纹 */
+  --bg-subtle: #f8fafc; /* 次级底：表头、条纹 */
   --bg-hover: #f1f5f9;
   --bg-active: var(--c-primary-bg);
   --bg-mask: rgba(15, 23, 42, 0.45);
 
   /* ---------------- 边框 ---------------- */
-  --bd-base: #e2e8f0;             /* 常规边框 */
-  --bd-strong: #cbd5e1;           /* 强调边框（输入框 hover） */
-  --bd-subtle: #f1f5f9;           /* 极浅分隔线 */
+  --bd-base: #e2e8f0; /* 常规边框 */
+  --bd-strong: #cbd5e1; /* 强调边框（输入框 hover） */
+  --bd-subtle: #f1f5f9; /* 极浅分隔线 */
 
   /* ---------------- 文字 ---------------- */
-  --tx-1: #0f172a;                /* 一级：标题 */
-  --tx-2: #334155;                /* 二级：正文 */
-  --tx-3: #64748b;                /* 三级：辅助说明 */
-  --tx-4: #94a3b8;                /* 四级：占位/禁用 */
+  --tx-1: #0f172a; /* 一级：标题 */
+  --tx-2: #334155; /* 二级：正文 */
+  --tx-3: #64748b; /* 三级：辅助说明 */
+  --tx-4: #94a3b8; /* 四级：占位/禁用 */
   --tx-inverse: #ffffff;
 
   /* ---------------- 间距（4px 基准） ---------------- */
@@ -103,13 +103,14 @@
   --sd-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --sd-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --sd-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --sd-lg: 0 8px 24px rgba(15, 23, 42, 0.10);
+  --sd-lg: 0 8px 24px rgba(15, 23, 42, 0.1);
   --sd-xl: 0 16px 48px rgba(15, 23, 42, 0.14);
   --sd-focus: 0 0 0 3px rgba(37, 99, 235, 0.15);
 
   /* ---------------- 字体 ---------------- */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-               'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Courier New', monospace;
   --fs-xs: 12px;
   --fs-sm: 13px;

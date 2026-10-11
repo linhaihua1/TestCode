@@ -16,8 +16,8 @@
         v-model:value="keyword"
         placeholder="搜索用例（Ctrl+F）"
         size="small"
-        @search="reloadCases"
         style="flex: 1"
+        @search="reloadCases"
       />
       <a-button v-can-write size="small" type="primary" @click="openCreate">
         <plus-outlined />新建
@@ -51,12 +51,7 @@
           style="width: 100%; margin-bottom: 6px"
           @change="reloadCases"
         />
-        <a-list
-          :data-source="cases"
-          :loading="loading"
-          size="small"
-          class="case-list"
-        >
+        <a-list :data-source="cases" :loading="loading" size="small" class="case-list">
           <template #renderItem="{ item }">
             <a-list-item
               class="case-item"
@@ -79,7 +74,7 @@
               </a-list-item-meta>
             </a-list-item>
           </template>
-          <template #footer v-if="!cases.length && !loading">
+          <template v-if="!cases.length && !loading" #footer>
             <a-empty description="暂无用例" />
           </template>
         </a-list>
@@ -87,12 +82,7 @@
     </a-tabs>
 
     <!-- 新建用例弹窗 -->
-    <a-modal
-      v-model:open="createOpen"
-      title="新建用例"
-      @ok="create"
-      width="480"
-    >
+    <a-modal v-model:open="createOpen" title="新建用例" width="480" @ok="create">
       <a-form layout="vertical">
         <a-form-item label="名称" required>
           <a-input v-model:value="form.name" />
@@ -101,10 +91,7 @@
           <a-select v-model:value="form.priority" :options="priorityOptions" />
         </a-form-item>
         <a-form-item label="描述">
-          <a-textarea
-            v-model:value="form.description"
-            :auto-size="{ minRows: 2, maxRows: 4 }"
-          />
+          <a-textarea v-model:value="form.description" :auto-size="{ minRows: 2, maxRows: 4 }" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -118,116 +105,113 @@
  * <p>交互：选中目录自动切到"列表"页签并重新加载；点击用例通过 emit('open') 交给父组件
  * （Workbench）载入右侧编辑器。目录树用 VirtualTree 渲染，避免大量节点卡顿。</p>
  */
-import { onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, FolderAddOutlined } from '@ant-design/icons-vue'
-import { CaseApi, ModuleApi } from '@/api'
+import { onMounted, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
+import { PlusOutlined, FolderAddOutlined } from '@ant-design/icons-vue';
+import { CaseApi, ModuleApi } from '@/api';
 import {
   CASE_STATUS_FILTER_OPTIONS,
   PRIORITY_OPTIONS,
   caseStatusColor,
-  caseStatusLabel
-} from '@/constants'
-import type { CaseInfo, ModuleNode } from '@/types'
-import VirtualTree from '@/components/VirtualTree.vue'
+  caseStatusLabel,
+} from '@/constants';
+import type { CaseInfo, ModuleNode } from '@/types';
+import VirtualTree from '@/components/VirtualTree.vue';
 
 const props = defineProps<{
-  projectId: string
-  currentCaseId?: string
-}>()
+  projectId: string;
+  currentCaseId?: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'open', c: CaseInfo): void
-}>()
+  (e: 'open', c: CaseInfo): void;
+}>();
 
-const keyword = ref('')
+const keyword = ref('');
 /** 状态筛选：all 表示不过滤 */
-const statusFilter = ref<string>('all')
+const statusFilter = ref<string>('all');
 /** 左栏页签：tree=目录树 / list=用例列表 */
-const activeTab = ref<'tree' | 'list'>('list')
+const activeTab = ref<'tree' | 'list'>('list');
 
-const moduleTree = ref<ModuleNode[]>([])
+const moduleTree = ref<ModuleNode[]>([]);
 /** 当前选中的目录节点 key；空串表示全部 */
-const selectedModuleKey = ref<string>('')
+const selectedModuleKey = ref<string>('');
 
-const cases = ref<CaseInfo[]>([])
-const loading = ref(false)
+const cases = ref<CaseInfo[]>([]);
+const loading = ref(false);
 
-const createOpen = ref(false)
+const createOpen = ref(false);
 /** 新建用例表单 */
 const form = reactive<Partial<CaseInfo>>({
   name: '',
   priority: 'P2',
-  description: ''
-})
+  description: '',
+});
 
-const statusOptions = [
-  { label: '全部', value: 'all' },
-  ...CASE_STATUS_FILTER_OPTIONS
-]
-const priorityOptions = PRIORITY_OPTIONS
+const statusOptions = [{ label: '全部', value: 'all' }, ...CASE_STATUS_FILTER_OPTIONS];
+const priorityOptions = PRIORITY_OPTIONS;
 
 function statusLabel(s: string | undefined) {
-  return caseStatusLabel(s)
+  return caseStatusLabel(s);
 }
 
 function statusColor(s: string | undefined) {
-  return caseStatusColor(s)
+  return caseStatusColor(s);
 }
 
 /** 加载用例目录树 */
 async function loadModules() {
-  if (!props.projectId) return
-  moduleTree.value = await ModuleApi.tree(props.projectId, 'case')
+  if (!props.projectId) return;
+  moduleTree.value = await ModuleApi.tree(props.projectId, 'case');
 }
 
 /** 按关键字 + 目录 + 状态重新拉取用例列表 */
 async function reloadCases() {
-  if (!props.projectId) return
-  loading.value = true
+  if (!props.projectId) return;
+  loading.value = true;
   try {
-    const params: any = { projectId: props.projectId, keyword: keyword.value || undefined }
-    if (selectedModuleKey.value) params.moduleId = selectedModuleKey.value
-    if (statusFilter.value && statusFilter.value !== 'all') params.status = statusFilter.value
-    cases.value = await CaseApi.list(params)
+    const params: any = { projectId: props.projectId, keyword: keyword.value || undefined };
+    if (selectedModuleKey.value) params.moduleId = selectedModuleKey.value;
+    if (statusFilter.value && statusFilter.value !== 'all') params.status = statusFilter.value;
+    cases.value = await CaseApi.list(params);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function onModuleSelect(key: string) {
-  selectedModuleKey.value = key
-  activeTab.value = 'list'
-  reloadCases()
+  selectedModuleKey.value = key;
+  activeTab.value = 'list';
+  reloadCases();
 }
 
 /** 在当前选中目录下新建子模块（未选中则建在根级） */
 async function createModule() {
-  const name = prompt('模块名称')
-  if (!name) return
+  const name = prompt('模块名称');
+  if (!name) return;
   await ModuleApi.create({
     projectId: props.projectId,
     parentId: selectedModuleKey.value || null,
     name,
     type: 'case',
-    sortOrder: 0
-  })
-  await loadModules()
-  message.success('已创建模块')
+    sortOrder: 0,
+  });
+  await loadModules();
+  message.success('已创建模块');
 }
 
 function openCreate() {
-  form.name = ''
-  form.priority = 'P2'
-  form.description = ''
-  createOpen.value = true
+  form.name = '';
+  form.priority = 'P2';
+  form.description = '';
+  createOpen.value = true;
 }
 
 /** 新建用例：固定初始状态为 draft，步骤为空数组，保存后由用户继续编排 */
 async function create() {
   if (!form.name?.trim()) {
-    message.warning('用例名称不能为空')
-    return
+    message.warning('用例名称不能为空');
+    return;
   }
   await CaseApi.create({
     projectId: props.projectId,
@@ -237,23 +221,27 @@ async function create() {
     description: form.description,
     status: 'draft',
     tags: [],
-    steps: []
-  } as Partial<CaseInfo>)
-  createOpen.value = false
-  await reloadCases()
-  message.success('用例已创建')
+    steps: [],
+  } as Partial<CaseInfo>);
+  createOpen.value = false;
+  await reloadCases();
+  message.success('用例已创建');
 }
 
-watch(() => props.projectId, () => {
-  selectedModuleKey.value = ''
-  loadModules()
-  reloadCases()
-}, { immediate: false })
+watch(
+  () => props.projectId,
+  () => {
+    selectedModuleKey.value = '';
+    loadModules();
+    reloadCases();
+  },
+  { immediate: false },
+);
 
 onMounted(async () => {
-  await loadModules()
-  await reloadCases()
-})
+  await loadModules();
+  await reloadCases();
+});
 </script>
 
 <style scoped>

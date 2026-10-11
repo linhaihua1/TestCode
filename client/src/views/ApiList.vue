@@ -21,33 +21,38 @@
         accept=".json,.yaml,.yml"
         :before-upload="handleSwaggerFile"
       >
-        <a-button v-can-write>
-          <import-outlined />导入 Swagger
-        </a-button>
+        <a-button v-can-write> <import-outlined />导入 Swagger </a-button>
       </a-upload>
     </div>
 
     <!-- 搜索 + 筛选 -->
     <div class="filter-bar">
-      <a-input-search v-model:value="keyword" placeholder="搜索" style="width: 240px" @search="reload" />
-      <a-select v-model:value="methodFilter" :options="methodOptions" style="width: 120px" @change="reload" />
+      <a-input-search
+        v-model:value="keyword"
+        placeholder="搜索"
+        style="width: 240px"
+        @search="reload"
+      />
+      <a-select
+        v-model:value="methodFilter"
+        :options="methodOptions"
+        style="width: 120px"
+        @change="reload"
+      />
     </div>
 
     <!-- 表格卡片 -->
     <div class="panel">
-      <a-table
-        :data-source="apis"
-        :columns="columns"
-        row-key="id"
-        :loading="loading"
-      >
+      <a-table :data-source="apis" :columns="columns" row-key="id" :loading="loading">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'method'">
             <a-tag :color="methodColor(record.method)">{{ record.method }}</a-tag>
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button v-can-write size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button v-can-write size="small" type="link" @click="openEdit(record)"
+                >编辑</a-button
+              >
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
                 <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
@@ -57,12 +62,7 @@
       </a-table>
     </div>
 
-    <a-modal
-      v-model:open="modal"
-      :title="form.id ? '编辑接口' : '新建接口'"
-      @ok="save"
-      width="800"
-    >
+    <a-modal v-model:open="modal" :title="form.id ? '编辑接口' : '新建接口'" width="800" @ok="save">
       <a-form layout="vertical">
         <a-row :gutter="8">
           <a-col :span="4">
@@ -97,31 +97,31 @@
 /**
  * 接口定义列表页：接口资产的增删改查，以及 Excel 模板下载与 Swagger 导入。
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
 import {
   PlusOutlined,
   FileExcelOutlined,
   FileTextOutlined,
-  ImportOutlined
-} from '@ant-design/icons-vue'
-import * as XLSX from 'xlsx'
-import { ApiApi } from '@/api'
-import { useProjectStore } from '@/stores/project'
-import { HTTP_METHOD_FILTER_OPTIONS, httpMethodColor } from '@/constants'
-import type { ApiDefinition, KeyValueItem } from '@/types'
-import KeyValueEditor from '@/components/KeyValueEditor.vue'
-import Monaco from '@/components/Monaco.vue'
+  ImportOutlined,
+} from '@ant-design/icons-vue';
+import * as XLSX from 'xlsx';
+import { ApiApi } from '@/api';
+import { useProjectStore } from '@/stores/project';
+import { HTTP_METHOD_FILTER_OPTIONS, httpMethodColor } from '@/constants';
+import type { ApiDefinition, KeyValueItem } from '@/types';
+import KeyValueEditor from '@/components/KeyValueEditor.vue';
+import Monaco from '@/components/Monaco.vue';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const apis = ref<ApiDefinition[]>([])
-const loading = ref(false)
-const keyword = ref('')
-const methodFilter = ref<string>()
+const apis = ref<ApiDefinition[]>([]);
+const loading = ref(false);
+const keyword = ref('');
+const methodFilter = ref<string>();
 
-const modal = ref(false)
+const modal = ref(false);
 
 /**
  * 接口新建 / 编辑表单模型。
@@ -130,14 +130,14 @@ const modal = ref(false)
  * KeyValueEditor（要求数组），若声明成可选会产生 undefined 分支。
  */
 interface ApiForm {
-  id?: string
-  method: string
-  name: string
-  path: string
-  headers: KeyValueItem[]
-  query: KeyValueItem[]
-  body: string
-  tags: string[]
+  id?: string;
+  method: string;
+  name: string;
+  path: string;
+  headers: KeyValueItem[];
+  query: KeyValueItem[];
+  body: string;
+  tags: string[];
 }
 
 const form = reactive<ApiForm>({
@@ -147,36 +147,36 @@ const form = reactive<ApiForm>({
   headers: [],
   query: [],
   body: '',
-  tags: []
-})
+  tags: [],
+});
 
 /** 方法筛选选项（含"全部"），来源统一到 constants */
-const methodOptions = HTTP_METHOD_FILTER_OPTIONS
+const methodOptions = HTTP_METHOD_FILTER_OPTIONS;
 
 const columns = [
   { title: '方法', key: 'method', width: 80 },
   { title: '路径', dataIndex: 'path' },
   { title: '名称', dataIndex: 'name' },
   { title: '标签', key: 'tags' },
-  { title: '操作', key: 'action', width: 140 }
-]
+  { title: '操作', key: 'action', width: 140 },
+];
 
 /** 方法标签颜色：统一走 constants，避免多页面各写一份映射 */
 function methodColor(m: string) {
-  return httpMethodColor(m)
+  return httpMethodColor(m);
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
     apis.value = await ApiApi.list({
       projectId: projectId.value,
       keyword: keyword.value,
-      method: methodFilter.value
-    })
+      method: methodFilter.value,
+    });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -189,35 +189,35 @@ function openCreate() {
     headers: [],
     query: [],
     body: '',
-    tags: []
-  })
-  modal.value = true
+    tags: [],
+  });
+  modal.value = true;
 }
 
 function openEdit(record: ApiDefinition) {
   // body 在 ApiDefinition 中可选，补齐为 ''，避免 Monaco 绑定 undefined
-  Object.assign(form, record, { body: record.body ?? '', tags: record.tags ?? [] })
-  modal.value = true
+  Object.assign(form, record, { body: record.body ?? '', tags: record.tags ?? [] });
+  modal.value = true;
 }
 
 async function save() {
   if (!form.name || !form.path) {
-    message.warning('请填写名称与路径')
-    return
+    message.warning('请填写名称与路径');
+    return;
   }
   if (form.id) {
-    await ApiApi.update(form.id, form)
+    await ApiApi.update(form.id, form);
   } else {
-    await ApiApi.create({ ...form, projectId: projectId.value })
+    await ApiApi.create({ ...form, projectId: projectId.value });
   }
-  message.success('已保存')
-  modal.value = false
-  await reload()
+  message.success('已保存');
+  modal.value = false;
+  await reload();
 }
 
 async function remove(record: ApiDefinition) {
-  await ApiApi.remove(record.id)
-  await reload()
+  await ApiApi.remove(record.id);
+  await reload();
 }
 
 /* ---------------- 示例下载（Excel 模板 / Swagger 示例） ---------------- */
@@ -234,14 +234,20 @@ const SWAGGER_EXAMPLE = {
         tags: ['用户管理'],
         summary: '获取用户列表',
         parameters: [
-          { name: 'page', in: 'query', required: false, schema: { type: 'integer' }, description: '页码' }
+          {
+            name: 'page',
+            in: 'query',
+            required: false,
+            schema: { type: 'integer' },
+            description: '页码',
+          },
         ],
         responses: {
           '200': {
             description: '成功',
-            content: { 'application/json': { example: { code: 0, data: [] } } }
-          }
-        }
+            content: { 'application/json': { example: { code: 0, data: [] } } },
+          },
+        },
       },
       post: {
         tags: ['用户管理'],
@@ -251,36 +257,42 @@ const SWAGGER_EXAMPLE = {
           content: {
             'application/json': {
               schema: { type: 'object' },
-              example: { name: '张三', email: 'zhangsan@example.com' }
-            }
-          }
+              example: { name: '张三', email: 'zhangsan@example.com' },
+            },
+          },
         },
-        responses: { '200': { description: '成功' } }
-      }
+        responses: { '200': { description: '成功' } },
+      },
     },
     '/users/{id}': {
       get: {
         tags: ['用户管理'],
         summary: '获取用户详情',
         parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: '用户 ID' }
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: '用户 ID',
+          },
         ],
-        responses: { '200': { description: '成功' } }
-      }
-    }
-  }
-}
+        responses: { '200': { description: '成功' } },
+      },
+    },
+  },
+};
 
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
-  const blob = new Blob([content], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /** 下载 Excel 导入模板（格式：请求方式 | URL，含示例行） */
@@ -291,47 +303,50 @@ function downloadExcelExample() {
     ['POST', '/api/v1/users', '创建用户'],
     ['PUT', '/api/v1/users/{id}', '更新用户'],
     ['DELETE', '/api/v1/users/{id}', '删除用户'],
-    ['PATCH', '/api/v1/users/{id}', '部分更新用户']
-  ]
-  const ws = XLSX.utils.aoa_to_sheet(rows)
+    ['PATCH', '/api/v1/users/{id}', '部分更新用户'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
   // 设置列宽，提升可读性
-  ws['!cols'] = [{ wch: 12 }, { wch: 32 }, { wch: 24 }]
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '接口导入模板')
-  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  downloadBlob(out as BlobPart, '接口导入模板.xlsx',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  message.success('已下载 Excel 导入模板')
+  ws['!cols'] = [{ wch: 12 }, { wch: 32 }, { wch: 24 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '接口导入模板');
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  downloadBlob(
+    out as BlobPart,
+    '接口导入模板.xlsx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  message.success('已下载 Excel 导入模板');
 }
 
 /** 下载 Swagger/OpenAPI 示例 */
 function downloadSwaggerExample() {
-  const json = JSON.stringify(SWAGGER_EXAMPLE, null, 2)
-  downloadBlob(json, 'swagger-示例.json', 'application/json')
-  message.success('已下载 Swagger 示例')
+  const json = JSON.stringify(SWAGGER_EXAMPLE, null, 2);
+  downloadBlob(json, 'swagger-示例.json', 'application/json');
+  message.success('已下载 Swagger 示例');
 }
 
 /* ---------------- Swagger 文件导入 ---------------- */
 
 async function handleSwaggerFile(file: File) {
   if (!projectId.value) {
-    message.warning('请先选择项目')
-    return false
+    message.warning('请先选择项目');
+    return false;
   }
   try {
-    const res: any = await ApiApi.importSwaggerFile(projectId.value, file)
-    const total = res?.total ?? 0
-    const inserted = res?.inserted ?? 0
-    message.success(`Swagger 导入完成：解析 ${total} 个接口，新增 ${inserted} 个`)
-    await reload()
+    const res: any = await ApiApi.importSwaggerFile(projectId.value, file);
+    const total = res?.total ?? 0;
+    const inserted = res?.inserted ?? 0;
+    message.success(`Swagger 导入完成：解析 ${total} 个接口，新增 ${inserted} 个`);
+    await reload();
   } catch (e: any) {
-    message.error(e?.response?.data?.message || 'Swagger 导入失败')
+    message.error(e?.response?.data?.message || 'Swagger 导入失败');
   }
-  return false
+  return false;
 }
 
-watch(projectId, reload, { immediate: false })
-onMounted(reload)
+watch(projectId, reload, { immediate: false });
+onMounted(reload);
 </script>
 
 <style scoped>

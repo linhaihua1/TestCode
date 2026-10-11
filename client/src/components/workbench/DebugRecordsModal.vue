@@ -1,10 +1,10 @@
 <template>
   <a-modal
     :open="open"
-    @cancel="emit('update:open', false)"
     :footer="null"
     width="900"
     :title="`调试记录 - ${records.length} 条`"
+    @cancel="emit('update:open', false)"
   >
     <a-list :data-source="records" size="small">
       <template #renderItem="{ item }">
@@ -15,7 +15,9 @@
                 <a-tag :color="statusColor(item.result)">{{ item.result }}</a-tag>
                 <span>{{ formatTime(item.createdAt) }}</span>
                 <span style="color: #999">{{ item.totalDuration }} ms</span>
-                <span v-if="item.environmentId" style="color: #999">env: {{ item.environmentId }}</span>
+                <span v-if="item.environmentId" style="color: #999"
+                  >env: {{ item.environmentId }}</span
+                >
               </a-space>
             </template>
             <template #description>
@@ -31,17 +33,12 @@
                       :key="i"
                       :title="s.stepName"
                       :status="s.status === RUN_STATUS.SUCCESS ? 'finish' : 'error'"
-                      :description="`${s.durationMs}ms ${
-                        s.error ? ' - ' + s.error : ''
-                      }`"
+                      :description="`${s.durationMs}ms ${s.error ? ' - ' + s.error : ''}`"
                     />
                   </a-steps>
                 </a-collapse-panel>
                 <a-collapse-panel header="断言结果">
-                  <a-list
-                    :data-source="item.assertionResults"
-                    size="small"
-                  >
+                  <a-list :data-source="item.assertionResults" size="small">
                     <template #renderItem="{ item: a }">
                       <a-list-item>
                         <a-space>
@@ -55,7 +52,9 @@
                   </a-list>
                 </a-collapse-panel>
                 <a-collapse-panel header="提取变量">
-                  <pre style="white-space: pre-wrap">{{ JSON.stringify(item.extractedVariables, null, 2) }}</pre>
+                  <pre style="white-space: pre-wrap">{{
+                    JSON.stringify(item.extractedVariables, null, 2)
+                  }}</pre>
                 </a-collapse-panel>
               </a-collapse>
             </template>
@@ -70,28 +69,28 @@
 /**
  * 调试记录弹窗：查看某条用例的历史调试记录与每次的请求/响应摘要。
  */
-import { ref, watch } from 'vue'
-import { CaseApi } from '@/api'
-import { RUN_STATUS, statusColor } from '@/constants'
-import { formatDateTime } from '@/utils/format'
-import type { DebugRecord } from '@/types'
+import { ref, watch } from 'vue';
+import { CaseApi } from '@/api';
+import { RUN_STATUS, statusColor } from '@/constants';
+import { formatDateTime } from '@/utils/format';
+import type { DebugRecord } from '@/types';
 
-const props = defineProps<{ open: boolean; caseId: string }>()
-const emit = defineEmits<{ 'update:open': [v: boolean] }>()
+const props = defineProps<{ open: boolean; caseId: string }>();
+const emit = defineEmits<{ 'update:open': [v: boolean] }>();
 
-const records = ref<DebugRecord[]>([])
+const records = ref<DebugRecord[]>([]);
 
 /** 时间展示：统一走 utils/format（UTC → 本地时区） */
 function formatTime(iso: string) {
-  return formatDateTime(iso)
+  return formatDateTime(iso);
 }
 
 watch(
   () => [props.open, props.caseId],
   async ([open, id]) => {
     if (open && id) {
-      records.value = await CaseApi.debugRecords(id as string)
+      records.value = await CaseApi.debugRecords(id as string);
     }
-  }
-)
+  },
+);
 </script>

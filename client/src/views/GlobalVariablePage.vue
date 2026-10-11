@@ -18,9 +18,7 @@
     <div class="page-header">
       <div class="page-title">全局变量管理</div>
       <a-space>
-        <a-button type="primary" @click="openCreate">
-          <plus-outlined />新增变量
-        </a-button>
+        <a-button type="primary" @click="openCreate"> <plus-outlined />新增变量 </a-button>
         <a-popconfirm title="确认批量删除选中的变量？" @confirm="batchDelete">
           <a-button danger :disabled="!selectedRowKeys.length">
             <delete-outlined />批量删除
@@ -68,8 +66,8 @@
     <a-modal
       v-model:open="modalOpen"
       :title="editing.id ? '编辑变量' : '新增变量'"
-      @ok="save"
       width="520"
+      @ok="save"
     >
       <a-form layout="vertical">
         <a-form-item label="变量名" required>
@@ -104,30 +102,30 @@
  * <p>变量名需满足标识符规范（字母/下划线开头），否则后端变量解析会失败；
  * 标记为密钥的值默认掩码展示，点击查看需二次确认。</p>
  */
-import { onMounted, reactive, ref, computed } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import { GlobalVariableApi } from '@/api'
-import { DEFAULT_PAGE_SIZE } from '@/constants'
-import type { GlobalVariable } from '@/types'
-import { useProjectStore } from '@/stores/project'
+import { onMounted, reactive, ref, computed } from 'vue';
+import { message } from 'ant-design-vue';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { GlobalVariableApi } from '@/api';
+import { DEFAULT_PAGE_SIZE } from '@/constants';
+import type { GlobalVariable } from '@/types';
+import { useProjectStore } from '@/stores/project';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const variables = ref<GlobalVariable[]>([])
-const loading = ref(false)
-const selectedRowKeys = ref<string[]>([])
-const revealed = reactive<Record<string, boolean>>({})
+const variables = ref<GlobalVariable[]>([]);
+const loading = ref(false);
+const selectedRowKeys = ref<string[]>([]);
+const revealed = reactive<Record<string, boolean>>({});
 
-const modalOpen = ref(false)
+const modalOpen = ref(false);
 const editing = reactive<Partial<GlobalVariable>>({
   id: '',
   name: '',
   type: 'STRING',
   value: '',
-  description: ''
-})
+  description: '',
+});
 
 const typeOptions = [
   { label: '字符串', value: 'STRING' },
@@ -135,92 +133,92 @@ const typeOptions = [
   { label: '布尔', value: 'BOOLEAN' },
   { label: '时间戳', value: 'TIMESTAMP' },
   { label: '随机', value: 'RANDOM' },
-  { label: '密钥', value: 'SECRET' }
-]
+  { label: '密钥', value: 'SECRET' },
+];
 
 const columns = [
   { title: '变量名', dataIndex: 'name', key: 'name' },
   { title: '类型', dataIndex: 'type', key: 'type', width: 100 },
   { title: '值', dataIndex: 'value', key: 'value' },
   { title: '描述', dataIndex: 'description', key: 'description' },
-  { title: '操作', key: 'actions', width: 150 }
-]
+  { title: '操作', key: 'actions', width: 150 },
+];
 
 function onSelectChange(keys: string[]) {
-  selectedRowKeys.value = keys
+  selectedRowKeys.value = keys;
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    variables.value = await GlobalVariableApi.list(projectId.value)
+    variables.value = await GlobalVariableApi.list(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function openCreate() {
-  editing.id = ''
-  editing.name = ''
-  editing.type = 'STRING'
-  editing.value = ''
-  editing.description = ''
-  modalOpen.value = true
+  editing.id = '';
+  editing.name = '';
+  editing.type = 'STRING';
+  editing.value = '';
+  editing.description = '';
+  modalOpen.value = true;
 }
 
 function openEdit(record: GlobalVariable) {
-  Object.assign(editing, record)
-  modalOpen.value = true
+  Object.assign(editing, record);
+  modalOpen.value = true;
 }
 
 /** 保存变量：名称必须是合法标识符，否则后端变量解析会取不到值 */
 async function save() {
   if (!editing.name?.trim()) {
-    message.warning('变量名不能为空')
-    return
+    message.warning('变量名不能为空');
+    return;
   }
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(editing.name)) {
-    message.warning('变量名必须以字母/下划线开头，仅含字母数字下划线')
-    return
+    message.warning('变量名必须以字母/下划线开头，仅含字母数字下划线');
+    return;
   }
   if (editing.id) {
-    await GlobalVariableApi.update(editing.id, editing)
-    message.success('已更新')
+    await GlobalVariableApi.update(editing.id, editing);
+    message.success('已更新');
   } else {
-    await GlobalVariableApi.create({ ...editing, projectId: projectId.value } as any)
-    message.success('已新增')
+    await GlobalVariableApi.create({ ...editing, projectId: projectId.value } as any);
+    message.success('已新增');
   }
-  modalOpen.value = false
-  await reload()
+  modalOpen.value = false;
+  await reload();
 }
 
 async function remove(id: string) {
-  await GlobalVariableApi.remove(id)
-  message.success('已删除')
-  await reload()
+  await GlobalVariableApi.remove(id);
+  message.success('已删除');
+  await reload();
 }
 
 /** 批量删除：逐条调用（后端无批量接口），全部完成后刷新 */
 async function batchDelete() {
   for (const id of selectedRowKeys.value) {
-    await GlobalVariableApi.remove(id)
+    await GlobalVariableApi.remove(id);
   }
-  selectedRowKeys.value = []
-  await reload()
-  message.success('批量删除完成')
+  selectedRowKeys.value = [];
+  await reload();
+  message.success('批量删除完成');
 }
 
 /** 切换密钥明文显示：首次查看需要二次确认，防止敏感值被旁观 */
 function toggleReveal(id: string) {
   if (!revealed[id]) {
     // 二次确认
-    if (!confirm('确认查看密钥明文？')) return
+    if (!confirm('确认查看密钥明文？')) return;
   }
-  revealed[id] = !revealed[id]
+  revealed[id] = !revealed[id];
 }
 
-onMounted(reload)
+onMounted(reload);
 </script>
 
 <style scoped>

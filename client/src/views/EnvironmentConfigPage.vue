@@ -4,20 +4,13 @@
     <div class="page-header">
       <div class="page-title">全局变量</div>
       <a-space>
-        <a-button @click="openCreate">
-          <plus-outlined />新增变量
-        </a-button>
+        <a-button @click="openCreate"> <plus-outlined />新增变量 </a-button>
       </a-space>
     </div>
 
     <!-- 变量表格 -->
     <div class="panel">
-      <a-table
-        :data-source="variables"
-        :columns="columns"
-        row-key="id"
-        :loading="loading"
-      >
+      <a-table :data-source="variables" :columns="columns" row-key="id" :loading="loading">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'value'">
             <span>{{ record.encrypted ? '••••••' : record.value }}</span>
@@ -34,12 +27,7 @@
       </a-table>
     </div>
 
-    <a-modal
-      v-model:open="modal"
-      :title="form.id ? '编辑变量' : '新增变量'"
-      @ok="save"
-      width="480"
-    >
+    <a-modal v-model:open="modal" :title="form.id ? '编辑变量' : '新增变量'" width="480" @ok="save">
       <a-form layout="vertical">
         <a-form-item label="名称" required>
           <a-input v-model:value="form.name" />
@@ -68,31 +56,31 @@
  * <p>与 GlobalVariablePage 的区别：这里只做最简单的增删改，
  * 变量类型仅 string/number/json 三类。</p>
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { GlobalVariableApi } from '@/api'
-import { useProjectStore } from '@/stores/project'
-import type { GlobalVariable } from '@/types'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
+import { PlusOutlined } from '@ant-design/icons-vue';
+import { GlobalVariableApi } from '@/api';
+import { useProjectStore } from '@/stores/project';
+import type { GlobalVariable } from '@/types';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const variables = ref<GlobalVariable[]>([])
-const loading = ref(false)
-const modal = ref(false)
+const variables = ref<GlobalVariable[]>([]);
+const loading = ref(false);
+const modal = ref(false);
 const form = reactive<Partial<GlobalVariable>>({
   name: '',
   type: 'string',
   value: '',
-  encrypted: false
-})
+  encrypted: false,
+});
 
 const typeOptions = [
   { value: 'string', label: '字符串' },
   { value: 'number', label: '数字' },
-  { value: 'json', label: 'JSON' }
-]
+  { value: 'json', label: 'JSON' },
+];
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
@@ -100,52 +88,52 @@ const columns = [
   { title: '值', key: 'value' },
   { title: '加密', dataIndex: 'encrypted', width: 80 },
   { title: '描述', dataIndex: 'description' },
-  { title: '操作', key: 'action', width: 140 }
-]
+  { title: '操作', key: 'action', width: 140 },
+];
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    variables.value = await GlobalVariableApi.list(projectId.value)
+    variables.value = await GlobalVariableApi.list(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function openCreate() {
-  Object.assign(form, { id: undefined, name: '', type: 'string', value: '', encrypted: false })
-  modal.value = true
+  Object.assign(form, { id: undefined, name: '', type: 'string', value: '', encrypted: false });
+  modal.value = true;
 }
 
 function openEdit(record: GlobalVariable) {
-  Object.assign(form, record)
-  modal.value = true
+  Object.assign(form, record);
+  modal.value = true;
 }
 
 async function save() {
   if (!form.name) {
-    message.warning('请填写名称')
-    return
+    message.warning('请填写名称');
+    return;
   }
-  const payload = { ...form, projectId: projectId.value }
+  const payload = { ...form, projectId: projectId.value };
   if (form.id) {
-    await GlobalVariableApi.update(form.id, form)
+    await GlobalVariableApi.update(form.id, form);
   } else {
-    await GlobalVariableApi.create(payload)
+    await GlobalVariableApi.create(payload);
   }
-  message.success('已保存')
-  modal.value = false
-  await reload()
+  message.success('已保存');
+  modal.value = false;
+  await reload();
 }
 
 async function remove(record: GlobalVariable) {
-  await GlobalVariableApi.remove(record.id)
-  await reload()
+  await GlobalVariableApi.remove(record.id);
+  await reload();
 }
 
-watch(projectId, reload, { immediate: false })
-onMounted(reload)
+watch(projectId, reload, { immediate: false });
+onMounted(reload);
 </script>
 
 <style scoped>

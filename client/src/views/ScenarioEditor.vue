@@ -1,22 +1,18 @@
 <template>
-  <div class="page editor-page" v-if="scenario">
+  <div v-if="scenario" class="page editor-page">
     <!-- 页头 -->
     <header class="page-header">
       <div class="page-title">
-        <a-button type="text" class="page-title__back" @click="goBack" title="返回场景列表">
+        <a-button type="text" class="page-title__back" title="返回场景列表" @click="goBack">
           <arrow-left-outlined />
         </a-button>
         <partition-outlined class="page-title__icon" />
         <span class="ellipsis">{{ scenario.name }}</span>
       </div>
       <a-space>
-        <a-button @click="execute" :loading="running">
-          <play-circle-outlined />执行
-        </a-button>
+        <a-button :loading="running" @click="execute"> <play-circle-outlined />执行 </a-button>
         <a-popconfirm title="确认删除？" @confirm="remove">
-          <a-button danger>
-            <delete-outlined />删除
-          </a-button>
+          <a-button danger> <delete-outlined />删除 </a-button>
         </a-popconfirm>
       </a-space>
     </header>
@@ -44,39 +40,31 @@
         <draggable v-model="steps" item-key="_id" :animation="180" handle=".step-handle">
           <template #item="{ element: step, index: idx }">
             <div class="step-card">
-            <a-row :gutter="12" align="middle">
-              <a-col flex="40px">
-                <drag-outlined class="step-handle" />
-              </a-col>
-              <a-col flex="200px">
-                <a-input v-model:value="step.name" placeholder="步骤名称" />
-              </a-col>
-              <a-col flex="auto">
-                <a-input
-                  v-model:value="step.apiCaseId"
-                  placeholder="关联用例 ID（可选）"
-                />
-              </a-col>
-              <a-col flex="80px" class="step-actions">
-                <a-button
-                  size="small"
-                  type="text"
-                  danger
-                  @click="steps.splice(idx, 1)"
-                >
-                  删除
-                </a-button>
-              </a-col>
-            </a-row>
+              <a-row :gutter="12" align="middle">
+                <a-col flex="40px">
+                  <drag-outlined class="step-handle" />
+                </a-col>
+                <a-col flex="200px">
+                  <a-input v-model:value="step.name" placeholder="步骤名称" />
+                </a-col>
+                <a-col flex="auto">
+                  <a-input v-model:value="step.apiCaseId" placeholder="关联用例 ID（可选）" />
+                </a-col>
+                <a-col flex="80px" class="step-actions">
+                  <a-button size="small" type="text" danger @click="steps.splice(idx, 1)">
+                    删除
+                  </a-button>
+                </a-col>
+              </a-row>
 
-            <a-tabs size="small" class="step-tabs">
-              <a-tab-pane key="assertions" tab="断言">
-                <AssertionEditor v-model="step.assertions" />
-              </a-tab-pane>
-              <a-tab-pane key="extracts" tab="提取">
-                <ExtractEditor v-model="step.extracts" />
-              </a-tab-pane>
-            </a-tabs>
+              <a-tabs size="small" class="step-tabs">
+                <a-tab-pane key="assertions" tab="断言">
+                  <AssertionEditor v-model="step.assertions" />
+                </a-tab-pane>
+                <a-tab-pane key="extracts" tab="提取">
+                  <ExtractEditor v-model="step.extracts" />
+                </a-tab-pane>
+              </a-tabs>
             </div>
           </template>
         </draggable>
@@ -87,9 +75,7 @@
       </div>
 
       <div class="panel__foot">
-        <a-button type="primary" @click="save" :loading="saving">
-          保存场景
-        </a-button>
+        <a-button type="primary" :loading="saving" @click="save"> 保存场景 </a-button>
       </div>
     </section>
   </div>
@@ -102,47 +88,51 @@
  * <p>步骤只保存"引用哪个用例 + 覆盖的断言/提取"，真正的请求定义仍在接口用例里，
  * 因此修改用例会同时影响引用它的所有场景。</p>
  */
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import {
-  PlayCircleOutlined, DeleteOutlined, DragOutlined, PlusOutlined,
-  PartitionOutlined, ArrowLeftOutlined
-} from '@ant-design/icons-vue'
-import draggable from 'vuedraggable'
-import { ScenarioApi } from '@/api'
-import { uid, ensureIds } from '@/utils/uid'
-import { useProjectStore } from '@/stores/project'
-import type { Scenario, AssertionResult, ExtractRule } from '@/types'
-import AssertionEditor from '@/components/AssertionEditor.vue'
-import ExtractEditor from '@/components/ExtractEditor.vue'
+  PlayCircleOutlined,
+  DeleteOutlined,
+  DragOutlined,
+  PlusOutlined,
+  PartitionOutlined,
+  ArrowLeftOutlined,
+} from '@ant-design/icons-vue';
+import draggable from 'vuedraggable';
+import { ScenarioApi } from '@/api';
+import { uid, ensureIds } from '@/utils/uid';
+import { useProjectStore } from '@/stores/project';
+import type { Scenario, AssertionResult, ExtractRule } from '@/types';
+import AssertionEditor from '@/components/AssertionEditor.vue';
+import ExtractEditor from '@/components/ExtractEditor.vue';
 
-const route = useRoute()
-const router = useRouter()
-const projectStore = useProjectStore()
+const route = useRoute();
+const router = useRouter();
+const projectStore = useProjectStore();
 
 interface Step {
   /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */
-  _id?: string
-  sortOrder: number
-  name?: string
-  apiCaseId?: string
-  assertions: AssertionResult[]
-  extracts: ExtractRule[]
+  _id?: string;
+  sortOrder: number;
+  name?: string;
+  apiCaseId?: string;
+  assertions: AssertionResult[];
+  extracts: ExtractRule[];
 }
 
-const scenario = ref<Scenario | null>(null)
-const steps = ref<Step[]>([])
-const saving = ref(false)
-const running = ref(false)
+const scenario = ref<Scenario | null>(null);
+const steps = ref<Step[]>([]);
+const saving = ref(false);
+const running = ref(false);
 
 /** 加载场景与其步骤；ensureIds 为每条步骤补上拖拽用的 _id */
 async function load() {
-  const id = route.params.id as string
-  const data = await ScenarioApi.get(id)
-  scenario.value = data.scenario
-  steps.value = (data.steps || []) as Step[]
-  ensureIds(steps.value)
+  const id = route.params.id as string;
+  const data = await ScenarioApi.get(id);
+  scenario.value = data.scenario;
+  steps.value = (data.steps || []) as Step[];
+  ensureIds(steps.value);
 }
 
 /** 追加一个空步骤（默认未选择引用用例，需后续指定） */
@@ -153,46 +143,46 @@ function addStep() {
     name: `步骤 ${steps.value.length + 1}`,
     apiCaseId: undefined,
     assertions: [],
-    extracts: []
-  })
+    extracts: [],
+  });
 }
 
 async function save() {
-  saving.value = true
+  saving.value = true;
   try {
     await ScenarioApi.update(scenario.value!.id, {
       name: scenario.value!.name,
       description: scenario.value!.description,
-      steps: steps.value
-    })
-    message.success('已保存')
+      steps: steps.value,
+    });
+    message.success('已保存');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 /** 执行场景：同步等待执行完成并提示报告状态 */
 async function execute() {
-  running.value = true
+  running.value = true;
   try {
-    const r = await ScenarioApi.execute(scenario.value!.id)
-    message.success(`执行完成：${r.status}`)
+    const r = await ScenarioApi.execute(scenario.value!.id);
+    message.success(`执行完成：${r.status}`);
   } finally {
-    running.value = false
+    running.value = false;
   }
 }
 
 async function remove() {
-  await ScenarioApi.remove(scenario.value!.id)
-  router.push({ name: 'scenarios' })
+  await ScenarioApi.remove(scenario.value!.id);
+  router.push({ name: 'scenarios' });
 }
 
 /** 返回场景列表 */
 function goBack() {
-  router.push({ name: 'scenarios' })
+  router.push({ name: 'scenarios' });
 }
 
-onMounted(load)
+onMounted(load);
 </script>
 
 <style scoped>
@@ -250,8 +240,9 @@ onMounted(load)
   background: var(--bg-card);
   border: 1px solid var(--bd-base);
   border-radius: var(--rd-md);
-  transition: border-color var(--dur-fast) var(--ease),
-              box-shadow var(--dur-fast) var(--ease);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .step-card:hover {

@@ -4,9 +4,7 @@
     <div class="page-header">
       <div class="page-title">UI 自动化报告</div>
       <a-space>
-        <a-button @click="reload" :loading="loading">
-          <reload-outlined />刷新
-        </a-button>
+        <a-button :loading="loading" @click="reload"> <reload-outlined />刷新 </a-button>
       </a-space>
     </div>
 
@@ -15,12 +13,7 @@
 
     <!-- 报告表格 -->
     <div class="panel">
-      <a-table
-        :data-source="reports"
-        :columns="columns"
-        row-key="id"
-        :loading="loading"
-      >
+      <a-table :data-source="reports" :columns="columns" row-key="id" :loading="loading">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="statusColor(record.status)" class="status-pill">
@@ -28,9 +21,7 @@
               {{ statusText(record.status) }}
             </a-tag>
           </template>
-          <template v-else-if="column.key === 'duration'">
-            {{ record.duration }} ms
-          </template>
+          <template v-else-if="column.key === 'duration'"> {{ record.duration }} ms </template>
           <template v-else-if="column.key === 'startedAt'">
             {{ formatDate(record.startedAt) }}
           </template>
@@ -63,7 +54,10 @@
                 <a-tag :color="statusColor(item.status)" class="step-line__tag">
                   {{ statusText(item.status) }}
                 </a-tag>
-                <strong class="step-line__name">{{ UI_SEGMENT_LABELS[item.segment] || item.segment }} / {{ item.step?.name || '步骤' }}</strong>
+                <strong class="step-line__name"
+                  >{{ UI_SEGMENT_LABELS[item.segment] || item.segment }} /
+                  {{ item.step?.name || '步骤' }}</strong
+                >
                 <span class="step-line__dur">{{ item.durationMs }} ms</span>
               </div>
               <a-alert
@@ -95,101 +89,105 @@
 /**
  * UI 测试报告列表页：查看历次 UI 执行结果与步骤截图。
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
-import { UiApi } from '@/api'
+import { computed, onMounted, ref, watch } from 'vue';
+import { ReloadOutlined } from '@ant-design/icons-vue';
+import { UiApi } from '@/api';
 import {
   ALLURE_STATUS_LABELS,
   RUN_STATUS,
   UI_SEGMENT_LABELS,
   statusColor as statusTagColor,
   statusHexColor,
-  statusLabel
-} from '@/constants'
-import { formatDateTime } from '@/utils/format'
-import { useProjectStore } from '@/stores/project'
-import type { UiReport } from '@/types'
-import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
+  statusLabel,
+} from '@/constants';
+import { formatDateTime } from '@/utils/format';
+import { useProjectStore } from '@/stores/project';
+import type { UiReport } from '@/types';
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const reports = ref<UiReport[]>([])
-const loading = ref(false)
-const detailOpen = ref(false)
-const detailTab = ref('steps')
-const currentReport = ref<UiReport | null>(null)
+const reports = ref<UiReport[]>([]);
+const loading = ref(false);
+const detailOpen = ref(false);
+const detailTab = ref('steps');
+const currentReport = ref<UiReport | null>(null);
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '状态', key: 'status', width: 110 },
   { title: '耗时', key: 'duration', width: 100 },
   { title: '开始时间', key: 'startedAt', width: 180 },
-  { title: '操作', key: 'action', width: 100 }
-]
+  { title: '操作', key: 'action', width: 100 },
+];
 
 /** 报告列表整体状态统计 */
 const statusStats = computed<StatusStat[]>(() => {
-  const count = (s: string) => reports.value.filter((r) => r.status === s).length
+  const count = (s: string) => reports.value.filter((r) => r.status === s).length;
   return [
     { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: count(RUN_STATUS.SUCCESS) },
     { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: count(RUN_STATUS.FAILED) },
     { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: count(RUN_STATUS.ERROR) },
-    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) }
-  ]
-})
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) },
+  ];
+});
 
 /** 当前报告详情步骤 */
-const stepDetails = computed<any[]>(() => (currentReport.value?.details as any[]) || [])
+const stepDetails = computed<any[]>(() => (currentReport.value?.details as any[]) || []);
 
 /** 详情弹窗内的状态统计（从步骤推断） */
 const detailStats = computed<StatusStat[]>(() => {
-  const count = (s: string) => stepDetails.value.filter((d) => d.status === s).length
+  const count = (s: string) => stepDetails.value.filter((d) => d.status === s).length;
   return [
     { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: count(RUN_STATUS.SUCCESS) },
     { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: count(RUN_STATUS.FAILED) },
     { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: count(RUN_STATUS.ERROR) },
-    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) }
-  ]
-})
+    { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: count(RUN_STATUS.SKIPPED) },
+  ];
+});
 
 /* ============================================================
    展示辅助：统一委托给 @/constants 与 @/utils/format，避免各页硬编码
    ============================================================ */
-const formatDate = formatDateTime
-const statusColor = (s: string) => statusTagColor(s)
-const statusDotColor = (s: string) => statusHexColor(s)
-const statusText = (s: string) => statusLabel(s)
+const formatDate = formatDateTime;
+const statusColor = (s: string) => statusTagColor(s);
+const statusDotColor = (s: string) => statusHexColor(s);
+const statusText = (s: string) => statusLabel(s);
 
 /** 时间轴（a-timeline）颜色仅支持预设色名，由十六进制语义色映射而来 */
 function timelineColor(s: string) {
-  const hex = statusHexColor(s)
+  const hex = statusHexColor(s);
   switch (hex) {
-    case '#16a34a': return 'green'
-    case '#dc2626': return 'red'
-    case '#ea580c': return 'orange'
-    default: return 'gray'
+    case '#16a34a':
+      return 'green';
+    case '#dc2626':
+      return 'red';
+    case '#ea580c':
+      return 'orange';
+    default:
+      return 'gray';
   }
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    reports.value = await UiApi.listReports(projectId.value)
+    reports.value = await UiApi.listReports(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function showDetail(record: UiReport) {
-  currentReport.value = await UiApi.getReport(record.id)
-  detailOpen.value = true
-  detailTab.value = 'steps'
+  currentReport.value = await UiApi.getReport(record.id);
+  detailOpen.value = true;
+  detailTab.value = 'steps';
 }
 
-watch(projectId, reload, { immediate: false })
-onMounted(reload)
+watch(projectId, reload, { immediate: false });
+onMounted(reload);
 </script>
 
 <style scoped>

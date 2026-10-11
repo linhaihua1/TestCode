@@ -4,12 +4,8 @@
     <div class="page-header">
       <div class="page-title">测试任务</div>
       <a-space>
-        <a-button @click="$router.push('/trend')">
-          <line-chart-outlined />趋势
-        </a-button>
-        <a-button type="primary" @click="openCreate">
-          <plus-outlined />新建任务
-        </a-button>
+        <a-button @click="$router.push('/trend')"> <line-chart-outlined />趋势 </a-button>
+        <a-button type="primary" @click="openCreate"> <plus-outlined />新建任务 </a-button>
       </a-space>
     </div>
 
@@ -35,7 +31,9 @@
             <a-tag v-else color="default">手动</a-tag>
           </template>
           <template v-else-if="column.key === 'environment'">
-            <a-tag v-if="envName(record.environmentId)" color="cyan">{{ envName(record.environmentId) }}</a-tag>
+            <a-tag v-if="envName(record.environmentId)" color="cyan">{{
+              envName(record.environmentId)
+            }}</a-tag>
             <a-tag v-else color="default">默认环境</a-tag>
           </template>
           <template v-else-if="column.key === 'executeMode'">
@@ -48,10 +46,20 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button size="small" type="link" @click="runAsync(record)" :loading="runningId === record.id + 'a'">
+              <a-button
+                size="small"
+                type="link"
+                :loading="runningId === record.id + 'a'"
+                @click="runAsync(record)"
+              >
                 <api-outlined />运行
               </a-button>
-              <a-button size="small" type="link" @click="runSync(record)" :loading="runningId === record.id + 's'">
+              <a-button
+                size="small"
+                type="link"
+                :loading="runningId === record.id + 's'"
+                @click="runSync(record)"
+              >
                 <thunderbolt-outlined />同步运行
               </a-button>
               <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
@@ -74,9 +82,7 @@
               <template v-if="column.key === 'result'">
                 <a-tag :color="statusColor(run.result)">{{ statusLabel(run.result) }}</a-tag>
               </template>
-              <template v-else-if="column.key === 'duration'">
-                {{ run.duration }} ms
-              </template>
+              <template v-else-if="column.key === 'duration'"> {{ run.duration }} ms </template>
               <template v-else-if="column.key === 'startedAt'">
                 {{ formatDate(run.startedAt) }}
               </template>
@@ -98,8 +104,8 @@
       <template #footer>
         <a-space>
           <a-button @click="onCancel">取消</a-button>
-          <a-button @click="save(false)" :loading="saving">保存</a-button>
-          <a-button type="primary" @click="save(true)" :loading="saving">
+          <a-button :loading="saving" @click="save(false)">保存</a-button>
+          <a-button type="primary" :loading="saving" @click="save(true)">
             <play-circle-outlined />保存并运行
           </a-button>
         </a-space>
@@ -135,12 +141,22 @@
               </a-col>
               <a-col :span="8">
                 <a-form-item label="超时时间 (ms)">
-                  <a-input-number v-model:value="form.timeoutMs" :min="1000" :step="1000" style="width: 100%" />
+                  <a-input-number
+                    v-model:value="form.timeoutMs"
+                    :min="1000"
+                    :step="1000"
+                    style="width: 100%"
+                  />
                 </a-form-item>
               </a-col>
               <a-col :span="8">
                 <a-form-item label="失败重试次数">
-                  <a-input-number v-model:value="form.retryCount" :min="0" :max="10" style="width: 100%" />
+                  <a-input-number
+                    v-model:value="form.retryCount"
+                    :min="0"
+                    :max="10"
+                    style="width: 100%"
+                  />
                 </a-form-item>
               </a-col>
             </a-row>
@@ -182,7 +198,9 @@
                   @click="addCase(c)"
                 >
                   <div class="case-lib__name">{{ c.name }}</div>
-                  <a-tag v-if="c.priority" size="small" :color="priorityColor(c.priority)">{{ c.priority }}</a-tag>
+                  <a-tag v-if="c.priority" size="small" :color="priorityColor(c.priority)">{{
+                    c.priority
+                  }}</a-tag>
                 </div>
               </div>
             </div>
@@ -209,22 +227,42 @@
                       <span class="case-row__name">{{ c.name }}</span>
                       <a-space size="2">
                         <a-tooltip title="置顶">
-                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'top')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === 0"
+                            @click="moveCase(i, 'top')"
+                          >
                             <vertical-align-top-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="上移">
-                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'up')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === 0"
+                            @click="moveCase(i, 'up')"
+                          >
                             <arrow-up-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="下移">
-                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'down')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === selectedCases.length - 1"
+                            @click="moveCase(i, 'down')"
+                          >
                             <arrow-down-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="置尾">
-                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'bottom')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === selectedCases.length - 1"
+                            @click="moveCase(i, 'bottom')"
+                          >
                             <vertical-align-bottom-outlined />
                           </a-button>
                         </a-tooltip>
@@ -258,13 +296,19 @@
                 :max="50"
                 :marks="{ 1: '1', 5: '5', 10: '10', 20: '20', 50: '50' }"
               />
-              <span class="hint">当前：{{ form.parallelPoolSize || 5 }} 个并发线程（范围 1-200）</span>
+              <span class="hint"
+                >当前：{{ form.parallelPoolSize || 5 }} 个并发线程（范围 1-200）</span
+              >
             </a-form-item>
             <a-form-item label="失败策略">
               <a-select v-model:value="form.failStrategy" style="width: 100%">
-                <a-select-option value="stop_on_fail">失败即停（任一用例失败即停止后续）</a-select-option>
+                <a-select-option value="stop_on_fail"
+                  >失败即停（任一用例失败即停止后续）</a-select-option
+                >
                 <a-select-option value="continue_all">失败继续（所有用例跑完）</a-select-option>
-                <a-select-option value="retry_then_stop">重试后停（失败后按重试次数重试）</a-select-option>
+                <a-select-option value="retry_then_stop"
+                  >重试后停（失败后按重试次数重试）</a-select-option
+                >
               </a-select>
             </a-form-item>
             <a-form-item label="用例级变量 (JSON)">
@@ -288,20 +332,26 @@
               />
             </a-form-item>
             <a-form-item label="执行机地址">
-              <a-input
-                v-model:value="form.executorUrl"
-                placeholder="http://192.168.1.10:9000"
-              />
+              <a-input v-model:value="form.executorUrl" placeholder="http://192.168.1.10:9000" />
             </a-form-item>
             <a-row :gutter="16">
               <a-col :span="16">
                 <a-form-item label="执行机域名 / IP">
-                  <a-input v-model:value="form.executorHost" placeholder="192.168.1.10 或 executor.example.com" />
+                  <a-input
+                    v-model:value="form.executorHost"
+                    placeholder="192.168.1.10 或 executor.example.com"
+                  />
                 </a-form-item>
               </a-col>
               <a-col :span="8">
                 <a-form-item label="执行机端口">
-                  <a-input-number v-model:value="form.executorPort" :min="1" :max="65535" style="width: 100%" placeholder="9000" />
+                  <a-input-number
+                    v-model:value="form.executorPort"
+                    :min="1"
+                    :max="65535"
+                    style="width: 100%"
+                    placeholder="9000"
+                  />
                 </a-form-item>
               </a-col>
             </a-row>
@@ -324,10 +374,24 @@
             <a-form-item label="通知渠道">
               <div v-for="(ch, idx) in form.notifyChannels" :key="idx" class="notify-row">
                 <a-space>
-                  <a-select v-model:value="ch.type" style="width: 140px" :options="NOTIFY_CHANNEL_OPTIONS" />
-                  <a-input v-model:value="ch.target" :placeholder="targetPlaceholder(ch.type)" style="width: 320px" />
-                  <a-input v-model:value="ch.secret" placeholder="密钥(可选)" style="width: 200px" />
-                  <a-button type="link" danger @click="form.notifyChannels?.splice(idx, 1)">删除</a-button>
+                  <a-select
+                    v-model:value="ch.type"
+                    style="width: 140px"
+                    :options="NOTIFY_CHANNEL_OPTIONS"
+                  />
+                  <a-input
+                    v-model:value="ch.target"
+                    :placeholder="targetPlaceholder(ch.type)"
+                    style="width: 320px"
+                  />
+                  <a-input
+                    v-model:value="ch.secret"
+                    placeholder="密钥(可选)"
+                    style="width: 200px"
+                  />
+                  <a-button type="link" danger @click="form.notifyChannels?.splice(idx, 1)"
+                    >删除</a-button
+                  >
                 </a-space>
               </div>
               <a-button type="dashed" @click="addNotifyChannel">
@@ -335,7 +399,10 @@
               </a-button>
             </a-form-item>
             <a-form-item label="回调通知 URL（兼容旧版）">
-              <a-input v-model:value="form.notifyUrl" placeholder="https://ci.example.com/webhook" />
+              <a-input
+                v-model:value="form.notifyUrl"
+                placeholder="https://ci.example.com/webhook"
+              />
             </a-form-item>
           </a-form>
         </a-tab-pane>
@@ -345,8 +412,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
 import {
   PlusOutlined,
   ApiOutlined,
@@ -358,10 +425,10 @@ import {
   ArrowDownOutlined,
   VerticalAlignTopOutlined,
   VerticalAlignBottomOutlined,
-  DeleteOutlined
-} from '@ant-design/icons-vue'
-import draggable from 'vuedraggable'
-import { TestTaskApi, CaseApi, EnvironmentApi } from '@/api'
+  DeleteOutlined,
+} from '@ant-design/icons-vue';
+import draggable from 'vuedraggable';
+import { TestTaskApi, CaseApi, EnvironmentApi } from '@/api';
 import {
   FAIL_STRATEGIES,
   FAIL_STRATEGY_LABELS,
@@ -369,10 +436,10 @@ import {
   RUN_STATUS,
   priorityColor,
   statusColor,
-  statusLabel
-} from '@/constants'
-import { useProjectStore } from '@/stores/project'
-import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from '@/types'
+  statusLabel,
+} from '@/constants';
+import { useProjectStore } from '@/stores/project';
+import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from '@/types';
 
 /**
  * 测试任务管理页：任务的增删改查、用例编排、执行策略/执行机/通知配置，以及运行与历史记录查看。
@@ -386,24 +453,24 @@ import type { TestTask, TestTaskRun, NotifyChannel, CaseInfo, Environment } from
  *
  * <p>所有数据都按当前项目（projectStore.currentProjectId）隔离，切换项目时自动重新加载。</p>
  */
-const projectStore = useProjectStore()
+const projectStore = useProjectStore();
 /** 当前选中的项目 ID；为空时不发起任何请求 */
-const projectId = computed(() => projectStore.currentProjectId)
+const projectId = computed(() => projectStore.currentProjectId);
 
-const tasks = ref<TestTask[]>([])
+const tasks = ref<TestTask[]>([]);
 /** 任务 ID -> 该任务的历史运行记录（展开行时按需加载） */
-const runsByTask = ref<Record<string, TestTaskRun[]>>({})
+const runsByTask = ref<Record<string, TestTaskRun[]>>({});
 /** 已展开的行 key 集合 */
-const expandedKeys = ref<string[]>([])
-const loading = ref(false)
+const expandedKeys = ref<string[]>([]);
+const loading = ref(false);
 /** 弹窗保存中标记，防重复提交 */
-const saving = ref(false)
+const saving = ref(false);
 /** 正在运行的任务标记：任务 ID + 'a'(异步)/'s'(同步)，用于按钮 loading */
-const runningId = ref<string>('')
+const runningId = ref<string>('');
 /** 弹窗内当前激活的页签 */
-const activeTab = ref<string>('basic')
+const activeTab = ref<string>('basic');
 
-const modal = ref(false)
+const modal = ref(false);
 /** 新建/编辑表单（与 TestTask 字段一一对应） */
 const form = reactive<Partial<TestTask>>({
   name: '',
@@ -421,26 +488,26 @@ const form = reactive<Partial<TestTask>>({
   executeMode: 'sequential',
   failStrategy: 'stop_on_fail',
   parallelPoolSize: 5,
-  notifyChannels: []
-})
+  notifyChannels: [],
+});
 /** 用例级变量的 JSON 文本（表单里以文本编辑，保存时 parse 成数组） */
-const variablesJson = ref('[]')
+const variablesJson = ref('[]');
 
 // ---- 用例编排状态 ----
 /** 项目下全部接口用例（作为可选用例池） */
-const allCases = ref<CaseInfo[]>([])
+const allCases = ref<CaseInfo[]>([]);
 /** 用例库搜索关键词 */
-const caseKeyword = ref('')
+const caseKeyword = ref('');
 /** 已选用例（有序） */
-const selectedCases = ref<CaseInfo[]>([])
+const selectedCases = ref<CaseInfo[]>([]);
 
 // ---- 环境 ----
-const environments = ref<Environment[]>([])
+const environments = ref<Environment[]>([]);
 
 /** 环境下拉选项 */
 const environmentOptions = computed(() =>
-  environments.value.map((e) => ({ value: e.id, label: e.name }))
-)
+  environments.value.map((e) => ({ value: e.id, label: e.name })),
+);
 
 /** 主表格列定义 */
 const columns = [
@@ -451,83 +518,88 @@ const columns = [
   { title: '模式', key: 'executeMode', width: 90 },
   { title: '失败策略', key: 'failStrategy', width: 120 },
   { title: '启用', key: 'enabled', width: 80 },
-  { title: '操作', key: 'action', width: 280 }
-]
+  { title: '操作', key: 'action', width: 280 },
+];
 
 const runColumns = [
   { title: '状态', key: 'result', width: 100 },
   { title: '耗时', key: 'duration', width: 100 },
-  { title: '开始时间', key: 'startedAt' }
-]
+  { title: '开始时间', key: 'startedAt' },
+];
 
 /** 左侧用例库：排除已选 */
 const filteredAvailableCases = computed(() => {
-  const selectedIds = new Set(selectedCases.value.map((c) => c.id))
-  const kw = caseKeyword.value.trim().toLowerCase()
+  const selectedIds = new Set(selectedCases.value.map((c) => c.id));
+  const kw = caseKeyword.value.trim().toLowerCase();
   return allCases.value.filter((c) => {
-    if (selectedIds.has(c.id)) return false
-    if (kw && !(c.name || '').toLowerCase().includes(kw)) return false
-    return true
-  })
-})
+    if (selectedIds.has(c.id)) return false;
+    if (kw && !(c.name || '').toLowerCase().includes(kw)) return false;
+    return true;
+  });
+});
 
 /** 失败策略编码 -> 中文标签；未知编码兜底为"失败即停" */
 function strategyLabel(s?: string) {
-  return FAIL_STRATEGY_LABELS[s ?? ''] ?? FAIL_STRATEGY_LABELS[FAIL_STRATEGIES.STOP_ON_FAIL]
+  return FAIL_STRATEGY_LABELS[s ?? ''] ?? FAIL_STRATEGY_LABELS[FAIL_STRATEGIES.STOP_ON_FAIL];
 }
 
 /** 环境 ID -> 环境名称；查不到返回空串（表格会显示"默认环境"） */
 function envName(id?: string) {
-  return environments.value.find((e) => e.id === id)?.name || ''
+  return environments.value.find((e) => e.id === id)?.name || '';
 }
 
 /** 不同通知渠道的目标输入框提示语 */
 function targetPlaceholder(t: string) {
   switch (t) {
-    case 'email': return 'user@example.com'
-    case 'dingtalk': return '钉钉群机器人 Webhook URL'
-    case 'feishu': return '飞书机器人 Webhook URL'
-    case 'webhook': return 'HTTPS 回调 URL'
-    default: return ''
+    case 'email':
+      return 'user@example.com';
+    case 'dingtalk':
+      return '钉钉群机器人 Webhook URL';
+    case 'feishu':
+      return '飞书机器人 Webhook URL';
+    case 'webhook':
+      return 'HTTPS 回调 URL';
+    default:
+      return '';
   }
 }
 
 /** ISO 时间串 -> 本地时间字符串 */
 function formatDate(iso?: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleString()
+  if (!iso) return '';
+  return new Date(iso).toLocaleString();
 }
 
 /* ---------------- 用例编排操作 ---------------- */
 
 /** 从左侧用例库添加用例到已选列表（追加到末尾） */
 function addCase(c: CaseInfo) {
-  selectedCases.value.push(c)
+  selectedCases.value.push(c);
 }
 
 /** 从已选列表移除指定下标的用例 */
 function removeCase(index: number) {
-  selectedCases.value.splice(index, 1)
+  selectedCases.value.splice(index, 1);
 }
 
 /** 手动排序：上移/下移/置顶/置尾 */
 function moveCase(index: number, dir: 'up' | 'down' | 'top' | 'bottom') {
-  const list = selectedCases.value
-  const item = list[index]
+  const list = selectedCases.value;
+  const item = list[index];
   if (dir === 'top') {
-    list.splice(index, 1)
-    list.unshift(item)
+    list.splice(index, 1);
+    list.unshift(item);
   } else if (dir === 'bottom') {
-    list.splice(index, 1)
-    list.push(item)
+    list.splice(index, 1);
+    list.push(item);
   } else if (dir === 'up') {
-    if (index === 0) return
-    list.splice(index, 1)
-    list.splice(index - 1, 0, item)
+    if (index === 0) return;
+    list.splice(index, 1);
+    list.splice(index - 1, 0, item);
   } else if (dir === 'down') {
-    if (index === list.length - 1) return
-    list.splice(index, 1)
-    list.splice(index + 1, 0, item)
+    if (index === list.length - 1) return;
+    list.splice(index, 1);
+    list.splice(index + 1, 0, item);
   }
 }
 
@@ -535,39 +607,39 @@ function moveCase(index: number, dir: 'up' | 'down' | 'top' | 'bottom') {
 
 /** 加载当前项目的任务列表 */
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    tasks.value = await TestTaskApi.list(projectId.value)
+    tasks.value = await TestTaskApi.list(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 /** 加载接口用例库（编排弹窗的左侧候选池；失败时降级为空列表，不阻塞页面） */
 async function loadCases() {
-  if (!projectId.value) return
+  if (!projectId.value) return;
   try {
-    allCases.value = await CaseApi.list({ projectId: projectId.value, size: 500 })
+    allCases.value = await CaseApi.list({ projectId: projectId.value, size: 500 });
   } catch {
-    allCases.value = []
+    allCases.value = [];
   }
 }
 
 /** 加载环境列表，用于下拉与表格环境列显示 */
 async function loadEnvironments() {
-  if (!projectId.value) return
+  if (!projectId.value) return;
   try {
-    environments.value = await EnvironmentApi.list(projectId.value)
+    environments.value = await EnvironmentApi.list(projectId.value);
   } catch {
-    environments.value = []
+    environments.value = [];
   }
 }
 
 /** 展开行时按需拉取该任务的历史运行记录（收起不重复请求） */
 async function onExpand(expanded: boolean, record: TestTask) {
   if (expanded) {
-    runsByTask.value[record.id] = await TestTaskApi.runs(record.id)
+    runsByTask.value[record.id] = await TestTaskApi.runs(record.id);
   }
 }
 
@@ -592,13 +664,13 @@ function openCreate() {
     executeMode: 'sequential',
     failStrategy: 'stop_on_fail',
     parallelPoolSize: 5,
-    notifyChannels: []
-  })
-  selectedCases.value = []
-  caseKeyword.value = ''
-  variablesJson.value = '[]'
-  activeTab.value = 'basic'
-  modal.value = true
+    notifyChannels: [],
+  });
+  selectedCases.value = [];
+  caseKeyword.value = '';
+  variablesJson.value = '[]';
+  activeTab.value = 'basic';
+  modal.value = true;
 }
 
 /**
@@ -624,23 +696,21 @@ function openEdit(record: TestTask) {
     executeMode: record.executeMode || 'sequential',
     failStrategy: record.failStrategy || 'stop_on_fail',
     parallelPoolSize: record.parallelPoolSize || 5,
-    notifyChannels: record.notifyChannels || []
-  })
-  variablesJson.value = JSON.stringify(record.variables || [], null, 2)
+    notifyChannels: record.notifyChannels || [],
+  });
+  variablesJson.value = JSON.stringify(record.variables || [], null, 2);
   // 回填已选用例（按 caseIds 顺序）
-  const caseIds = record.caseIds || []
-  const map = new Map(allCases.value.map((c) => [c.id, c]))
-  selectedCases.value = caseIds
-    .map((id) => map.get(id))
-    .filter(Boolean) as CaseInfo[]
-  caseKeyword.value = ''
-  activeTab.value = 'basic'
-  modal.value = true
+  const caseIds = record.caseIds || [];
+  const map = new Map(allCases.value.map((c) => [c.id, c]));
+  selectedCases.value = caseIds.map((id) => map.get(id)).filter(Boolean) as CaseInfo[];
+  caseKeyword.value = '';
+  activeTab.value = 'basic';
+  modal.value = true;
 }
 
 /** 关闭弹窗（关闭前引导用户先保存，此处直接丢弃未保存内容） */
 function onCancel() {
-  modal.value = false
+  modal.value = false;
 }
 
 /* ---------------- 保存/运行 ---------------- */
@@ -655,106 +725,118 @@ function onCancel() {
  */
 async function save(runAfter: boolean) {
   if (!form.name) {
-    message.warning('请填写任务名称')
-    activeTab.value = 'basic'
-    return
+    message.warning('请填写任务名称');
+    activeTab.value = 'basic';
+    return;
   }
   if (!selectedCases.value.length) {
-    message.warning('请至少添加一个用例')
-    activeTab.value = 'cases'
-    return
+    message.warning('请至少添加一个用例');
+    activeTab.value = 'cases';
+    return;
   }
-  let variables: any[] = []
+  let variables: any[] = [];
   try {
-    variables = JSON.parse(variablesJson.value || '[]')
+    variables = JSON.parse(variablesJson.value || '[]');
   } catch {
-    message.warning('用例级变量 JSON 格式错误')
-    activeTab.value = 'execution'
-    return
+    message.warning('用例级变量 JSON 格式错误');
+    activeTab.value = 'execution';
+    return;
   }
-  saving.value = true
+  saving.value = true;
   try {
     const payload: any = {
       ...form,
       caseIds: selectedCases.value.map((c) => c.id),
       variables,
       notifyChannels: form.notifyChannels || [],
-      projectId: projectId.value
-    }
+      projectId: projectId.value,
+    };
     // 删除多余字段
-    delete payload.deletedAt
-    delete payload.createdAt
-    delete payload.updatedAt
-    let taskId = form.id
+    delete payload.deletedAt;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+    let taskId = form.id;
     if (form.id) {
-      await TestTaskApi.update(form.id, payload)
+      await TestTaskApi.update(form.id, payload);
     } else {
-      const created = await TestTaskApi.create(payload)
-      taskId = created.id
-      form.id = created.id
+      const created = await TestTaskApi.create(payload);
+      taskId = created.id;
+      form.id = created.id;
     }
-    message.success('已保存')
-    await reload()
+    message.success('已保存');
+    await reload();
 
     if (runAfter && taskId) {
-      await runAsync({ id: taskId } as TestTask)
+      await runAsync({ id: taskId } as TestTask);
     }
-    modal.value = false
+    modal.value = false;
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 /** 异步运行：投递到 MQ 后立即返回，结果通过展开行刷新 */
 async function runAsync(record: TestTask) {
-  runningId.value = record.id + 'a'
+  runningId.value = record.id + 'a';
   try {
-    const runs = await TestTaskApi.run(record.id)
-    message.success(`已异步投递 ${runs.length} 个用例`)
-    runsByTask.value[record.id] = runs
-    expandedKeys.value = [record.id]
+    const runs = await TestTaskApi.run(record.id);
+    message.success(`已异步投递 ${runs.length} 个用例`);
+    runsByTask.value[record.id] = runs;
+    expandedKeys.value = [record.id];
   } finally {
-    runningId.value = ''
+    runningId.value = '';
   }
 }
 
 /** 同步运行：阻塞等待全部用例执行完成，用于快速验证（长任务建议用异步） */
 async function runSync(record: TestTask) {
-  runningId.value = record.id + 's'
-  const hide = message.loading('同步执行中...', 0)
+  runningId.value = record.id + 's';
+  const hide = message.loading('同步执行中...', 0);
   try {
-    const runs = await TestTaskApi.runSync(record.id)
-    const passed = runs.filter((r) => r.result === 'success').length
-    message.success(`同步执行完成：${passed}/${runs.length} 通过`)
-    runsByTask.value[record.id] = runs
-    expandedKeys.value = [record.id]
+    const runs = await TestTaskApi.runSync(record.id);
+    const passed = runs.filter((r) => r.result === 'success').length;
+    message.success(`同步执行完成：${passed}/${runs.length} 通过`);
+    runsByTask.value[record.id] = runs;
+    expandedKeys.value = [record.id];
   } finally {
-    runningId.value = ''
-    hide()
+    runningId.value = '';
+    hide();
   }
 }
 
 /** 启用/停用任务（停用的定时任务不会被调度） */
 async function toggle(record: TestTask) {
-  await TestTaskApi.toggle(record.id)
-  await reload()
+  await TestTaskApi.toggle(record.id);
+  await reload();
 }
 
 /** 删除任务 */
 async function remove(record: TestTask) {
-  await TestTaskApi.remove(record.id)
-  await reload()
+  await TestTaskApi.remove(record.id);
+  await reload();
 }
 
 /** 追加一条空的通知渠道配置，默认邮件 */
 function addNotifyChannel() {
-  if (!form.notifyChannels) form.notifyChannels = []
-  form.notifyChannels.push({ type: 'email', target: '', secret: '' } as NotifyChannel)
+  if (!form.notifyChannels) form.notifyChannels = [];
+  form.notifyChannels.push({ type: 'email', target: '', secret: '' } as NotifyChannel);
 }
 
 /** 切换项目时重新加载全部数据（immediate=false：挂载时由 onMounted 触发） */
-watch(projectId, () => { reload(); loadCases(); loadEnvironments() }, { immediate: false })
-onMounted(() => { reload(); loadCases(); loadEnvironments() })
+watch(
+  projectId,
+  () => {
+    reload();
+    loadCases();
+    loadEnvironments();
+  },
+  { immediate: false },
+);
+onMounted(() => {
+  reload();
+  loadCases();
+  loadEnvironments();
+});
 </script>
 
 <style scoped>

@@ -60,81 +60,77 @@
  * <p>状态顺序与中文名统一取自 constants，页面只需传入 {key,label,value} 列表；
  * 点击卡片可向上抛出 filter 事件实现按状态过滤。</p>
  */
-import { computed } from 'vue'
-import { ALLURE_STATUS_KEYS, ALLURE_STATUS_LABELS, type AllureStatusKey } from '@/constants'
+import { computed } from 'vue';
+import { ALLURE_STATUS_KEYS, ALLURE_STATUS_LABELS, type AllureStatusKey } from '@/constants';
 
 export interface StatusStat {
   /** 状态标识：passed | failed | broken | skipped */
-  key: AllureStatusKey
+  key: AllureStatusKey;
   /** 显示名称 */
-  label: string
+  label: string;
   /** 数量 */
-  value: number
+  value: number;
 }
 
 const props = defineProps<{
   /** 状态统计（缺省自动补 0） */
-  stats: StatusStat[]
-}>()
+  stats: StatusStat[];
+}>();
 
 const emit = defineEmits<{
-  (e: 'filter', key: string | null): void
-}>()
+  (e: 'filter', key: string | null): void;
+}>();
 
 // 供外部 v-model:active 使用（可选）
-const active = defineModel<string | null>('active', { default: null })
+const active = defineModel<string | null>('active', { default: null });
 
 /** 归一化后的四类状态（顺序与中文名均取自 constants，避免重复维护） */
 const normalized = computed<StatusStat[]>(() => {
-  const map = new Map(props.stats.map((s) => [s.key, s.value]))
+  const map = new Map(props.stats.map((s) => [s.key, s.value]));
   return ALLURE_STATUS_KEYS.map((k) => ({
     key: k,
     label: ALLURE_STATUS_LABELS[k] ?? k,
-    value: map.get(k) || 0
-  }))
-})
+    value: map.get(k) || 0,
+  }));
+});
 
-const total = computed(() =>
-  normalized.value.reduce((acc, s) => acc + s.value, 0)
-)
+const total = computed(() => normalized.value.reduce((acc, s) => acc + s.value, 0));
 
 const cardItems = computed(() =>
   normalized.value.map((s) => ({
     ...s,
-    pct: total.value === 0 ? 0 : Number(((s.value * 100) / total.value).toFixed(1))
-  }))
-)
+    pct: total.value === 0 ? 0 : Number(((s.value * 100) / total.value).toFixed(1)),
+  })),
+);
 
 const segments = computed(() =>
-  cardItems.value
-    .filter((s) => s.value > 0)
-    .map((s) => ({ ...s, width: s.pct + '%' }))
-)
+  cardItems.value.filter((s) => s.value > 0).map((s) => ({ ...s, width: s.pct + '%' })),
+);
 
 /** 环形图背景：conic-gradient 拼接各状态占比 */
 const donutBackground = computed(() => {
-  if (total.value === 0) return '#e2e8f0'
+  if (total.value === 0) return '#e2e8f0';
   const colors: Record<StatusStat['key'], string> = {
     passed: '#16a34a',
     failed: '#dc2626',
     broken: '#ea580c',
-    skipped: '#94a3b8'
-  }
-  let acc = 0
+    skipped: '#94a3b8',
+  };
+  let acc = 0;
   const stops = cardItems.value
     .filter((s) => s.value > 0)
     .map((s) => {
-      const from = acc
-      acc += s.pct
-      return `${colors[s.key]} ${from}% ${acc}%`
-    })
-  return `conic-gradient(${stops.join(', ')})`
-})
+      const from = acc;
+      acc += s.pct;
+      return `${colors[s.key]} ${from}% ${acc}%`;
+    });
+  return `conic-gradient(${stops.join(', ')})`;
+});
 
 function onCardClick(key: string) {
   // 再次点击已选中的卡片取消过滤
-  active.value = active.value === key ? null : key
-  emit('filter', active.value)
+  active.value = active.value === key ? null : key;
+  emit('filter', active.value);
 }
 </script>
 
@@ -169,9 +165,10 @@ function onCardClick(key: string) {
   border: 1px solid var(--bd-subtle);
   cursor: pointer;
   user-select: none;
-  transition: transform var(--dur-fast) var(--ease),
-              box-shadow var(--dur-fast) var(--ease),
-              border-color var(--dur-fast) var(--ease);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 
 .allure-card:hover {
@@ -203,15 +200,31 @@ function onCardClick(key: string) {
 }
 
 /* 各状态配色（文字 + 图标同色） */
-.allure-card--passed { color: var(--c-success); }
-.allure-card--failed { color: var(--c-error); }
-.allure-card--broken { color: var(--c-warning); }
-.allure-card--skipped { color: var(--tx-4); }
+.allure-card--passed {
+  color: var(--c-success);
+}
+.allure-card--failed {
+  color: var(--c-error);
+}
+.allure-card--broken {
+  color: var(--c-warning);
+}
+.allure-card--skipped {
+  color: var(--tx-4);
+}
 
-.allure-card--passed .allure-card__num { color: var(--c-success); }
-.allure-card--failed .allure-card__num { color: var(--c-error); }
-.allure-card--broken .allure-card__num { color: var(--c-warning); }
-.allure-card--skipped .allure-card__num { color: var(--tx-4); }
+.allure-card--passed .allure-card__num {
+  color: var(--c-success);
+}
+.allure-card--failed .allure-card__num {
+  color: var(--c-error);
+}
+.allure-card--broken .allure-card__num {
+  color: var(--c-warning);
+}
+.allure-card--skipped .allure-card__num {
+  color: var(--tx-4);
+}
 
 /* ============ 堆叠进度条 ============ */
 .allure-bar {
@@ -227,10 +240,18 @@ function onCardClick(key: string) {
   transition: width var(--dur-base) var(--ease);
 }
 
-.allure-bar__seg--passed { background: var(--c-success); }
-.allure-bar__seg--failed { background: var(--c-error); }
-.allure-bar__seg--broken { background: var(--c-warning); }
-.allure-bar__seg--skipped { background: var(--tx-4); }
+.allure-bar__seg--passed {
+  background: var(--c-success);
+}
+.allure-bar__seg--failed {
+  background: var(--c-error);
+}
+.allure-bar__seg--broken {
+  background: var(--c-warning);
+}
+.allure-bar__seg--skipped {
+  background: var(--tx-4);
+}
 
 /* ============ 环形图 + 图例 ============ */
 .allure-chart {
@@ -293,8 +314,9 @@ function onCardClick(key: string) {
   cursor: pointer;
   padding: 2px var(--sp-2);
   border-radius: var(--rd-sm);
-  transition: opacity var(--dur-fast) var(--ease),
-              background var(--dur-fast) var(--ease);
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 
 .allure-legend__item:hover {
@@ -312,10 +334,18 @@ function onCardClick(key: string) {
   flex-shrink: 0;
 }
 
-.dot--passed { background: var(--c-success); }
-.dot--failed { background: var(--c-error); }
-.dot--broken { background: var(--c-warning); }
-.dot--skipped { background: var(--tx-4); }
+.dot--passed {
+  background: var(--c-success);
+}
+.dot--failed {
+  background: var(--c-error);
+}
+.dot--broken {
+  background: var(--c-warning);
+}
+.dot--skipped {
+  background: var(--tx-4);
+}
 
 .allure-legend__label {
   color: var(--tx-2);

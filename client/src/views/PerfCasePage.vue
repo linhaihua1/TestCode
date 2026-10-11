@@ -7,18 +7,12 @@
         <a-button v-can-write type="primary" @click="openCreate">
           <plus-outlined />新建用例
         </a-button>
-        <a-button v-can-write @click="exportBatch" :disabled="!selectedRowKeys.length">
+        <a-button v-can-write :disabled="!selectedRowKeys.length" @click="exportBatch">
           <download-outlined />导出 JMX
           <template v-if="selectedRowKeys.length">({{ selectedRowKeys.length }})</template>
         </a-button>
-        <a-upload
-          :show-upload-list="false"
-          accept=".jmx"
-          :before-upload="handleImportJmx"
-        >
-          <a-button v-can-write>
-            <import-outlined />导入 JMX
-          </a-button>
+        <a-upload :show-upload-list="false" accept=".jmx" :before-upload="handleImportJmx">
+          <a-button v-can-write> <import-outlined />导入 JMX </a-button>
         </a-upload>
       </a-space>
     </div>
@@ -36,11 +30,18 @@
           <template v-if="column.key === 'threads'">
             {{ record.threads }} 线程 / {{ record.rampUp }}s ramp-up
             <a-tag v-if="durationFor(record)" color="purple">{{ record.duration }}s</a-tag>
-            <a-tag v-if="(record.steps || []).length" color="blue">{{ (record.steps || []).length }} 个请求</a-tag>
+            <a-tag v-if="(record.steps || []).length" color="blue"
+              >{{ (record.steps || []).length }} 个请求</a-tag
+            >
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button size="small" type="link" @click="run(record)" :loading="runningId === record.id">
+              <a-button
+                size="small"
+                type="link"
+                :loading="runningId === record.id"
+                @click="run(record)"
+              >
                 <play-circle-outlined />运行
               </a-button>
               <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
@@ -68,7 +69,7 @@
       <template #footer>
         <a-space>
           <a-button @click="onCancel">取消</a-button>
-          <a-button @click="save" :loading="saving">保存</a-button>
+          <a-button :loading="saving" @click="save">保存</a-button>
         </a-space>
       </template>
 
@@ -223,7 +224,11 @@
 
                   <a-divider style="margin: 12px 0">请求头</a-divider>
                   <div v-for="(h, hi) in step.headers" :key="hi" class="kv-row">
-                    <a-input v-model:value="h.key" placeholder="Header 名（如 Content-Type）" style="width: 40%" />
+                    <a-input
+                      v-model:value="h.key"
+                      placeholder="Header 名（如 Content-Type）"
+                      style="width: 40%"
+                    />
                     <a-input v-model:value="h.value" placeholder="Header 值" style="width: 40%" />
                     <a-button type="text" danger @click="step.headers!.splice(hi, 1)">
                       <delete-outlined />
@@ -285,34 +290,34 @@
  * <p>保存后的用例由后端转换成 JMeter 的 .jmx 测试计划执行（嵌入式 JMeter，不依赖外部环境）；
  * 本页同时支持把已有 .jmx 导入为用例、把用例导出为 .jmx。</p>
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import {
   PlusOutlined,
   PlayCircleOutlined,
   ImportOutlined,
   DownloadOutlined,
-  DeleteOutlined
-} from '@ant-design/icons-vue'
-import { PerfApi } from '@/api'
-import { useProjectStore } from '@/stores/project'
-import type { PerfCase, PerfStep } from '@/types'
+  DeleteOutlined,
+} from '@ant-design/icons-vue';
+import { PerfApi } from '@/api';
+import { useProjectStore } from '@/stores/project';
+import type { PerfCase, PerfStep } from '@/types';
 
-const router = useRouter()
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const router = useRouter();
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const cases = ref<PerfCase[]>([])
-const loading = ref(false)
-const runningId = ref('')
-const saving = ref(false)
+const cases = ref<PerfCase[]>([]);
+const loading = ref(false);
+const runningId = ref('');
+const saving = ref(false);
 
-const selectedRowKeys = ref<string[]>([])
+const selectedRowKeys = ref<string[]>([]);
 
-const modal = ref(false)
-const editTab = ref('thread')
-const activeStepKeys = ref<(string | number)[]>([])
+const modal = ref(false);
+const editTab = ref('thread');
+const activeStepKeys = ref<(string | number)[]>([]);
 
 const form = reactive<Partial<PerfCase>>({
   name: '',
@@ -325,30 +330,30 @@ const form = reactive<Partial<PerfCase>>({
   onSampleError: 'continue',
   variables: [],
   steps: [],
-  profile: { loadProfile: 'fixed' }
-})
-const profileForm = reactive({ loadProfile: 'fixed' })
+  profile: { loadProfile: 'fixed' },
+});
+const profileForm = reactive({ loadProfile: 'fixed' });
 
 const caseColumns = [
   { title: '名称', dataIndex: 'name' },
   { title: '压测参数', key: 'threads' },
-  { title: '操作', key: 'action', width: 300 }
-]
+  { title: '操作', key: 'action', width: 300 },
+];
 
 function durationFor(c: PerfCase) {
-  return c.duration > 0
+  return c.duration > 0;
 }
 
 function stepHeader(step: PerfStep, idx: number) {
-  const method = step.method || 'GET'
-  const url = `${step.protocol || 'https'}://${step.host || '...'}${step.path || ''}`
-  return `#${idx + 1} ${method} ${url}`
+  const method = step.method || 'GET';
+  const url = `${step.protocol || 'https'}://${step.host || '...'}${step.path || ''}`;
+  return `#${idx + 1} ${method} ${url}`;
 }
 
 /* ---------------- 步骤/变量编辑 ---------------- */
 
 function addStep() {
-  if (!form.steps) form.steps = []
+  if (!form.steps) form.steps = [];
   const step: PerfStep = {
     name: `HTTP请求 ${form.steps.length + 1}`,
     protocol: 'https',
@@ -361,42 +366,42 @@ function addStep() {
     headers: [],
     body: '',
     followRedirects: true,
-    useKeepAlive: true
-  }
-  form.steps.push(step)
-  activeStepKeys.value = [form.steps.length - 1]
+    useKeepAlive: true,
+  };
+  form.steps.push(step);
+  activeStepKeys.value = [form.steps.length - 1];
 }
 
 function removeStep(idx: number) {
-  form.steps!.splice(idx, 1)
+  form.steps!.splice(idx, 1);
   // 收起面板
-  activeStepKeys.value = activeStepKeys.value.filter((k) => k !== idx)
+  activeStepKeys.value = activeStepKeys.value.filter((k) => k !== idx);
 }
 
 function addQueryParam(step: PerfStep) {
-  if (!step.queryParams) step.queryParams = []
-  step.queryParams.push({ key: '', value: '' })
+  if (!step.queryParams) step.queryParams = [];
+  step.queryParams.push({ key: '', value: '' });
 }
 
 function addHeader(step: PerfStep) {
-  if (!step.headers) step.headers = []
-  step.headers.push({ key: '', value: '' })
+  if (!step.headers) step.headers = [];
+  step.headers.push({ key: '', value: '' });
 }
 
 function addVariable() {
-  if (!form.variables) form.variables = []
-  form.variables.push({ key: '', value: '' })
+  if (!form.variables) form.variables = [];
+  form.variables.push({ key: '', value: '' });
 }
 
 /* ---------------- 数据加载 ---------------- */
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    cases.value = await PerfApi.listCases(projectId.value)
+    cases.value = await PerfApi.listCases(projectId.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -414,12 +419,12 @@ function openCreate() {
     thinkTime: 0,
     onSampleError: 'continue',
     variables: [],
-    steps: []
-  })
-  profileForm.loadProfile = 'fixed'
-  activeStepKeys.value = []
-  editTab.value = 'thread'
-  modal.value = true
+    steps: [],
+  });
+  profileForm.loadProfile = 'fixed';
+  activeStepKeys.value = [];
+  editTab.value = 'thread';
+  modal.value = true;
 }
 
 function openEdit(record: PerfCase) {
@@ -434,8 +439,8 @@ function openEdit(record: PerfCase) {
     thinkTime: record.thinkTime,
     onSampleError: record.onSampleError,
     variables: record.variables ? JSON.parse(JSON.stringify(record.variables)) : [],
-    steps: record.steps ? JSON.parse(JSON.stringify(record.steps)) : []
-  })
+    steps: record.steps ? JSON.parse(JSON.stringify(record.steps)) : [],
+  });
   // 兼容旧数据：步骤可能缺字段
   if (form.steps) {
     form.steps = form.steps.map((s: any) => ({
@@ -447,116 +452,116 @@ function openEdit(record: PerfCase) {
       queryParams: [],
       headers: [],
       body: '',
-      ...s
-    }))
+      ...s,
+    }));
   }
-  profileForm.loadProfile = record.profile?.loadProfile ?? 'fixed'
-  activeStepKeys.value = (form.steps || []).map((_, i) => i)
-  editTab.value = 'thread'
-  modal.value = true
+  profileForm.loadProfile = record.profile?.loadProfile ?? 'fixed';
+  activeStepKeys.value = (form.steps || []).map((_, i) => i);
+  editTab.value = 'thread';
+  modal.value = true;
 }
 
 function onCancel() {
-  modal.value = false
+  modal.value = false;
 }
 
 async function save() {
   if (!form.name) {
-    message.warning('请填写用例名称')
-    editTab.value = 'thread'
-    return
+    message.warning('请填写用例名称');
+    editTab.value = 'thread';
+    return;
   }
   // 校验：每个步骤需要有 host
-  const steps = form.steps || []
+  const steps = form.steps || [];
   if (steps.some((s: any) => !s.host)) {
-    message.warning('存在 HTTP 请求未填写服务器名称或 IP')
-    editTab.value = 'requests'
-    return
+    message.warning('存在 HTTP 请求未填写服务器名称或 IP');
+    editTab.value = 'requests';
+    return;
   }
-  form.profile = { loadProfile: profileForm.loadProfile as any }
-  saving.value = true
+  form.profile = { loadProfile: profileForm.loadProfile as any };
+  saving.value = true;
   try {
     if (form.id) {
-      await PerfApi.updateCase(form.id, form)
+      await PerfApi.updateCase(form.id, form);
     } else {
-      await PerfApi.createCase({ ...form, projectId: projectId.value })
+      await PerfApi.createCase({ ...form, projectId: projectId.value });
     }
-    message.success('已保存')
-    modal.value = false
-    await reload()
+    message.success('已保存');
+    modal.value = false;
+    await reload();
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 /* ---------------- 运行 / 删除 ---------------- */
 
 async function run(record: PerfCase) {
-  runningId.value = record.id
+  runningId.value = record.id;
   try {
-    await PerfApi.run(record.id)
-    message.success('已投递到 RabbitMQ，等待执行机消费')
+    await PerfApi.run(record.id);
+    message.success('已投递到 RabbitMQ，等待执行机消费');
     // 跳转到独立的性能测试报告页
-    router.push({ name: 'perf-reports' })
+    router.push({ name: 'perf-reports' });
   } finally {
-    runningId.value = ''
+    runningId.value = '';
   }
 }
 
 async function remove(record: PerfCase) {
-  await PerfApi.deleteCase(record.id)
-  await reload()
+  await PerfApi.deleteCase(record.id);
+  await reload();
 }
 
 /* ---------------- 导出 / 导入 JMX ---------------- */
 
 function onSelectChange(keys: (string | number)[]) {
-  selectedRowKeys.value = keys as string[]
+  selectedRowKeys.value = keys as string[];
 }
 
 async function exportBatch() {
   if (!selectedRowKeys.value.length) {
-    message.warning('请先勾选要导出的用例')
-    return
+    message.warning('请先勾选要导出的用例');
+    return;
   }
   try {
-    const blob = await PerfApi.exportBatch(selectedRowKeys.value) as unknown as Blob
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `perf-batch-${selectedRowKeys.value.length}-cases.jmx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    message.success(`已导出 ${selectedRowKeys.value.length} 个用例为 JMX`)
+    const blob = (await PerfApi.exportBatch(selectedRowKeys.value)) as unknown as Blob;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `perf-batch-${selectedRowKeys.value.length}-cases.jmx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message.success(`已导出 ${selectedRowKeys.value.length} 个用例为 JMX`);
   } catch {
-    message.error('批量导出失败')
+    message.error('批量导出失败');
   }
 }
 
 async function exportJmx(record: PerfCase) {
   try {
-    const blob = await PerfApi.exportJmx(record.id) as unknown as Blob
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${record.name || 'perf-case'}.jmx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    message.success('已导出 JMX 文件')
+    const blob = (await PerfApi.exportJmx(record.id)) as unknown as Blob;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${record.name || 'perf-case'}.jmx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message.success('已导出 JMX 文件');
   } catch {
-    message.error('导出失败')
+    message.error('导出失败');
   }
 }
 
 async function handleImportJmx(file: File) {
   try {
-    const text = await file.text()
-    const parsed = await PerfApi.importJmx(text)
-    message.success('JMX 解析成功，请完善名称后保存')
+    const text = await file.text();
+    const parsed = await PerfApi.importJmx(text);
+    message.success('JMX 解析成功，请完善名称后保存');
     // 用解析结果填充表单（保留新用例状态）
     Object.assign(form, {
       id: undefined,
@@ -569,25 +574,29 @@ async function handleImportJmx(file: File) {
       thinkTime: parsed.thinkTime,
       onSampleError: parsed.onSampleError,
       variables: parsed.variables || [],
-      steps: parsed.steps || []
-    })
-    profileForm.loadProfile = parsed.profile?.loadProfile ?? 'fixed'
-    activeStepKeys.value = (form.steps || []).map((_, i) => i)
-    editTab.value = 'thread'
-    modal.value = true
+      steps: parsed.steps || [],
+    });
+    profileForm.loadProfile = parsed.profile?.loadProfile ?? 'fixed';
+    activeStepKeys.value = (form.steps || []).map((_, i) => i);
+    editTab.value = 'thread';
+    modal.value = true;
   } catch (e: any) {
-    message.error(e?.message || 'JMX 导入失败')
+    message.error(e?.message || 'JMX 导入失败');
   }
   // 阻止默认上传行为
-  return false
+  return false;
 }
 
-watch(projectId, () => {
-  reload()
-}, { immediate: false })
+watch(
+  projectId,
+  () => {
+    reload();
+  },
+  { immediate: false },
+);
 onMounted(() => {
-  reload()
-})
+  reload();
+});
 </script>
 
 <style scoped>

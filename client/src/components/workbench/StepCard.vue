@@ -10,11 +10,7 @@
 -->
 <template>
   <a-dropdown :trigger="['contextmenu']" :disabled="disabled">
-    <a-card
-      size="small"
-      class="step-card"
-      :class="{ 'step-card--disabled': !isEnabled }"
-    >
+    <a-card size="small" class="step-card" :class="{ 'step-card--disabled': !isEnabled }">
       <template #extra>
         <a-space>
           <a-tag :color="typeColor(step.type)">{{ typeLabel(step.type) }}</a-tag>
@@ -26,11 +22,7 @@
 
       <div class="step-header">
         <a-tooltip :title="isEnabled ? '禁用该步骤' : '启用该步骤'">
-          <a-switch
-            :checked="isEnabled"
-            size="small"
-            @change="onToggleEnabled"
-          />
+          <a-switch :checked="isEnabled" size="small" @change="onToggleEnabled" />
         </a-tooltip>
         <drag-outlined class="step-handle" />
         <a-input v-model:value="step.name" placeholder="步骤名称" />
@@ -118,20 +110,13 @@
 
       <!-- JS 脚本 -->
       <template v-else-if="step.type === 'script'">
-        <Monaco
-          v-model="step.script"
-          language="javascript"
-          height="160px"
-          class="step-row"
-        />
+        <Monaco v-model="step.script" language="javascript" height="160px" class="step-row" />
       </template>
     </a-card>
 
     <template #overlay>
       <a-menu>
-        <a-menu-item key="copy" @click="emit('copy')">
-          <copy-outlined /> 复制该步骤
-        </a-menu-item>
+        <a-menu-item key="copy" @click="emit('copy')"> <copy-outlined /> 复制该步骤 </a-menu-item>
         <a-menu-item key="paste" @click="emit('paste')">
           <snippets-outlined /> 粘贴到下方
         </a-menu-item>
@@ -144,32 +129,37 @@
 /**
  * 步骤卡片组件：展示与编辑单个用例步骤（请求头/参数/请求体/断言/提取）。
  */
-import { computed } from 'vue'
+import { computed } from 'vue';
 import {
-  DeleteOutlined, DragOutlined, CopyOutlined, SnippetsOutlined
-} from '@ant-design/icons-vue'
-import type { CaseStep } from '@/types'
-import KeyValueEditor from '@/components/KeyValueEditor.vue'
-import AssertionEditor from '@/components/AssertionEditor.vue'
-import ExtractEditor from '@/components/ExtractEditor.vue'
-import Monaco from '@/components/Monaco.vue'
+  DeleteOutlined,
+  DragOutlined,
+  CopyOutlined,
+  SnippetsOutlined,
+} from '@ant-design/icons-vue';
+import type { CaseStep } from '@/types';
+import KeyValueEditor from '@/components/KeyValueEditor.vue';
+import AssertionEditor from '@/components/AssertionEditor.vue';
+import ExtractEditor from '@/components/ExtractEditor.vue';
+import Monaco from '@/components/Monaco.vue';
 
-const props = defineProps<{ step: CaseStep; disabled?: boolean }>()
+const props = defineProps<{ step: CaseStep; disabled?: boolean }>();
 const emit = defineEmits<{
-  remove: []
-  copy: []
-  paste: []
-}>()
+  remove: [];
+  copy: [];
+  paste: [];
+}>();
 
-const step = computed(() => props.step)
+const step = computed(() => props.step);
 
-const isEnabled = computed(() => props.step.enabled !== false)
+const isEnabled = computed(() => props.step.enabled !== false);
 
 // 内部维护 __activeTab，兼容旧数据无该字段
 const activeTab = computed({
   get: () => props.step.__activeTab || 'headers',
-  set: (v: string) => { props.step.__activeTab = v }
-})
+  set: (v: string) => {
+    props.step.__activeTab = v;
+  },
+});
 
 const stepTypeOptions = [
   { value: 'http', label: 'HTTP 请求' },
@@ -177,46 +167,53 @@ const stepTypeOptions = [
   { value: 'if', label: 'IF 条件' },
   { value: 'for', label: 'FOR 循环' },
   { value: 'while', label: 'WHILE 循环' },
-  { value: 'script', label: 'JS 脚本' }
-]
+  { value: 'script', label: 'JS 脚本' },
+];
 
 const methodOptions = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map((v) => ({
   value: v,
-  label: v
-}))
+  label: v,
+}));
 
 function typeLabel(t: string) {
-  return stepTypeOptions.find((o) => o.value === t)?.label || t
+  return stepTypeOptions.find((o) => o.value === t)?.label || t;
 }
 
 function typeColor(t: string) {
   switch (t) {
-    case 'http': return 'blue'
-    case 'wait': return 'default'
-    case 'if': return 'orange'
-    case 'for': return 'purple'
-    case 'while': return 'purple'
-    case 'script': return 'cyan'
-    default: return 'default'
+    case 'http':
+      return 'blue';
+    case 'wait':
+      return 'default';
+    case 'if':
+      return 'orange';
+    case 'for':
+      return 'purple';
+    case 'while':
+      return 'purple';
+    case 'script':
+      return 'cyan';
+    default:
+      return 'default';
   }
 }
 
 function onToggleEnabled(v: boolean) {
-  props.step.enabled = v
+  props.step.enabled = v;
 }
 
 function resetStepShape() {
-  const s = props.step
-  s.headers = []
-  s.query = []
-  s.body = ''
-  s.assertions = []
-  s.extracts = []
-  s.condition = ''
-  s.loopCount = 1
-  s.waitMs = 1000
-  s.script = ''
-  s.__activeTab = 'headers'
+  const s = props.step;
+  s.headers = [];
+  s.query = [];
+  s.body = '';
+  s.assertions = [];
+  s.extracts = [];
+  s.condition = '';
+  s.loopCount = 1;
+  s.waitMs = 1000;
+  s.script = '';
+  s.__activeTab = 'headers';
 }
 </script>
 

@@ -20,8 +20,8 @@
           layout="vertical"
           :model="form"
           :rules="rules"
-          @finish="onLogin"
           class="login__form"
+          @finish="onLogin"
         >
           <a-form-item label="用户名" name="username">
             <a-input
@@ -72,26 +72,26 @@
  * <p>演示账号是否预填由环境变量 VITE_PREFILL_DEMO_ACCOUNT 控制，
  * 默认关闭，避免把默认口令写进代码。</p>
  */
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { message } from 'ant-design-vue';
+import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { useAuthStore } from '@/stores/auth';
 
-const auth = useAuthStore()
-const router = useRouter()
-const route = useRoute()
+const auth = useAuthStore();
+const router = useRouter();
+const route = useRoute();
 
 // 演示账号仅在显式开启时预填（VITE_PREFILL_DEMO_ACCOUNT=true），避免把默认口令写死在代码里
-const prefillDemo = import.meta.env.VITE_PREFILL_DEMO_ACCOUNT === 'true'
+const prefillDemo = import.meta.env.VITE_PREFILL_DEMO_ACCOUNT === 'true';
 const form = ref({
   username: prefillDemo ? (import.meta.env.VITE_DEMO_USERNAME ?? '') : '',
-  password: prefillDemo ? (import.meta.env.VITE_DEMO_PASSWORD ?? '') : ''
-})
-const loading = ref(false)
+  password: prefillDemo ? (import.meta.env.VITE_DEMO_PASSWORD ?? '') : '',
+});
+const loading = ref(false);
 
 /** 登录页底部的演示账号提示（VITE_DEMO_HINT，未配置则不展示） */
-const demoHint = import.meta.env.VITE_DEMO_HINT ?? ''
+const demoHint = import.meta.env.VITE_DEMO_HINT ?? '';
 
 /**
  * 表单校验规则：先在前端拦下空值，避免用空表单去打后端接口。
@@ -99,23 +99,23 @@ const demoHint = import.meta.env.VITE_DEMO_HINT ?? ''
  */
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+};
 
-const year = new Date().getFullYear()
+const year = new Date().getFullYear();
 
 /** 登录：成功后跳回 redirect 参数指定的地址（默认首页） */
 async function onLogin() {
-  loading.value = true
+  loading.value = true;
   try {
-    await auth.login(form.value.username, form.value.password)
-    message.success('登录成功')
-    const redirect = (route.query.redirect as string) || '/'
-    router.push(redirect)
+    await auth.login(form.value.username, form.value.password);
+    message.success('登录成功');
+    const redirect = (route.query.redirect as string) || '/';
+    router.push(redirect);
   } catch (e: any) {
-    message.error(e.message || '登录失败')
+    message.error(e.message || '登录失败');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -171,8 +171,12 @@ async function onLogin() {
 }
 
 @keyframes drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(40px, -30px, 0) scale(1.08); }
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(40px, -30px, 0) scale(1.08);
+  }
 }
 
 /* 极淡的网格底纹，加强科技感 */

@@ -18,15 +18,25 @@
             <a-tag color="blue">{{ caseCount(record) }} 个用例</a-tag>
           </template>
           <template v-else-if="column.key === 'environment'">
-            <a-tag v-if="envName(record.environmentId)" color="cyan">{{ envName(record.environmentId) }}</a-tag>
+            <a-tag v-if="envName(record.environmentId)" color="cyan">{{
+              envName(record.environmentId)
+            }}</a-tag>
             <a-tag v-else color="default">默认环境</a-tag>
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button v-can-write size="small" type="link" @click="runScenario(record)" :loading="runningId === record.id">
+              <a-button
+                v-can-write
+                size="small"
+                type="link"
+                :loading="runningId === record.id"
+                @click="runScenario(record)"
+              >
                 <play-circle-outlined />运行
               </a-button>
-              <a-button v-can-write size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button v-can-write size="small" type="link" @click="openEdit(record)"
+                >编辑</a-button
+              >
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
                 <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
@@ -48,8 +58,8 @@
       <template #footer>
         <a-space>
           <a-button @click="onCancel">取消</a-button>
-          <a-button @click="save(false)" :loading="saving">保存</a-button>
-          <a-button type="primary" @click="save(true)" :loading="saving">
+          <a-button :loading="saving" @click="save(false)">保存</a-button>
+          <a-button type="primary" :loading="saving" @click="save(true)">
             <play-circle-outlined />保存并运行
           </a-button>
         </a-space>
@@ -85,12 +95,22 @@
               </a-col>
               <a-col :span="8">
                 <a-form-item label="失败重试次数">
-                  <a-input-number v-model:value="form.retryCount" :min="0" :max="10" style="width: 100%" />
+                  <a-input-number
+                    v-model:value="form.retryCount"
+                    :min="0"
+                    :max="10"
+                    style="width: 100%"
+                  />
                 </a-form-item>
               </a-col>
               <a-col :span="8">
                 <a-form-item label="超时时间 (ms)">
-                  <a-input-number v-model:value="form.timeoutMs" :min="1000" :step="1000" style="width: 100%" />
+                  <a-input-number
+                    v-model:value="form.timeoutMs"
+                    :min="1000"
+                    :step="1000"
+                    style="width: 100%"
+                  />
                 </a-form-item>
               </a-col>
             </a-row>
@@ -146,22 +166,42 @@
                       <span class="case-row__name">{{ c.name }}</span>
                       <a-space size="2">
                         <a-tooltip title="置顶">
-                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'top')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === 0"
+                            @click="moveCase(i, 'top')"
+                          >
                             <vertical-align-top-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="上移">
-                          <a-button size="small" type="text" :disabled="i === 0" @click="moveCase(i, 'up')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === 0"
+                            @click="moveCase(i, 'up')"
+                          >
                             <arrow-up-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="下移">
-                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'down')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === selectedCases.length - 1"
+                            @click="moveCase(i, 'down')"
+                          >
                             <arrow-down-outlined />
                           </a-button>
                         </a-tooltip>
                         <a-tooltip title="置尾">
-                          <a-button size="small" type="text" :disabled="i === selectedCases.length - 1" @click="moveCase(i, 'bottom')">
+                          <a-button
+                            size="small"
+                            type="text"
+                            :disabled="i === selectedCases.length - 1"
+                            @click="moveCase(i, 'bottom')"
+                          >
                             <vertical-align-bottom-outlined />
                           </a-button>
                         </a-tooltip>
@@ -211,20 +251,26 @@
               />
             </a-form-item>
             <a-form-item label="执行机地址">
-              <a-input
-                v-model:value="form.executorUrl"
-                placeholder="http://192.168.1.10:4444"
-              />
+              <a-input v-model:value="form.executorUrl" placeholder="http://192.168.1.10:4444" />
             </a-form-item>
             <a-row :gutter="16">
               <a-col :span="16">
                 <a-form-item label="执行机域名 / IP">
-                  <a-input v-model:value="form.executorHost" placeholder="192.168.1.10 或 selenium-hub.example.com" />
+                  <a-input
+                    v-model:value="form.executorHost"
+                    placeholder="192.168.1.10 或 selenium-hub.example.com"
+                  />
                 </a-form-item>
               </a-col>
               <a-col :span="8">
                 <a-form-item label="执行机端口">
-                  <a-input-number v-model:value="form.executorPort" :min="1" :max="65535" style="width: 100%" placeholder="4444" />
+                  <a-input-number
+                    v-model:value="form.executorPort"
+                    :min="1"
+                    :max="65535"
+                    style="width: 100%"
+                    placeholder="4444"
+                  />
                 </a-form-item>
               </a-col>
             </a-row>
@@ -242,8 +288,8 @@
  * <p>执行为异步投递，页面轮询/刷新报告列表获取结果；
  * 可指定执行机地址、失败重试次数与超时时间。</p>
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { message } from 'ant-design-vue';
 import {
   PlusOutlined,
   PlayCircleOutlined,
@@ -252,25 +298,25 @@ import {
   ArrowDownOutlined,
   VerticalAlignTopOutlined,
   VerticalAlignBottomOutlined,
-  DeleteOutlined
-} from '@ant-design/icons-vue'
-import draggable from 'vuedraggable'
-import { UiApi, EnvironmentApi } from '@/api'
-import { useProjectStore } from '@/stores/project'
-import type { UiTestCase, UiScenario, Environment } from '@/types'
+  DeleteOutlined,
+} from '@ant-design/icons-vue';
+import draggable from 'vuedraggable';
+import { UiApi, EnvironmentApi } from '@/api';
+import { useProjectStore } from '@/stores/project';
+import type { UiTestCase, UiScenario, Environment } from '@/types';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const scenarios = ref<UiScenario[]>([])
-const tests = ref<UiTestCase[]>([])
-const environments = ref<Environment[]>([])
-const loading = ref(false)
-const runningId = ref('')
+const scenarios = ref<UiScenario[]>([]);
+const tests = ref<UiTestCase[]>([]);
+const environments = ref<Environment[]>([]);
+const loading = ref(false);
+const runningId = ref('');
 
-const modal = ref(false)
-const saving = ref(false)
-const activeTab = ref<string>('basic')
+const modal = ref(false);
+const saving = ref(false);
+const activeTab = ref<string>('basic');
 const form = reactive<Partial<UiScenario>>({
   name: '',
   description: '',
@@ -279,99 +325,99 @@ const form = reactive<Partial<UiScenario>>({
   timeoutMs: 0,
   executorUrl: '',
   executorHost: '',
-  executorPort: undefined
-})
-const variablesJson = ref('[]')
-const keyword = ref('')
+  executorPort: undefined,
+});
+const variablesJson = ref('[]');
+const keyword = ref('');
 /** 已选用例（有序） */
-const selectedCases = ref<UiTestCase[]>([])
+const selectedCases = ref<UiTestCase[]>([]);
 
 const environmentOptions = computed(() =>
-  environments.value.map((e) => ({ value: e.id, label: e.name }))
-)
+  environments.value.map((e) => ({ value: e.id, label: e.name })),
+);
 
 /** 场景步骤数（按已加载的 steps 缓存） */
-const stepCountMap = ref<Record<string, number>>({})
+const stepCountMap = ref<Record<string, number>>({});
 
 const columns = [
   { title: '名称', dataIndex: 'name' },
   { title: '用例数', key: 'caseCount', width: 120 },
   { title: '环境', key: 'environment', width: 120 },
   { title: '描述', dataIndex: 'description', ellipsis: true },
-  { title: '操作', key: 'action', width: 200 }
-]
+  { title: '操作', key: 'action', width: 200 },
+];
 
 /** 左侧用例库：排除已选 */
 const filteredAvailable = computed(() => {
-  const selectedIds = new Set(selectedCases.value.map((c) => c.id))
-  const kw = keyword.value.trim().toLowerCase()
+  const selectedIds = new Set(selectedCases.value.map((c) => c.id));
+  const kw = keyword.value.trim().toLowerCase();
   return tests.value.filter((c) => {
-    if (selectedIds.has(c.id)) return false
-    if (kw && !(c.name || '').toLowerCase().includes(kw)) return false
-    return true
-  })
-})
+    if (selectedIds.has(c.id)) return false;
+    if (kw && !(c.name || '').toLowerCase().includes(kw)) return false;
+    return true;
+  });
+});
 
 function caseCount(record: UiScenario) {
-  return stepCountMap.value[record.id] || 0
+  return stepCountMap.value[record.id] || 0;
 }
 
 function envName(id?: string) {
-  return environments.value.find((e) => e.id === id)?.name || ''
+  return environments.value.find((e) => e.id === id)?.name || '';
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    scenarios.value = await UiApi.listScenarios(projectId.value)
+    scenarios.value = await UiApi.listScenarios(projectId.value);
     // 并行拉取各场景步骤数
     await Promise.all(
       scenarios.value.map(async (s) => {
         try {
-          const detail = await UiApi.getScenario(s.id)
-          stepCountMap.value[s.id] = ((detail.steps as any[]) || []).length
+          const detail = await UiApi.getScenario(s.id);
+          stepCountMap.value[s.id] = ((detail.steps as any[]) || []).length;
         } catch {
-          stepCountMap.value[s.id] = 0
+          stepCountMap.value[s.id] = 0;
         }
-      })
-    )
+      }),
+    );
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function loadTests() {
-  if (!projectId.value) return
+  if (!projectId.value) return;
   try {
-    tests.value = await UiApi.listTests(projectId.value)
+    tests.value = await UiApi.listTests(projectId.value);
   } catch {
-    tests.value = []
+    tests.value = [];
   }
 }
 
 async function loadEnvironments() {
-  if (!projectId.value) return
+  if (!projectId.value) return;
   try {
-    environments.value = await EnvironmentApi.list(projectId.value)
+    environments.value = await EnvironmentApi.list(projectId.value);
   } catch {
-    environments.value = []
+    environments.value = [];
   }
 }
 
 async function runScenario(record: UiScenario) {
-  runningId.value = record.id
+  runningId.value = record.id;
   try {
-    const list = await UiApi.runScenario(record.id)
-    message.success(`已投递 ${list.length} 个用例`)
+    const list = await UiApi.runScenario(record.id);
+    message.success(`已投递 ${list.length} 个用例`);
   } finally {
-    runningId.value = ''
+    runningId.value = '';
   }
 }
 
 async function remove(record: UiScenario) {
-  await UiApi.deleteScenario(record.id)
-  await reload()
+  await UiApi.deleteScenario(record.id);
+  await reload();
 }
 
 /* ---------------- 任务编辑 ---------------- */
@@ -386,13 +432,13 @@ function openCreate() {
     timeoutMs: 0,
     executorUrl: '',
     executorHost: '',
-    executorPort: undefined
-  })
-  selectedCases.value = []
-  keyword.value = ''
-  variablesJson.value = '[]'
-  activeTab.value = 'basic'
-  modal.value = true
+    executorPort: undefined,
+  });
+  selectedCases.value = [];
+  keyword.value = '';
+  variablesJson.value = '[]';
+  activeTab.value = 'basic';
+  modal.value = true;
 }
 
 async function openEdit(record: UiScenario) {
@@ -405,113 +451,125 @@ async function openEdit(record: UiScenario) {
     timeoutMs: record.timeoutMs || 0,
     executorUrl: record.executorUrl || '',
     executorHost: record.executorHost || '',
-    executorPort: record.executorPort
-  })
-  variablesJson.value = JSON.stringify(record.variables || [], null, 2)
-  selectedCases.value = []
-  keyword.value = ''
-  modal.value = true
+    executorPort: record.executorPort,
+  });
+  variablesJson.value = JSON.stringify(record.variables || [], null, 2);
+  selectedCases.value = [];
+  keyword.value = '';
+  modal.value = true;
   // 拉取场景已有步骤，回填已选用例（按 sortOrder 顺序）
   try {
-    const detail = await UiApi.getScenario(record.id)
-    const steps = (detail.steps as any[]) || []
-    const ids = steps.map((s) => s.uiTestCaseId).filter(Boolean)
-    const map = new Map(tests.value.map((t) => [t.id, t]))
-    selectedCases.value = ids.map((id) => map.get(id)).filter(Boolean) as UiTestCase[]
+    const detail = await UiApi.getScenario(record.id);
+    const steps = (detail.steps as any[]) || [];
+    const ids = steps.map((s) => s.uiTestCaseId).filter(Boolean);
+    const map = new Map(tests.value.map((t) => [t.id, t]));
+    selectedCases.value = ids.map((id) => map.get(id)).filter(Boolean) as UiTestCase[];
   } catch {
     // 忽略详情加载失败，仍允许编辑名称/描述
   }
-  activeTab.value = 'basic'
+  activeTab.value = 'basic';
 }
 
 function onCancel() {
-  modal.value = false
+  modal.value = false;
 }
 
 /* ---------------- 用例编排操作 ---------------- */
 
 function addCase(c: UiTestCase) {
-  selectedCases.value.push(c)
+  selectedCases.value.push(c);
 }
 
 function removeCase(index: number) {
-  selectedCases.value.splice(index, 1)
+  selectedCases.value.splice(index, 1);
 }
 
 /** 手动排序：上移/下移/置顶/置尾 */
 function moveCase(index: number, dir: 'up' | 'down' | 'top' | 'bottom') {
-  const list = selectedCases.value
-  const item = list[index]
+  const list = selectedCases.value;
+  const item = list[index];
   if (dir === 'top') {
-    list.splice(index, 1)
-    list.unshift(item)
+    list.splice(index, 1);
+    list.unshift(item);
   } else if (dir === 'bottom') {
-    list.splice(index, 1)
-    list.push(item)
+    list.splice(index, 1);
+    list.push(item);
   } else if (dir === 'up') {
-    if (index === 0) return
-    list.splice(index, 1)
-    list.splice(index - 1, 0, item)
+    if (index === 0) return;
+    list.splice(index, 1);
+    list.splice(index - 1, 0, item);
   } else if (dir === 'down') {
-    if (index === list.length - 1) return
-    list.splice(index, 1)
-    list.splice(index + 1, 0, item)
+    if (index === list.length - 1) return;
+    list.splice(index, 1);
+    list.splice(index + 1, 0, item);
   }
 }
 
 async function save(runAfter: boolean) {
   if (!form.name) {
-    message.warning('请填写任务名称')
-    activeTab.value = 'basic'
-    return
+    message.warning('请填写任务名称');
+    activeTab.value = 'basic';
+    return;
   }
   if (!selectedCases.value.length) {
-    message.warning('请至少添加一个用例')
-    activeTab.value = 'cases'
-    return
+    message.warning('请至少添加一个用例');
+    activeTab.value = 'cases';
+    return;
   }
-  let variables: any[] = []
+  let variables: any[] = [];
   try {
-    variables = JSON.parse(variablesJson.value || '[]')
+    variables = JSON.parse(variablesJson.value || '[]');
   } catch {
-    message.warning('执行参数 JSON 格式错误')
-    activeTab.value = 'params'
-    return
+    message.warning('执行参数 JSON 格式错误');
+    activeTab.value = 'params';
+    return;
   }
-  saving.value = true
+  saving.value = true;
   try {
-    const steps = selectedCases.value.map((c) => ({ uiTestCaseId: c.id }))
+    const steps = selectedCases.value.map((c) => ({ uiTestCaseId: c.id }));
     const payload: any = {
       ...form,
       variables,
       steps,
-      projectId: projectId.value
-    }
-    delete payload.deletedAt
-    delete payload.createdAt
-    delete payload.updatedAt
-    let scenarioId = form.id
+      projectId: projectId.value,
+    };
+    delete payload.deletedAt;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+    let scenarioId = form.id;
     if (form.id) {
-      await UiApi.updateScenario(form.id, payload)
+      await UiApi.updateScenario(form.id, payload);
     } else {
-      const created = await UiApi.createScenario(payload)
-      scenarioId = created.id
-      form.id = created.id
+      const created = await UiApi.createScenario(payload);
+      scenarioId = created.id;
+      form.id = created.id;
     }
-    message.success('已保存')
-    await reload()
+    message.success('已保存');
+    await reload();
 
     if (runAfter && scenarioId) {
-      await runScenario({ id: scenarioId } as UiScenario)
+      await runScenario({ id: scenarioId } as UiScenario);
     }
-    modal.value = false
+    modal.value = false;
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
-watch(projectId, () => { reload(); loadTests(); loadEnvironments() }, { immediate: false })
-onMounted(() => { reload(); loadTests(); loadEnvironments() })
+watch(
+  projectId,
+  () => {
+    reload();
+    loadTests();
+    loadEnvironments();
+  },
+  { immediate: false },
+);
+onMounted(() => {
+  reload();
+  loadTests();
+  loadEnvironments();
+});
 </script>
 
 <style scoped>

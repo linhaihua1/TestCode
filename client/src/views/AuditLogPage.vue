@@ -4,7 +4,12 @@
     <div class="page-header">
       <div class="page-title">审计日志</div>
       <a-space>
-        <a-input v-model:value="username" placeholder="按用户名筛选" style="width: 160px" @pressEnter="reload" />
+        <a-input
+          v-model:value="username"
+          placeholder="按用户名筛选"
+          style="width: 160px"
+          @press-enter="reload"
+        />
         <a-select
           v-model:value="entityType"
           :options="entityOptions"
@@ -32,7 +37,7 @@
             <a-tag color="blue">{{ record.action }}</a-tag>
           </template>
           <template v-else-if="column.key === 'beforeAfter'">
-            <a-popover trigger="click" v-if="record.beforeJson">
+            <a-popover v-if="record.beforeJson" trigger="click">
               <a-button type="link" size="small">查看变更</a-button>
               <template #content>
                 <pre style="max-width: 500px; max-height: 300px; overflow: auto">{{
@@ -54,19 +59,19 @@
  * <p>日志由后端 AuditAspect 在接口方法上打 @AuditLog 后自动记录，
  * 含操作人、动作、实体前后快照与来源 IP。</p>
  */
-import { onMounted, ref } from 'vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
-import { AuditApi } from '@/api'
-import { formatDateTime } from '@/utils/format'
-import type { AuditLog } from '@/types'
+import { onMounted, ref } from 'vue';
+import { ReloadOutlined } from '@ant-design/icons-vue';
+import { AuditApi } from '@/api';
+import { formatDateTime } from '@/utils/format';
+import type { AuditLog } from '@/types';
 
-const records = ref<AuditLog[]>([])
-const loading = ref(false)
-const username = ref('')
-const entityType = ref<string>()
-const page = ref(1)
-const size = ref(20)
-const total = ref(0)
+const records = ref<AuditLog[]>([]);
+const loading = ref(false);
+const username = ref('');
+const entityType = ref<string>();
+const page = ref(1);
+const size = ref(20);
+const total = ref(0);
 
 const columns = [
   { title: '时间', key: 'createdAt', width: 180 },
@@ -75,8 +80,8 @@ const columns = [
   { title: '实体', dataIndex: 'entityType', width: 120 },
   { title: '实体 ID', dataIndex: 'entityId', width: 200 },
   { title: 'IP', dataIndex: 'ip', width: 140 },
-  { title: '前后值', key: 'beforeAfter', width: 100 }
-]
+  { title: '前后值', key: 'beforeAfter', width: 100 },
+];
 
 const entityOptions = [
   { value: undefined, label: '全部实体' },
@@ -91,37 +96,37 @@ const entityOptions = [
   { value: 'perf_case', label: '性能用例' },
   { value: 'ui_test', label: 'UI 用例' },
   { value: 'ui_scenario', label: 'UI 场景' },
-  { value: 'user', label: '用户' }
-]
+  { value: 'user', label: '用户' },
+];
 
 /** 时间展示：统一走 utils/format（UTC → 本地时区） */
 function formatTime(iso: string) {
-  return formatDateTime(iso)
+  return formatDateTime(iso);
 }
 
 /** 按当前筛选条件与分页参数加载日志 */
 async function reload() {
-  loading.value = true
+  loading.value = true;
   try {
     const r = await AuditApi.list({
       username: username.value || undefined,
       entityType: entityType.value,
       page: page.value,
-      size: size.value
-    })
-    records.value = r.records
-    total.value = r.total
+      size: size.value,
+    });
+    records.value = r.records;
+    total.value = r.total;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function onPageChange(p: number) {
-  page.value = p
-  reload()
+  page.value = p;
+  reload();
 }
 
-onMounted(reload)
+onMounted(reload);
 </script>
 
 <style scoped>

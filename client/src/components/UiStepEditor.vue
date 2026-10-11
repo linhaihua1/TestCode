@@ -15,7 +15,12 @@
               <a-select v-model:value="s.action" :options="actionOptions" />
             </a-col>
             <a-col flex="180px">
-              <a-select v-model:value="s.locator" :options="locatorOptions" placeholder="定位方式" allow-clear />
+              <a-select
+                v-model:value="s.locator"
+                :options="locatorOptions"
+                placeholder="定位方式"
+                allow-clear
+              />
             </a-col>
             <a-col flex="auto">
               <a-input v-model:value="s.selector" placeholder="选择器" />
@@ -44,16 +49,16 @@
  * <p>每个步骤 = 动作（action）+ 定位方式（locator）+ 选择器/输入值；
  * 动作与定位方式的取值需与执行机端的实现一致。</p>
  */
-import draggable from 'vuedraggable'
-import { watch } from 'vue'
-import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'
-import { uid, ensureIds } from '@/utils/uid'
-import type { UiStep } from '@/types'
+import draggable from 'vuedraggable';
+import { watch } from 'vue';
+import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue';
+import { uid, ensureIds } from '@/utils/uid';
+import type { UiStep } from '@/types';
 
-const steps = defineModel<UiStep[]>({ required: true })
+const steps = defineModel<UiStep[]>({ required: true });
 
 // 从后端加载的旧数据可能没有 _id，补齐以支撑拖拽排序
-watch(steps, (list) => ensureIds(list), { immediate: true, deep: true })
+watch(steps, (list) => ensureIds(list), { immediate: true, deep: true });
 
 const actionOptions = [
   { value: 'open', label: '打开 URL' },
@@ -65,8 +70,8 @@ const actionOptions = [
   { value: 'assert_text', label: '断言文本' },
   { value: 'assert_title', label: '断言标题' },
   { value: 'screenshot', label: '截图' },
-  { value: 'script', label: 'JS 脚本' }
-]
+  { value: 'script', label: 'JS 脚本' },
+];
 
 const locatorOptions = [
   { value: 'id', label: 'ID' },
@@ -76,8 +81,8 @@ const locatorOptions = [
   { value: 'class', label: 'Class' },
   { value: 'tag', label: 'Tag' },
   { value: 'link_text', label: 'Link Text' },
-  { value: 'partial_link_text', label: 'Partial Link' }
-]
+  { value: 'partial_link_text', label: 'Partial Link' },
+];
 
 function addStep() {
   steps.value.push({
@@ -85,7 +90,7 @@ function addStep() {
     action: 'click',
     locator: 'css',
     selector: '',
-    value: ''
-  })
+    value: '',
+  });
 }
 </script>

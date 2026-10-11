@@ -59,11 +59,7 @@
             @saved="onCaseSaved"
             @debug="onDebugRequest"
           />
-          <a-empty
-            v-else
-            description="从左侧选择用例，或在用例列表新建"
-            style="margin-top: 80px"
-          />
+          <a-empty v-else description="从左侧选择用例，或在用例列表新建" style="margin-top: 80px" />
         </template>
         <template #right>
           <ApiManagerPanel :project-id="projectId" />
@@ -95,87 +91,87 @@
  * <p>快捷键 Ctrl+S 保存、Ctrl+Enter 调试（见 hooks/useShortcuts），
  * 实际动作通过 editorRef 调用子组件暴露的方法完成。</p>
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { GlobalOutlined, FileSearchOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import { useProjectStore } from '@/stores/project'
-import { useShortcuts } from '@/hooks/useShortcuts'
-import type { CaseInfo } from '@/types'
-import ThreePaneLayout from '@/components/ThreePaneLayout.vue'
-import WorkbenchLeftPanel from '@/components/workbench/WorkbenchLeftPanel.vue'
-import CaseEditorPanel from '@/components/workbench/CaseEditorPanel.vue'
-import ApiManagerPanel from '@/components/workbench/ApiManagerPanel.vue'
-import DebugModal from '@/components/workbench/DebugModal.vue'
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import { GlobalOutlined, FileSearchOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { useProjectStore } from '@/stores/project';
+import { useShortcuts } from '@/hooks/useShortcuts';
+import type { CaseInfo } from '@/types';
+import ThreePaneLayout from '@/components/ThreePaneLayout.vue';
+import WorkbenchLeftPanel from '@/components/workbench/WorkbenchLeftPanel.vue';
+import CaseEditorPanel from '@/components/workbench/CaseEditorPanel.vue';
+import ApiManagerPanel from '@/components/workbench/ApiManagerPanel.vue';
+import DebugModal from '@/components/workbench/DebugModal.vue';
 
-const router = useRouter()
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const router = useRouter();
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
 /** 当前正在编辑的用例；为 null 时中间面板显示空态 */
-const currentCase = ref<CaseInfo | null>(null)
+const currentCase = ref<CaseInfo | null>(null);
 
-const debugModalOpen = ref(false)
+const debugModalOpen = ref(false);
 /** 正在调试的用例 ID */
-const debuggingCaseId = ref('')
+const debuggingCaseId = ref('');
 
 /** 编辑器组件实例，用于调用其暴露的 save / debug / showDebugRecords 方法 */
-const editorRef = ref<InstanceType<typeof CaseEditorPanel> | null>(null)
+const editorRef = ref<InstanceType<typeof CaseEditorPanel> | null>(null);
 
 // 全局快捷键：Ctrl+S 保存、Ctrl+Enter 调试
 useShortcuts({
   onSave: () => {
     if (!currentCase.value) {
-      message.info('请先选择一个用例')
-      return
+      message.info('请先选择一个用例');
+      return;
     }
-    editorRef.value?.save?.()
+    editorRef.value?.save?.();
   },
   onDebug: () => {
     if (!currentCase.value) {
-      message.info('请先选择一个用例')
-      return
+      message.info('请先选择一个用例');
+      return;
     }
-    editorRef.value?.debug?.()
-  }
-})
+    editorRef.value?.debug?.();
+  },
+});
 
 /** 顶栏跳转（如前往环境配置） */
 function goTo(name: string) {
-  router.push({ name })
+  router.push({ name });
 }
 
 /** 左栏选中用例 */
 function openCase(c: CaseInfo) {
-  currentCase.value = c
+  currentCase.value = c;
 }
 
 /** 编辑器保存成功后的回调提示 */
 function onCaseSaved() {
-  message.success('已保存')
+  message.success('已保存');
 }
 
 // 用户点击「调试」→ 弹出调试弹窗
 function onDebugRequest(caseId: string) {
-  debuggingCaseId.value = caseId
-  debugModalOpen.value = true
+  debuggingCaseId.value = caseId;
+  debugModalOpen.value = true;
 }
 
 // 调试完成后：打开调试记录（由 CaseEditorPanel 内部 Tab 展示）
 function onDebugFinished(caseId: string) {
   // 通知编辑器切换到「调试记录」Tab
-  editorRef.value?.showDebugRecords?.(caseId)
+  editorRef.value?.showDebugRecords?.(caseId);
 }
 
 /** 切换项目时清空当前用例，避免把 A 项目的用例内容误存到 B 项目 */
 watch(projectId, () => {
-  currentCase.value = null
-})
+  currentCase.value = null;
+});
 
 onMounted(async () => {
   // fetchAll 内部会自动选中第一个项目（无缓存时）
-  await projectStore.fetchAll()
-})
+  await projectStore.fetchAll();
+});
 </script>
 
 <style scoped>

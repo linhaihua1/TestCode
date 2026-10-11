@@ -1,5 +1,5 @@
 <template>
-  <div class="page report-page" v-if="report">
+  <div v-if="report" class="page report-page">
     <!-- 页头 -->
     <header class="page-header">
       <div class="page-title">
@@ -10,9 +10,7 @@
         </a-tag>
       </div>
       <a-space>
-        <a-button @click="() => router.back()">
-          <arrow-left-outlined />返回
-        </a-button>
+        <a-button @click="() => router.back()"> <arrow-left-outlined />返回 </a-button>
       </a-space>
     </header>
 
@@ -97,72 +95,77 @@
 /**
  * 性能测试报告详情页：展示汇总指标、响应时间趋势、分接口统计与错误 TOP。
  */
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import {
-  LineChartOutlined, ArrowLeftOutlined
-} from '@ant-design/icons-vue'
-import * as echarts from 'echarts'
-import { PerfApi } from '@/api'
-import { statusColor } from '@/constants'
-import type { PerfReport } from '@/types'
-import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
+import { computed, nextTick, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { LineChartOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue';
+import * as echarts from 'echarts';
+import { PerfApi } from '@/api';
+import { statusColor } from '@/constants';
+import type { PerfReport } from '@/types';
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue';
 
-const route = useRoute()
-const router = useRouter()
+const route = useRoute();
+const router = useRouter();
 
-const report = ref<PerfReport | null>(null)
-const chartEl = ref<HTMLElement | null>(null)
+const report = ref<PerfReport | null>(null);
+const chartEl = ref<HTMLElement | null>(null);
 
-const summary = computed(() => (report.value?.summary as any) || {})
+const summary = computed(() => (report.value?.summary as any) || {});
 
 /** Allure 风格状态统计：成功样本 / 错误样本 */
 const perfStats = computed<StatusStat[]>(() => {
-  const sampleCount = summary.value.sampleCount || 0
-  const errorCount = summary.value.errorCount || 0
+  const sampleCount = summary.value.sampleCount || 0;
+  const errorCount = summary.value.errorCount || 0;
   return [
     { key: 'passed', label: '成功样本', value: sampleCount - errorCount },
     { key: 'broken', label: '错误样本', value: errorCount },
     { key: 'failed', label: '失败', value: 0 },
-    { key: 'skipped', label: '跳过', value: 0 }
-  ]
-})
+    { key: 'skipped', label: '跳过', value: 0 },
+  ];
+});
 
 /** TPS 展示值：数值型保留两位小数，非数值型原样输出 */
 const tpsDisplay = computed(() => {
-  const tps = summary.value.tps
-  return typeof tps === 'number' ? tps.toFixed(2) : (tps ?? 0)
-})
+  const tps = summary.value.tps;
+  return typeof tps === 'number' ? tps.toFixed(2) : (tps ?? 0);
+});
 
 const labelColumns = [
   { title: '接口', dataIndex: 'label' },
   { title: '样本数', dataIndex: 'count', width: 100 },
-  { title: 'Avg', key: 'avg', width: 100, customRender: ({ text }: any) => `${text.toFixed?.(1) || text} ms` },
+  {
+    title: 'Avg',
+    key: 'avg',
+    width: 100,
+    customRender: ({ text }: any) => `${text.toFixed?.(1) || text} ms`,
+  },
   { title: 'P90', dataIndex: 'p90', width: 100 },
   { title: 'P95', dataIndex: 'p95', width: 100 },
-  { title: 'P99', dataIndex: 'p99', width: 100 }
-]
+  { title: 'P99', dataIndex: 'p99', width: 100 },
+];
 
 function renderChart() {
-  if (!chartEl.value || !report.value?.series?.length) return
-  const chart = echarts.init(chartEl.value)
+  if (!chartEl.value || !report.value?.series?.length) return;
+  const chart = echarts.init(chartEl.value);
   chart.setOption({
     title: { text: '响应时间 vs 时间 (s)' },
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'value', name: '时间 (s)' },
     yAxis: { type: 'value', name: '耗时 (ms)' },
-    series: [{
-      type: 'scatter',
-      data: (report.value.series as any[]).map((s: any) => [s.ts, s.elapsed])
-    }]
-  })
+    series: [
+      {
+        type: 'scatter',
+        data: (report.value.series as any[]).map((s: any) => [s.ts, s.elapsed]),
+      },
+    ],
+  });
 }
 
 onMounted(async () => {
-  report.value = await PerfApi.getReport(route.params.id as string)
-  await nextTick()
-  renderChart()
-})
+  report.value = await PerfApi.getReport(route.params.id as string);
+  await nextTick();
+  renderChart();
+});
 </script>
 
 <style scoped>

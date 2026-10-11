@@ -40,27 +40,27 @@
  * <p>来源与比较符的取值需与后端断言引擎保持一致（新增操作符要同步后端实现）；
  * 加载历史数据时自动补齐 _id 以支撑拖拽。</p>
  */
-import draggable from 'vuedraggable'
-import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue'
-import { uid, ensureIds } from '@/utils/uid'
-import { watch } from 'vue'
-import type { AssertionResult } from '@/types'
+import draggable from 'vuedraggable';
+import { PlusOutlined, DragOutlined } from '@ant-design/icons-vue';
+import { uid, ensureIds } from '@/utils/uid';
+import { watch } from 'vue';
+import type { AssertionResult } from '@/types';
 
-const props = defineProps<{ modelValue: AssertionResult[] }>()
-const emit = defineEmits<{ 'update:modelValue': [v: AssertionResult[]] }>()
+const props = defineProps<{ modelValue: AssertionResult[] }>();
+const emit = defineEmits<{ 'update:modelValue': [v: AssertionResult[]] }>();
 
-const assertions = defineModel<AssertionResult[]>({ required: true })
+const assertions = defineModel<AssertionResult[]>({ required: true });
 
 // 从后端加载的旧数据可能没有 _id，补齐以支撑拖拽排序
-watch(assertions, (list) => ensureIds(list), { immediate: true, deep: true })
+watch(assertions, (list) => ensureIds(list), { immediate: true, deep: true });
 
 const sourceOptions = [
   { value: 'status', label: '响应状态码' },
   { value: 'header', label: '响应头' },
   { value: 'body', label: '响应体' },
   { value: 'jsonpath', label: 'JSONPath' },
-  { value: 'responsetime', label: '响应时间 (ms)' }
-]
+  { value: 'responsetime', label: '响应时间 (ms)' },
+];
 
 const operatorOptions = [
   { value: 'equals', label: '等于' },
@@ -73,8 +73,8 @@ const operatorOptions = [
   { value: 'lt', label: '<' },
   { value: 'lte', label: '<=' },
   { value: 'empty', label: '为空' },
-  { value: 'not_empty', label: '不为空' }
-]
+  { value: 'not_empty', label: '不为空' },
+];
 
 function add() {
   assertions.value.push({
@@ -83,12 +83,12 @@ function add() {
     operator: 'equals',
     expected: '200',
     passed: true,
-    message: ''
-  } as AssertionResult)
+    message: '',
+  } as AssertionResult);
 }
 
 function remove(idx: number) {
-  assertions.value.splice(idx, 1)
+  assertions.value.splice(idx, 1);
 }
 </script>
 

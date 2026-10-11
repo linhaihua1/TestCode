@@ -9,37 +9,37 @@
  * <p>内容变化即向外同步；外部传入值与编辑器当前值不同才回写，避免光标跳动；
  * 组件卸载时销毁编辑器实例。</p>
  */
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import * as monaco from 'monaco-editor'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import * as monaco from 'monaco-editor';
 // 注册 Monaco 的 Worker（副作用导入，必须在创建编辑器之前完成）
-import '@/utils/monacoWorkers'
+import '@/utils/monacoWorkers';
 
 const props = withDefaults(
   defineProps<{
-    modelValue?: string
-    language?: string
-    height?: string
-    readOnly?: boolean
-    theme?: 'vs-dark' | 'vs' | 'hc-black'
+    modelValue?: string;
+    language?: string;
+    height?: string;
+    readOnly?: boolean;
+    theme?: 'vs-dark' | 'vs' | 'hc-black';
   }>(),
   {
     modelValue: '',
     language: 'javascript',
     height: '240px',
     readOnly: false,
-    theme: 'vs'
-  }
-)
+    theme: 'vs',
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+  'update:modelValue': [value: string];
+}>();
 
-const container = ref<HTMLElement | null>(null)
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+const container = ref<HTMLElement | null>(null);
+let editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
 onMounted(() => {
-  if (!container.value) return
+  if (!container.value) return;
   editor = monaco.editor.create(container.value, {
     value: props.modelValue ?? '',
     language: props.language,
@@ -50,37 +50,37 @@ onMounted(() => {
     fontSize: 13,
     lineNumbers: 'on',
     scrollBeyondLastLine: false,
-    wordWrap: 'on'
-  })
+    wordWrap: 'on',
+  });
   editor.onDidChangeModelContent(() => {
     if (editor) {
-      emit('update:modelValue', editor.getValue())
+      emit('update:modelValue', editor.getValue());
     }
-  })
-})
+  });
+});
 
 watch(
   () => props.modelValue,
   (val) => {
     if (editor && val !== editor.getValue()) {
-      editor.setValue(val ?? '')
+      editor.setValue(val ?? '');
     }
-  }
-)
+  },
+);
 
 watch(
   () => props.language,
   (lang) => {
     if (editor) {
-      monaco.editor.setModelLanguage(editor.getModel()!, lang)
+      monaco.editor.setModelLanguage(editor.getModel()!, lang);
     }
-  }
-)
+  },
+);
 
 onBeforeUnmount(() => {
-  editor?.dispose()
-  editor = null
-})
+  editor?.dispose();
+  editor = null;
+});
 </script>
 
 <style scoped>

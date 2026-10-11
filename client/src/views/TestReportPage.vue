@@ -1,5 +1,5 @@
 <template>
-  <div class="page report-page" v-if="report">
+  <div v-if="report" class="page report-page">
     <!-- 页头 -->
     <header class="page-header">
       <div class="page-title">
@@ -10,18 +10,10 @@
         </span>
       </div>
       <a-space>
-        <a-button @click="openTrend">
-          <line-chart-outlined />趋势
-        </a-button>
-        <a-button @click="exportHtml">
-          <download-outlined />HTML
-        </a-button>
-        <a-button @click="exportPdf">
-          <file-pdf-outlined />PDF
-        </a-button>
-        <a-button type="primary" @click="openShare">
-          <share-alt-outlined />分享报告
-        </a-button>
+        <a-button @click="openTrend"> <line-chart-outlined />趋势 </a-button>
+        <a-button @click="exportHtml"> <download-outlined />HTML </a-button>
+        <a-button @click="exportPdf"> <file-pdf-outlined />PDF </a-button>
+        <a-button type="primary" @click="openShare"> <share-alt-outlined />分享报告 </a-button>
       </a-space>
     </header>
 
@@ -37,7 +29,7 @@
           :class="{
             success: passRate >= 80,
             warning: passRate >= 60 && passRate < 80,
-            error: passRate < 60
+            error: passRate < 60,
           }"
         >
           {{ passRate.toFixed(2) }}<span class="unit">%</span>
@@ -58,7 +50,9 @@
       </div>
       <div class="stat-card">
         <div class="label">P95 响应</div>
-        <div class="value tabular">{{ report.p95ResponseTime || 0 }}<span class="unit"> ms</span></div>
+        <div class="value tabular">
+          {{ report.p95ResponseTime || 0 }}<span class="unit"> ms</span>
+        </div>
       </div>
     </section>
 
@@ -72,11 +66,7 @@
               筛选：{{ allureStatusLabel(statusFilter) }}（{{ filteredDetails.length }} 条）
             </a-tag>
           </div>
-          <a-list
-            class="report-list"
-            :data-source="filteredDetails"
-            :loading="loadingDetails"
-          >
+          <a-list class="report-list" :data-source="filteredDetails" :loading="loadingDetails">
             <template #renderItem="{ item }">
               <a-list-item class="report-list__item">
                 <a-list-item-meta>
@@ -138,22 +128,13 @@
         <!-- HTML 预览 -->
         <a-tab-pane key="html" tab="HTML 预览">
           <div class="html-preview-wrap">
-            <iframe
-              v-if="htmlPreview"
-              :srcdoc="htmlPreview"
-              class="html-frame"
-              sandbox=""
-            />
-            <a-empty
-              v-else
-              description="暂无 HTML 报告，点击下方按钮加载"
-              class="html-empty"
-            />
+            <iframe v-if="htmlPreview" :srcdoc="htmlPreview" class="html-frame" sandbox="" />
+            <a-empty v-else description="暂无 HTML 报告，点击下方按钮加载" class="html-empty" />
             <a-button
               v-if="!htmlPreview"
               type="primary"
-              @click="loadHtmlPreview"
               class="html-load-btn"
+              @click="loadHtmlPreview"
             >
               <download-outlined />加载 HTML 报告
             </a-button>
@@ -163,11 +144,7 @@
         <!-- 分享记录 -->
         <a-tab-pane key="shares" tab="分享记录">
           <div class="shares-wrap">
-            <a-button
-              type="primary"
-              @click="openShare"
-              class="shares-create-btn"
-            >
+            <a-button type="primary" class="shares-create-btn" @click="openShare">
               <plus-outlined />创建分享
             </a-button>
             <a-table
@@ -188,7 +165,8 @@
                   </a-tag>
                 </template>
                 <template v-else-if="column.key === 'accessCount'">
-                  {{ record.accessCount }}{{ record.maxAccessCount ? `/${record.maxAccessCount}` : '' }}
+                  {{ record.accessCount
+                  }}{{ record.maxAccessCount ? `/${record.maxAccessCount}` : '' }}
                 </template>
                 <template v-else-if="column.key === 'hasPassword'">
                   <a-tag v-if="record.hasPassword" color="orange">已设置</a-tag>
@@ -220,18 +198,28 @@
     <a-modal
       v-model:open="shareModal"
       title="分享报告"
-      @ok="createShare"
       :confirm-loading="creatingShare"
+      @ok="createShare"
     >
       <a-form layout="vertical">
         <a-form-item label="有效期（天）">
-          <a-input-number v-model:value="shareForm.expireDays" :min="1" :max="365" style="width: 100%" />
+          <a-input-number
+            v-model:value="shareForm.expireDays"
+            :min="1"
+            :max="365"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="访问密码（可选,留空表示无需密码）">
           <a-input-password v-model:value="shareForm.password" placeholder="设置后访问时需要输入" />
         </a-form-item>
         <a-form-item label="最大访问次数（可选）">
-          <a-input-number v-model:value="shareForm.maxAccessCount" :min="0" style="width: 100%" placeholder="留空不限" />
+          <a-input-number
+            v-model:value="shareForm.maxAccessCount"
+            :min="0"
+            style="width: 100%"
+            placeholder="留空不限"
+          />
         </a-form-item>
         <a-form-item label="允许的 IP（可选,逗号分隔,支持 /24 CIDR）">
           <a-input v-model:value="shareForm.allowedIps" placeholder="192.168.1.0/24,10.0.0.1" />
@@ -253,182 +241,182 @@
  * <p>报告体量较大时，明细数据可能存放在对象存储中，前端按引用地址再取一次；
  * 页面同时展示 Allure 风格的状态汇总卡片。</p>
  */
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import {
   LineChartOutlined,
   DownloadOutlined,
   FilePdfOutlined,
   FileTextOutlined,
   ShareAltOutlined,
-  PlusOutlined
-} from '@ant-design/icons-vue'
-import { ReportApi } from '@/api'
+  PlusOutlined,
+} from '@ant-design/icons-vue';
+import { ReportApi } from '@/api';
 import {
   ALLURE_STATUS_COLORS,
   ALLURE_STATUS_LABELS,
   ALLURE_TO_RUN_STATUS,
   TRIGGER_LABELS,
   TRIGGER_TYPES,
-  statusColor
-} from '@/constants'
-import { formatDateTime, isExpired } from '@/utils/format'
-import type { Report, ReportDetail, ReportShare as ReportShareType } from '@/types'
-import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue'
+  statusColor,
+} from '@/constants';
+import { formatDateTime, isExpired } from '@/utils/format';
+import type { Report, ReportDetail, ReportShare as ReportShareType } from '@/types';
+import AllureSummary, { type StatusStat } from '@/components/AllureSummary.vue';
 
-const route = useRoute()
-const router = useRouter()
-const reportId = route.params.id as string
+const route = useRoute();
+const router = useRouter();
+const reportId = route.params.id as string;
 
-const report = ref<Report | null>(null)
-const details = ref<ReportDetail[]>([])
-const shares = ref<ReportShareType[]>([])
-const htmlPreview = ref<string>('')
+const report = ref<Report | null>(null);
+const details = ref<ReportDetail[]>([]);
+const shares = ref<ReportShareType[]>([]);
+const htmlPreview = ref<string>('');
 
-const loadingDetails = ref(false)
-const loadingShares = ref(false)
-const activeTab = ref<string>('details')
+const loadingDetails = ref(false);
+const loadingShares = ref(false);
+const activeTab = ref<string>('details');
 
 /** 状态过滤（配合 AllureSummary 卡片点击） */
-const statusFilter = ref<string | null>(null)
+const statusFilter = ref<string | null>(null);
 
-const shareModal = ref(false)
+const shareModal = ref(false);
 const shareForm = reactive({
   expireDays: 30,
   password: '',
   maxAccessCount: undefined as number | undefined,
-  allowedIps: ''
-})
-const creatingShare = ref(false)
+  allowedIps: '',
+});
+const creatingShare = ref(false);
 
 const passRate = computed(() => {
-  if (!report.value || !report.value.totalCases) return 0
-  return (report.value.passedCases || 0) * 100 / report.value.totalCases
-})
+  if (!report.value || !report.value.totalCases) return 0;
+  return ((report.value.passedCases || 0) * 100) / report.value.totalCases;
+});
 
 /** Allure 状态统计（来自报告用例计数） */
 const statusStats = computed<StatusStat[]>(() => [
   { key: 'passed', label: ALLURE_STATUS_LABELS.passed, value: report.value?.passedCases || 0 },
   { key: 'failed', label: ALLURE_STATUS_LABELS.failed, value: report.value?.failedCases || 0 },
   { key: 'broken', label: ALLURE_STATUS_LABELS.broken, value: report.value?.errorCases || 0 },
-  { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: report.value?.skippedCases || 0 }
-])
+  { key: 'skipped', label: ALLURE_STATUS_LABELS.skipped, value: report.value?.skippedCases || 0 },
+]);
 
 /** 按状态过滤后的步骤明细 */
 const filteredDetails = computed(() => {
-  if (!statusFilter.value) return details.value
-  const target = ALLURE_TO_RUN_STATUS[statusFilter.value]
-  return details.value.filter((d) => (d.status || '').toLowerCase() === target)
-})
+  if (!statusFilter.value) return details.value;
+  const target = ALLURE_TO_RUN_STATUS[statusFilter.value];
+  return details.value.filter((d) => (d.status || '').toLowerCase() === target);
+});
 
 function onStatusFilter(key: string | null) {
-  statusFilter.value = key
+  statusFilter.value = key;
 }
 
 function clearFilter() {
-  statusFilter.value = null
+  statusFilter.value = null;
 }
 
 /** Allure 统计键 → 中文名 */
 function allureStatusLabel(key: string) {
-  return ALLURE_STATUS_LABELS[key] ?? key
+  return ALLURE_STATUS_LABELS[key] ?? key;
 }
 
 /** Allure 统计键 → 标签颜色 */
 function allureStatusColor(key: string) {
-  return ALLURE_STATUS_COLORS[key] ?? 'blue'
+  return ALLURE_STATUS_COLORS[key] ?? 'blue';
 }
 
 function triggerLabel(t?: string) {
-  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL]
+  return TRIGGER_LABELS[t ?? ''] ?? TRIGGER_LABELS[TRIGGER_TYPES.MANUAL];
 }
 
 function formatDate(iso?: string) {
-  return formatDateTime(iso)
+  return formatDateTime(iso);
 }
 
 function sharePublicUrl(s: ReportShareType) {
-  return `${window.location.origin}/#/share/${s.token}`
+  return `${window.location.origin}/#/share/${s.token}`;
 }
 
 async function loadReport() {
-  report.value = await ReportApi.get(reportId)
+  report.value = await ReportApi.get(reportId);
 }
 
 async function loadDetails() {
-  loadingDetails.value = true
+  loadingDetails.value = true;
   try {
-    details.value = await ReportApi.details(reportId)
+    details.value = await ReportApi.details(reportId);
   } finally {
-    loadingDetails.value = false
+    loadingDetails.value = false;
   }
 }
 
 async function loadShares() {
-  loadingShares.value = true
+  loadingShares.value = true;
   try {
-    shares.value = await ReportApi.listShares(reportId)
-    shares.value = shares.value.map((s) => ({ ...s, url: sharePublicUrl(s) }))
+    shares.value = await ReportApi.listShares(reportId);
+    shares.value = shares.value.map((s) => ({ ...s, url: sharePublicUrl(s) }));
   } finally {
-    loadingShares.value = false
+    loadingShares.value = false;
   }
 }
 
 async function loadHtmlPreview() {
   const r = await fetch(`/api/v1/reports/${reportId}/export/html`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }
-  })
-  htmlPreview.value = await r.text()
+    headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+  });
+  htmlPreview.value = await r.text();
 }
 
 function exportHtml() {
-  window.open(ReportApi.exportHtmlUrl(reportId), '_blank')
+  window.open(ReportApi.exportHtmlUrl(reportId), '_blank');
 }
 
 function exportPdf() {
-  window.open(ReportApi.exportPdfUrl(reportId), '_blank')
+  window.open(ReportApi.exportPdfUrl(reportId), '_blank');
 }
 
 function openTrend() {
-  router.push('/trend')
+  router.push('/trend');
 }
 
 function openShare() {
-  shareForm.expireDays = 30
-  shareForm.password = ''
-  shareForm.maxAccessCount = undefined
-  shareForm.allowedIps = ''
-  shareModal.value = true
-  loadShares()
+  shareForm.expireDays = 30;
+  shareForm.password = '';
+  shareForm.maxAccessCount = undefined;
+  shareForm.allowedIps = '';
+  shareModal.value = true;
+  loadShares();
 }
 
 async function createShare() {
-  creatingShare.value = true
+  creatingShare.value = true;
   try {
     const s = await ReportApi.createShare(reportId, {
       expireDays: shareForm.expireDays,
-      password: shareForm.password || undefined
-    } as any)
-    message.success(`分享已创建：${sharePublicUrl(s)}`, 8)
-    shareModal.value = false
-    await loadShares()
-    activeTab.value = 'shares'
+      password: shareForm.password || undefined,
+    } as any);
+    message.success(`分享已创建：${sharePublicUrl(s)}`, 8);
+    shareModal.value = false;
+    await loadShares();
+    activeTab.value = 'shares';
   } finally {
-    creatingShare.value = false
+    creatingShare.value = false;
   }
 }
 
 async function revokeShare(s: ReportShareType) {
-  await ReportApi.revokeShare(s.id)
-  message.success('已撤销')
-  await loadShares()
+  await ReportApi.revokeShare(s.id);
+  message.success('已撤销');
+  await loadShares();
 }
 
 onMounted(async () => {
-  await loadReport()
-  await loadDetails()
-})
+  await loadReport();
+  await loadDetails();
+});
 </script>
 
 <style scoped>

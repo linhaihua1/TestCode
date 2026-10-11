@@ -77,12 +77,7 @@
     </div>
 
     <!-- 自动清理配置弹窗 -->
-    <a-modal
-      v-model:open="configOpen"
-      title="回收站自动清理配置"
-      @ok="saveConfig"
-      width="480"
-    >
+    <a-modal v-model:open="configOpen" title="回收站自动清理配置" width="480" @ok="saveConfig">
       <a-form layout="vertical">
         <a-form-item label="自动清理周期" required>
           <a-select v-model:value="config.cleanupDays" :options="daysOptions" />
@@ -104,127 +99,131 @@
  * <p>删除均为软删除（设置 deleted_at）；配置 cleanupDays 后由后端定时任务
  * 按天数自动清理，0 表示不自动清理。</p>
  */
-import { onMounted, reactive, ref, watch, computed } from 'vue'
-import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
-import { RecycleBinApi, type RecycleBinItem, type RecycleBinConfig } from '@/api'
-import { DEFAULT_PAGE_SIZE } from '@/constants'
-import { useProjectStore } from '@/stores/project'
+import { onMounted, reactive, ref, watch, computed } from 'vue';
+import { message } from 'ant-design-vue';
+import dayjs from 'dayjs';
+import { RecycleBinApi, type RecycleBinItem, type RecycleBinConfig } from '@/api';
+import { DEFAULT_PAGE_SIZE } from '@/constants';
+import { useProjectStore } from '@/stores/project';
 
-const projectStore = useProjectStore()
-const projectId = computed(() => projectStore.currentProjectId)
+const projectStore = useProjectStore();
+const projectId = computed(() => projectStore.currentProjectId);
 
-const filterType = ref<RecycleBinItem['type']>('CASE')
-const items = ref<RecycleBinItem[]>([])
-const loading = ref(false)
-const selectedRowKeys = ref<string[]>([])
+const filterType = ref<RecycleBinItem['type']>('CASE');
+const items = ref<RecycleBinItem[]>([]);
+const loading = ref(false);
+const selectedRowKeys = ref<string[]>([]);
 
-const configOpen = ref(false)
+const configOpen = ref(false);
 const config = reactive<RecycleBinConfig>({
   projectId: '',
-  cleanupDays: 30
-})
+  cleanupDays: 30,
+});
 
 const typeOptions = [
   { label: '用例', value: 'CASE' },
   { label: '接口定义', value: 'API' },
   { label: '模块目录', value: 'MODULE' },
-  { label: '测试任务', value: 'TASK' }
-]
+  { label: '测试任务', value: 'TASK' },
+];
 
 const daysOptions = [
   { label: '不自动清理', value: 0 },
   { label: '7 天', value: 7 },
   { label: '15 天', value: 15 },
   { label: '30 天', value: 30 },
-  { label: '60 天', value: 60 }
-]
+  { label: '60 天', value: 60 },
+];
 
 const columns = [
   { title: '对象', dataIndex: 'type', key: 'type', width: 100 },
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '附加信息', dataIndex: 'extra', key: 'extra' },
   { title: '删除时间', dataIndex: 'deletedAt', key: 'deletedAt', width: 180 },
-  { title: '操作', key: 'actions', width: 180 }
-]
+  { title: '操作', key: 'actions', width: 180 },
+];
 
 function typeLabel(t: string) {
-  return typeOptions.find(o => o.value === t)?.label || t
+  return typeOptions.find((o) => o.value === t)?.label || t;
 }
 function typeColor(t: string) {
-  return ({ CASE: 'blue', API: 'green', MODULE: 'orange', TASK: 'purple' } as any)[t] || 'default'
+  return ({ CASE: 'blue', API: 'green', MODULE: 'orange', TASK: 'purple' } as any)[t] || 'default';
 }
 function formatTime(t?: string) {
-  return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '—'
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '—';
 }
 
 function onSelectChange(keys: string[]) {
-  selectedRowKeys.value = keys
+  selectedRowKeys.value = keys;
 }
 
 async function reload() {
-  if (!projectId.value) return
-  loading.value = true
+  if (!projectId.value) return;
+  loading.value = true;
   try {
-    items.value = await RecycleBinApi.list(projectId.value, filterType.value)
+    items.value = await RecycleBinApi.list(projectId.value, filterType.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function loadConfig() {
-  if (!projectId.value) return
-  const cfg = await RecycleBinApi.getConfig(projectId.value)
-  Object.assign(config, cfg)
+  if (!projectId.value) return;
+  const cfg = await RecycleBinApi.getConfig(projectId.value);
+  Object.assign(config, cfg);
 }
 
 /** 保存自动清理天数配置：0 = 不自动清理 */
 async function saveConfig() {
-  config.projectId = projectId.value
-  await RecycleBinApi.updateConfig({ ...config })
-  configOpen.value = false
-  message.success('配置已保存')
+  config.projectId = projectId.value;
+  await RecycleBinApi.updateConfig({ ...config });
+  configOpen.value = false;
+  message.success('配置已保存');
 }
 
 /** 还原单条：后端返回实际还原数量与可能的重命名提示 */
 async function restore(record: RecycleBinItem) {
-  const result = await RecycleBinApi.restore([record.id], record.type)
-  message.success(`已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`)
-  await reload()
+  const result = await RecycleBinApi.restore([record.id], record.type);
+  message.success(
+    `已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`,
+  );
+  await reload();
 }
 
 /** 批量还原当前类型下勾选的全部条目 */
 async function batchRestore() {
-  const result = await RecycleBinApi.restore(selectedRowKeys.value, filterType.value)
-  message.success(`已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`)
-  selectedRowKeys.value = []
-  await reload()
+  const result = await RecycleBinApi.restore(selectedRowKeys.value, filterType.value);
+  message.success(
+    `已还原 ${result.restoredCount} 项${result.message ? '：' + result.message : ''}`,
+  );
+  selectedRowKeys.value = [];
+  await reload();
 }
 
 /** 彻底删除（不可恢复） */
 async function permanent(id: string) {
-  await RecycleBinApi.permanent([id], filterType.value)
-  message.success('已永久删除')
-  await reload()
+  await RecycleBinApi.permanent([id], filterType.value);
+  message.success('已永久删除');
+  await reload();
 }
 
 async function batchPermanent() {
-  await RecycleBinApi.permanent(selectedRowKeys.value, filterType.value)
-  selectedRowKeys.value = []
-  message.success('批量永久删除完成')
-  await reload()
+  await RecycleBinApi.permanent(selectedRowKeys.value, filterType.value);
+  selectedRowKeys.value = [];
+  message.success('批量永久删除完成');
+  await reload();
 }
 
-watch(filterType, reload)
+watch(filterType, reload);
 watch(projectId, () => {
-  loadConfig()
-  reload()
-})
+  loadConfig();
+  reload();
+});
 
 onMounted(async () => {
-  await loadConfig()
-  await reload()
-})
+  await loadConfig();
+  await reload();
+});
 </script>
 
 <style scoped>

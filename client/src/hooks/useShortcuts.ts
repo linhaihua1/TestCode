@@ -20,49 +20,49 @@
  *
  * <p>Mac 上 {@code Ctrl} 自动识别为 {@code Meta}（⌘）。
  */
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue';
 
 export interface ShortcutOptions {
-  onSave?: () => void
-  onDebug?: () => void
-  onSearch?: () => void
+  onSave?: () => void;
+  onDebug?: () => void;
+  onSearch?: () => void;
 }
 
 function isModKey(e: KeyboardEvent): boolean {
   // Mac: metaKey；Windows/Linux: ctrlKey
-  return e.metaKey || e.ctrlKey
+  return e.metaKey || e.ctrlKey;
 }
 
 export function useShortcuts(opts: ShortcutOptions) {
   function handler(e: KeyboardEvent) {
     if (!isModKey(e)) {
-      return
+      return;
     }
-    const key = e.key.toLowerCase()
+    const key = e.key.toLowerCase();
     // Ctrl+S 保存
     if (key === 's' && !e.shiftKey) {
-      e.preventDefault()
-      opts.onSave?.()
-      return
+      e.preventDefault();
+      opts.onSave?.();
+      return;
     }
     // Ctrl+Enter 调试
     if (key === 'enter') {
-      e.preventDefault()
-      opts.onDebug?.()
-      return
+      e.preventDefault();
+      opts.onDebug?.();
+      return;
     }
     // Ctrl+F 搜索
     if (key === 'f' && !e.shiftKey) {
-      e.preventDefault()
-      opts.onSearch?.()
-      return
+      e.preventDefault();
+      opts.onSearch?.();
+      return;
     }
   }
 
   onMounted(() => {
-    window.addEventListener('keydown', handler)
-  })
+    window.addEventListener('keydown', handler);
+  });
   onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handler)
-  })
+    window.removeEventListener('keydown', handler);
+  });
 }
