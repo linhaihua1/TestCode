@@ -10,7 +10,7 @@
 
   <h3>菜单结构（一级 → 二级）</h3>
   <ul>
-    <li>接口自动化：接口用例 / 接口定义 / 场景编排 / 测试执行 / 测试报告 / 趋势统计</li>
+    <li>接口自动化：接口用例 / 接口定义 / 场景编排 / 测试执行 / 测试报告</li>
     <li>UI 自动化：UI 用例 / UI 用例执行 / 测试报告</li>
     <li>性能测试：创建用例 / 测试报告</li>
     <li>环境配置：环境管理 / 全局变量 / 变量与模块 / 回收站</li>
@@ -250,7 +250,6 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
   scenarios: { name: 'scenarios' },
   tasks: { name: 'tasks' },
   reports: { name: 'reports' },
-  trend: { name: 'trend' },
   // UI 自动化
   'ui-tests': { name: 'ui-tests' },
   'ui-run': { name: 'ui-run' },
@@ -278,7 +277,6 @@ const GROUP_OF: Record<string, string> = {
   scenarios: 'g-api',
   tasks: 'g-api',
   reports: 'g-api',
-  trend: 'g-api',
   'ui-tests': 'g-ui',
   'ui-run': 'g-ui',
   'ui-reports': 'g-ui',
@@ -306,7 +304,6 @@ const menuItems = computed(() => {
         { key: 'scenarios', label: '场景编排' },
         { key: 'tasks', label: '测试执行' },
         { key: 'reports', label: '测试报告' },
-        { key: 'trend', label: '趋势统计' },
       ],
     },
     {
