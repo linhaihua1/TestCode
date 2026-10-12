@@ -126,12 +126,14 @@ public class UiExecutionService {
                     d -> !RunStatus.SUCCESS.getCode().equals(d.get("status")))) {
                 status = RunStatus.FAILED.getCode();
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // 必须捕获 Throwable：断言失败抛的是 AssertionError（属于 Error 而非 Exception），
+            // 若只捕获 Exception 会逃逸到 @Async 线程，导致报告永久停留在 pending。
             status = RunStatus.ERROR.getCode();
             Map<String, Object> err = new LinkedHashMap<>();
             err.put("segment", UiSegment.ERROR.getCode());
             err.put("status", RunStatus.ERROR.getCode());
-            err.put("message", e.getMessage());
+            err.put("message", messageOf(e));
             details.add(err);
             log.error("UI 用例执行异常", e);
         } finally {
@@ -160,9 +162,10 @@ public class UiExecutionService {
      * @param segment 阶段标识（SETUP / TEST / TEARDOWN），用于明细分组
      * @param details 累积的步骤执行明细（出参）
      */
+    // 包级可见（非 private）：便于 UiExecutionServiceTest 直接验证「断言失败不被逃逸」的契约。
     @SuppressWarnings("unchecked")
-    private void runSegment(WebDriver driver, String stepsJson, String segment,
-                            List<Map<String, Object>> details) {
+    void runSegment(WebDriver driver, String stepsJson, String segment,
+                    List<Map<String, Object>> details) {
         List<Map<String, Object>> steps = JsonUtils.fromJson(stepsJson == null ? "[]" : stepsJson,
                 List.class);
         for (Map<String, Object> step : steps) {
@@ -173,9 +176,11 @@ public class UiExecutionService {
             long t0 = System.currentTimeMillis();
             try {
                 doStep(driver, step, row);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                // 同上：断言失败为 AssertionError，必须按 Throwable 捕获并记入明细，
+                // 保证「单步失败不中断后续步骤」且报告能正常收尾。
                 row.put("status", RunStatus.FAILED.getCode());
-                row.put("message", e.getMessage());
+                row.put("message", messageOf(e));
                 takeScreenshot(driver, row);
             }
             row.put("durationMs", System.currentTimeMillis() - t0);
@@ -288,5 +293,13 @@ public class UiExecutionService {
 
     private static String str(Object o, String def) {
         return o == null ? def : String.valueOf(o);
+    }
+
+    /**
+     * 提取异常/错误信息：优先 message，为空时退化为类名，避免明细中 message 为 null。
+     */
+    private static String messageOf(Throwable e) {
+        String msg = e.getMessage();
+        return (msg == null || msg.isBlank()) ? e.getClass().getSimpleName() : msg;
     }
 }

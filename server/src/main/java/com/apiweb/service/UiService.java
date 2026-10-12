@@ -1,5 +1,6 @@
 package com.apiweb.service;
 
+import com.apiweb.common.AfterCommit;
 import com.apiweb.common.BizException;
 import com.apiweb.converter.UiConverter;
 import com.apiweb.dto.ui.UiScenarioReq;
@@ -16,7 +17,6 @@ import com.apiweb.mapper.UiScenarioMapper;
 import com.apiweb.mapper.UiScenarioStepMapper;
 import com.apiweb.mapper.UiTestCaseMapper;
 import com.apiweb.mq.TaskProducer;
-import com.apiweb.util.JsonUtils;
 import com.apiweb.vo.ui.UiReportVO;
 import com.apiweb.vo.ui.UiScenarioStepVO;
 import com.apiweb.vo.ui.UiScenarioVO;
@@ -216,11 +216,12 @@ public class UiService {
         report.setStartedAt(Instant.now());
         report.setDetails("[]");
         uiReportMapper.insert(report);
+        // 必须等事务提交后再派发，否则异步线程读不到刚插入的 PENDING 报告
         if (mqListenerEnabled) {
-            taskProducer.sendUiTask(report.getId(), t.getProjectId(), id);
+            AfterCommit.run(() -> taskProducer.sendUiTask(report.getId(), t.getProjectId(), id));
         } else {
-            uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                    TaskType.UI.getCode(), report.getId(), t.getProjectId(), id, null, null, null));
+            AfterCommit.run(() -> uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                    TaskType.UI.getCode(), report.getId(), t.getProjectId(), id, null, null, null)));
         }
         return converter.toReportVO(report);
     }
@@ -269,13 +270,14 @@ public class UiService {
             report.setStartedAt(Instant.now());
             report.setDetails("[]");
             uiReportMapper.insert(report);
+            // 同上：事务提交后再派发，避免异步线程读不到尚未提交的报告
             if (mqListenerEnabled) {
-                taskProducer.sendUiTask(report.getId(), scenario.getProjectId(), t.getId(),
-                        scenario.getEnvironmentId(), extra);
+                AfterCommit.run(() -> taskProducer.sendUiTask(report.getId(), scenario.getProjectId(),
+                        t.getId(), scenario.getEnvironmentId(), extra));
             } else {
-                uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                AfterCommit.run(() -> uiExecutionService.executeAsync(new EngineDtos.TaskMessage(
                         TaskType.UI.getCode(), report.getId(), scenario.getProjectId(), t.getId(),
-                        null, scenario.getEnvironmentId(), extra));
+                        null, scenario.getEnvironmentId(), extra)));
             }
             reports.add(converter.toReportVO(report));
         }
@@ -327,8 +329,9 @@ public class UiService {
         if (req.getEnvironmentId() != null) {
             scenario.setEnvironmentId(req.getEnvironmentId());
         }
+        // variables 已由 JsonStringDeserializer 统一转为 JSON 字符串，直接存储即可
         if (req.getVariables() != null) {
-            scenario.setVariables(JsonUtils.toJson(req.getVariables()));
+            scenario.setVariables(req.getVariables());
         }
         if (req.getExecutorUrl() != null) {
             scenario.setExecutorUrl(req.getExecutorUrl());

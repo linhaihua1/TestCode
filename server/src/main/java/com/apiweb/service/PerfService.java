@@ -1,5 +1,6 @@
 package com.apiweb.service;
 
+import com.apiweb.common.AfterCommit;
 import com.apiweb.common.BizException;
 import com.apiweb.converter.PerfConverter;
 import com.apiweb.dto.perf.PerfCaseReq;
@@ -176,11 +177,12 @@ public class PerfService {
         report.setLabels("[]");
         report.setErrors("[]");
         perfReportMapper.insert(report);
+        // 必须等事务提交后再派发，否则异步线程读不到刚插入的 PENDING 报告
         if (mqListenerEnabled) {
-            taskProducer.sendPerfTask(report.getId(), c.getProjectId(), id);
+            AfterCommit.run(() -> taskProducer.sendPerfTask(report.getId(), c.getProjectId(), id));
         } else {
-            perfExecutionService.executeAsync(new EngineDtos.TaskMessage(
-                    TaskType.PERF.getCode(), report.getId(), c.getProjectId(), id, null, null, null));
+            AfterCommit.run(() -> perfExecutionService.executeAsync(new EngineDtos.TaskMessage(
+                    TaskType.PERF.getCode(), report.getId(), c.getProjectId(), id, null, null, null)));
         }
         return perfConverter.toReportVO(report);
     }

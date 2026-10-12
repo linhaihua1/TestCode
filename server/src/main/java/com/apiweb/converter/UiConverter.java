@@ -74,4 +74,13 @@ public interface UiConverter {
 
     /** UiReport Entity 列表 → VO 列表 */
     List<UiReportVO> toReportVOList(List<UiReportEntity> entities);
+
+    /** UI 报告转换完成后，把 details JSON 字符串解析为结构化对象（数组/错误对象） */
+    @AfterMapping
+    default void parseReportJsonFields(@MappingTarget UiReportVO vo) {
+        if (vo == null) {
+            return;
+        }
+        vo.setDetails(JsonUtils.parseObject((String) vo.getDetails()));
+    }
 }

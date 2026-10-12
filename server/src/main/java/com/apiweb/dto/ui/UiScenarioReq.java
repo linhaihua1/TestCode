@@ -1,5 +1,7 @@
 package com.apiweb.dto.ui;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 
 import java.util.List;
@@ -25,8 +27,15 @@ public class UiScenarioReq {
     /** 执行环境 ID */
     private String environmentId;
 
-    /** 任务级执行参数 */
-    private Map<String, Object> variables;
+    /**
+     * 任务级执行参数。
+     *
+     * <p>与其它模块（EnvironmentReq/TestTaskReq/PerfCaseReq）保持一致：前端提交结构化
+     * 数组（{@code [{"key":"host","value":"..."}]}）或对象，由 {@link JsonStringDeserializer}
+     * 统一序列化为 JSON 字符串存储；直接传 JSON 字符串时原样保留。</p>
+     */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
+    private String variables;
 
     /** 执行机完整地址 */
     private String executorUrl;
