@@ -1,5 +1,7 @@
 package com.apiweb.dto.ui;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -25,11 +27,14 @@ public class UiTestCaseReq {
     private String baseUrl;
 
     /** 前置步骤（JSON 数组） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String setupSteps;
 
     /** 测试步骤（JSON 数组） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String steps;
 
     /** 后置步骤（JSON 数组） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String teardownSteps;
 }

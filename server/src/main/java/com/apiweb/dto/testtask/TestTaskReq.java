@@ -1,5 +1,7 @@
 package com.apiweb.dto.testtask;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -24,6 +26,7 @@ public class TestTaskReq {
     private String description;
 
     /** 用例 ID 列表（JSON 数组） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String caseIds;
 
     /** 执行环境 ID */
@@ -54,6 +57,7 @@ public class TestTaskReq {
     private String notifyUrl;
 
     /** 变量（JSON 数组） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
 
     /** 环境 baseUrl */
@@ -70,5 +74,6 @@ public class TestTaskReq {
     private Boolean webhookAutoExecute;
 
     // ----- 通知配置 -----
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String notifyChannels;
 }

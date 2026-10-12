@@ -1,5 +1,7 @@
 package com.apiweb.dto.environment;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -27,8 +29,10 @@ public class EnvironmentReq {
     private String baseUrl;
 
     /** JSON: [{key,value}]，缺省补空数组 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
 
     /** JSON: [{key,value}]，缺省补空数组 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String headers;
 }

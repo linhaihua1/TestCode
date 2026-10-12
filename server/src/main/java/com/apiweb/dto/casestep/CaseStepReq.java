@@ -1,5 +1,7 @@
 package com.apiweb.dto.casestep;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -41,6 +43,7 @@ public class CaseStepReq {
     private String remark;
 
     /** 步骤配置（JSON） */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String config;
 
     /** 失败策略：stop / continue */

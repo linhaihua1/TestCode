@@ -1,5 +1,7 @@
 package com.apiweb.dto.casee;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -33,9 +35,11 @@ public class CaseReq {
     private String priority;
 
     /** JSON: string[] */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String tags;
 
     /** JSON: 多步骤定义 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String steps;
 
     /** 版本号 */
