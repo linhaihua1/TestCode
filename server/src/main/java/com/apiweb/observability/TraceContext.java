@@ -3,22 +3,25 @@ package com.apiweb.observability;
 /**
  * 请求级 TraceId 上下文（基于 ThreadLocal）。
  *
- * <p>与 {@code org.slf4j.MDC} 配套使用：{@link TraceIdFilter} 在请求开始时生成/透传
- * traceId，同时写入 MDC（供日志 {@code %X{traceId}} 打印）与本 ThreadLocal（供业务代码
- * 或跨线程传递时显式获取）。两者在请求结束后一并清理，避免线程复用导致串号或内存泄漏。
+ * <p>接入 OpenTelemetry（Micrometer Tracing）后，HTTP 请求的 traceId 由 OTel 自动生成
+ * 并写入 MDC（供日志 {@code %X{traceId}} 打印）。本类作为<b>跨线程场景的轻量辅助</b>，
+ * 供无法使用 {@code Observation} / {@code Tracer} 上下文传播的边界场景（如 {@code @Async}
+ * 线程池、Quartz Job、{@code @RabbitListener} 消费者）显式传递 traceId。
+ *
+ * <h3>典型用法（异步任务显式透传）</h3>
+ * <pre>
+ *   // 主线程：取出当前 traceId
+ *   String traceId = tracer.currentSpan().context().traceId();
+ *   // 子线程：注入
+ *   TraceContext.set(traceId);
+ *   MDC.put("traceId", traceId);
+ *   try { ... } finally { TraceContext.clear(); MDC.remove("traceId"); }
+ * </pre>
  *
  * <h3>与 UserContext 的区别</h3>
  * <ul>
  *   <li>{@code UserContext}：业务身份（当前登录用户），由 {@code AuthInterceptor} 写入</li>
- *   <li>{@code TraceContext}：链路追踪标识（traceId），由 {@code TraceIdFilter} 写入，
- *       不依赖登录态，白名单路径同样生效</li>
- * </ul>
- *
- * <h3>注意事项</h3>
- * <ul>
- *   <li>异步线程（{@code @Async} / {@code @RabbitListener} / Quartz Job）中本 ThreadLocal 为空，
- *       需要显式从消息/参数中取 traceId 后 {@link #set(String)} 注入</li>
- *   <li>绝不要在过滤器之前（如 Servlet Listener）访问——那时 traceId 尚未生成</li>
+ *   <li>{@code TraceContext}：链路追踪标识（traceId）的跨线程透传辅助，不依赖登录态</li>
  * </ul>
  */
 public final class TraceContext {

@@ -196,7 +196,7 @@ logging:
     com.apiweb: info
     org.quartz: warn
 
-# 可观测性：Actuator 端点（health 公开，其余纳入认证由 AuthInterceptor 保护）
+# 可观测性：Actuator 端点（health 公开，其余纳入认证由 AuthInterceptor 保护）+ 分布式链路追踪
 management:
   endpoints:
     web:
@@ -210,6 +210,15 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  # 分布式链路追踪：Micrometer Tracing + OpenTelemetry 桥接
+  # 说明：不强制启用 tracing 自动配置（enabled=false），traceId 由自定义 TraceIdFilter
+  # 生成/透传并写入 MDC，保证 %X{traceId} 在业务日志中稳定可打印。
+  # 原因：Spring Boot 3 的 tracing 自动配置会管理 traceId/spanId 两个 MDC 键，
+  # 在请求结束/span 关闭时清理，导致自定义 log4j2.xml 的 %X{traceId} 打印为空。
+  # 后续接入 Jaeger/Tempo（真正的分布式链路）时，再启用 tracing 并加
+  # opentelemetry-exporter-otlp 依赖 + management.otlp.tracing.endpoint。
+  tracing:
+    enabled: false
 
 # API 文档：springdoc-openapi
 springdoc:

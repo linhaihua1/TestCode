@@ -116,6 +116,16 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- 分布式链路追踪：Micrometer Tracing + OpenTelemetry 桥接
+             （Spring Boot 3 官方 tracing 抽象，自动传播 W3C traceparent、写入 MDC）。
+             注意：不引入 opentelemetry-exporter-otlp，避免在未部署 OTLP Collector 时
+             导出器反复连接失败刷屏；当前仅做「traceId/spanId 写入 MDC」的本地链路关联，
+             后续接入 Jaeger/Tempo 时再加 exporter 依赖 + 配置 management.otlp.tracing.endpoint -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
         <!-- API 文档：springdoc-openapi（Swagger UI + OpenAPI 3） -->
         <dependency>
             <groupId>org.springdoc</groupId>
