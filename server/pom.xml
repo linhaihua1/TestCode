@@ -117,13 +117,20 @@
         </dependency>
 
         <!-- 分布式链路追踪：Micrometer Tracing + OpenTelemetry 桥接
-             （Spring Boot 3 官方 tracing 抽象，自动传播 W3C traceparent、写入 MDC）。
-             注意：不引入 opentelemetry-exporter-otlp，避免在未部署 OTLP Collector 时
-             导出器反复连接失败刷屏；当前仅做「traceId/spanId 写入 MDC」的本地链路关联，
-             后续接入 Jaeger/Tempo 时再加 exporter 依赖 + 配置 management.otlp.tracing.endpoint -->
+             （Spring Boot 3 官方 tracing 抽象，自动传播 W3C traceparent、写入 MDC）。 -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <!-- OpenTelemetry OTLP 导出器：上报 trace 到 Jaeger/Tempo/OTLP Collector。
+             按需启用：Spring Boot 3.2 起 OtlpHttpSpanExporter 仅在
+             management.otlp.tracing.endpoint 有值时自动配置。未配置该属性时
+             不创建 exporter（走 noop，仅本地 MDC 链路关联），不会连接失败刷屏。
+             启用方式：命令行参数 management.otlp.tracing.endpoint=http://collector:4318/v1/traces
+             或环境变量 MANAGEMENT_OTLP_TRACING_ENDPOINT。 -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
 
         <!-- API 文档：springdoc-openapi（Swagger UI + OpenAPI 3） -->
