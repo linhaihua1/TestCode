@@ -112,7 +112,7 @@ public class PerfController {
      * 从上传的 .jmx 文件解析为性能用例结构（不落库，返回给前端回填表单）。
      */
     @PostMapping("/cases/import-jmx")
-    public Result<PerfCaseEntity> importJmx(@RequestBody Map<String, String> body) {
+    public Result<PerfCaseVO> importJmx(@RequestBody Map<String, String> body) {
         String jmx = body.get("jmx");
         if (jmx == null || jmx.isBlank()) {
             throw BizException.badRequest("JMX 内容不能为空");

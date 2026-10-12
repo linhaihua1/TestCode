@@ -20,9 +20,12 @@ public class PerfCaseVO {
     private Integer duration;
     private Integer thinkTime;
     private String onSampleError;
-    private String variables;
-    private String steps;
-    private String profile;
+    /** 用户自定义变量（JSON 字符串解析后的结构化对象） */
+    private Object variables;
+    /** HTTP 请求步骤（JSON 字符串解析后的数组） */
+    private Object steps;
+    /** 压测配置（JSON 字符串解析后的对象） */
+    private Object profile;
     /** 创建时间（UTC） */
     private Instant createdAt;
     /** 更新时间（UTC） */

@@ -1,5 +1,7 @@
 package com.apiweb.dto.perf;
 
+import com.apiweb.util.JsonStringDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -36,9 +38,12 @@ public class PerfCaseReq {
     /** continue / startnext / stopthread / stoptest */
     private String onSampleError;
     /** JSON: 用户自定义变量 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String variables;
     /** JSON: HTTP 请求步骤 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String steps;
     /** JSON: 压测配置 */
+    @JsonDeserialize(using = JsonStringDeserializer.class)
     private String profile;
 }

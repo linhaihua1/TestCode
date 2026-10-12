@@ -135,9 +135,11 @@ public class PerfService {
 
     /**
      * 从 .jmx 字符串解析为性能用例结构（不落库）。
+     *
+     * <p>返回 VO（steps/variables/profile 已解析为结构化对象），供前端直接回填表单。</p>
      */
-    public PerfCaseEntity importJmx(String jmx) {
-        return jmxImportExportService.importJmx(jmx);
+    public PerfCaseVO importJmx(String jmx) {
+        return perfConverter.toCaseVO(jmxImportExportService.importJmx(jmx));
     }
 
     /**
