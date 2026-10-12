@@ -110,7 +110,7 @@ async function run() {
   running.value = true;
   try {
     await UiApi.runTest(testCase.value!.id);
-    message.success('已投递到 RabbitMQ');
+    message.success('已提交执行');
     router.push({ name: 'ui-reports' });
   } finally {
     running.value = false;

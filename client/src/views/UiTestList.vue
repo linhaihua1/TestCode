@@ -121,12 +121,12 @@ async function save() {
   router.push({ name: 'ui-test-editor', params: { id: created.id } });
 }
 
-/** 执行 UI 用例：投递到 MQ，由执行机异步消费 */
+/** 执行 UI 用例：提交执行，由执行机（或本地引擎）异步运行 */
 async function run(record: UiTestCase) {
   runningId.value = record.id;
   try {
     await UiApi.runTest(record.id);
-    message.success('已投递到 RabbitMQ，等待执行机消费');
+    message.success('已提交执行，可在「UI 报告」查看结果');
   } finally {
     runningId.value = '';
   }
