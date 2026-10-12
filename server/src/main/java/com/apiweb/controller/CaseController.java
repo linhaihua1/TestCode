@@ -141,6 +141,16 @@ public class CaseController {
     }
 
     /**
+     * 全局调试记录：按项目聚合全部用例的调试记录（文档 §2.2 全局视图）。
+     */
+    @GetMapping("/debug-records")
+    public Result<List<DebugRecordVO>> debugRecordsByProject(@RequestParam String projectId,
+                                                             @RequestParam(defaultValue = "1") long page,
+                                                             @RequestParam(defaultValue = "20") long size) {
+        return Result.ok(caseService.debugRecordsByProject(projectId, page, size));
+    }
+
+    /**
      * 分页查询用例的调试记录列表。
      */
     @GetMapping("/{id}/debug-records")

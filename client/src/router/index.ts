@@ -77,7 +77,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'debug-records',
         name: 'debug-records',
-        component: () => import('@/views/AuditLogPage.vue'),
+        component: () => import('@/views/DebugRecordsPage.vue'),
       },
       {
         path: 'apis',

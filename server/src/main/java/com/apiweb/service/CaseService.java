@@ -266,6 +266,36 @@ public class CaseService {
         return converter.toDebugRecordVOList(result.getRecords());
     }
 
+    /**
+     * 全局调试记录：按项目聚合全部用例的调试记录（文档 §2.2 全局视图）。
+     *
+     * <p>DebugRecordEntity 不直接持有 projectId，先查该项目下所有未删除用例的 caseId，
+     * 再 {@code in} 查询调试记录；无用例时返回空列表。</p>
+     *
+     * @param projectId 项目 ID
+     * @param page      页码（从 1 起）
+     * @param size      每页条数
+     * @return 调试记录 VO 列表（按创建时间倒序）
+     */
+    public List<DebugRecordVO> debugRecordsByProject(String projectId, long page, long size) {
+        List<String> caseIds = caseMapper.selectList(
+                        new LambdaQueryWrapper<CaseEntity>()
+                                .select(CaseEntity::getId)
+                                .eq(CaseEntity::getProjectId, projectId))
+                .stream()
+                .map(CaseEntity::getId)
+                .toList();
+        if (caseIds.isEmpty()) {
+            return List.of();
+        }
+        Page<DebugRecordEntity> result = debugRecordMapper.selectPage(
+                new Page<>(page, Math.min(size, 100)),
+                new LambdaQueryWrapper<DebugRecordEntity>()
+                        .in(DebugRecordEntity::getCaseId, caseIds)
+                        .orderByDesc(DebugRecordEntity::getCreatedAt));
+        return converter.toDebugRecordVOList(result.getRecords());
+    }
+
     // ---------------- 回收站 ----------------
 
     /**

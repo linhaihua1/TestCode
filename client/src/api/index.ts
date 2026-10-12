@@ -182,6 +182,8 @@ export const CaseApi = {
   debug: (id: string, environmentId?: string) =>
     axios.post<DebugRecord>(`/cases/${id}/debug`, { environmentId }),
   debugRecords: (id: string) => axios.get<DebugRecord[]>(`/cases/${id}/debug-records`),
+  allDebugRecords: (params: { projectId: string; page?: number; size?: number }) =>
+    axios.get<DebugRecord[]>('/cases/debug-records', { params }),
   versions: (id: string) => axios.get<CaseVersion[]>(`/cases/${id}/versions`),
   restoreVersion: (id: string, version: number) =>
     axios.post(`/cases/${id}/versions/${version}/restore`),

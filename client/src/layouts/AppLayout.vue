@@ -247,8 +247,10 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
   // 接口自动化
   apis: { name: 'apis' },
   workbench: { name: 'workbench' },
+  scenarios: { name: 'scenarios' },
   tasks: { name: 'tasks' },
   reports: { name: 'reports' },
+  trend: { name: 'trend' },
   // UI 自动化
   'ui-tests': { name: 'ui-tests' },
   'ui-run': { name: 'ui-run' },
@@ -273,8 +275,10 @@ const ROUTE_MAP: Record<string, { name: string; query?: Record<string, string> }
 const GROUP_OF: Record<string, string> = {
   workbench: 'g-api',
   apis: 'g-api',
+  scenarios: 'g-api',
   tasks: 'g-api',
   reports: 'g-api',
+  trend: 'g-api',
   'ui-tests': 'g-ui',
   'ui-run': 'g-ui',
   'ui-reports': 'g-ui',
@@ -299,8 +303,10 @@ const menuItems = computed(() => {
       children: [
         { key: 'apis', label: '接口定义' },
         { key: 'workbench', label: '接口用例' },
+        { key: 'scenarios', label: '场景编排' },
         { key: 'tasks', label: '测试执行' },
         { key: 'reports', label: '测试报告' },
+        { key: 'trend', label: '趋势统计' },
       ],
     },
     {
