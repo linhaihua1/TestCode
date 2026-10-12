@@ -60,7 +60,13 @@
         </div>
 
         <!-- 前置步骤 -->
-        <section class="step-section">
+        <section
+          class="step-section"
+          :class="{ 'step-section--drag-over': dragOverPosition === 'PRE' }"
+          @dragover="onDragOver($event, 'PRE')"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, 'PRE')"
+        >
           <div class="step-section__head">
             <span class="step-section__title">前置步骤</span>
             <span class="step-section__hint">管理该接口用例的前置条件</span>
@@ -77,7 +83,7 @@
           </draggable>
           <a-empty
             v-if="!preSteps.length"
-            description="暂无前置步骤"
+            description="暂无前置步骤，可从右侧接口管理拖拽接口到此处"
             :image-style="{ height: '40px' }"
           />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('PRE')">
@@ -86,7 +92,13 @@
         </section>
 
         <!-- 测试步骤 -->
-        <section class="step-section">
+        <section
+          class="step-section"
+          :class="{ 'step-section--drag-over': dragOverPosition === 'TEST' }"
+          @dragover="onDragOver($event, 'TEST')"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, 'TEST')"
+        >
           <div class="step-section__head">
             <span class="step-section__title">测试步骤</span>
             <span class="step-section__hint">管理接口用例步骤，支持多接口拖拽排序</span>
@@ -103,7 +115,7 @@
           </draggable>
           <a-empty
             v-if="!testSteps.length"
-            description="暂无测试步骤"
+            description="暂无测试步骤，可从右侧接口管理拖拽接口到此处"
             :image-style="{ height: '40px' }"
           />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('TEST')">
@@ -112,7 +124,13 @@
         </section>
 
         <!-- 后置步骤 -->
-        <section class="step-section">
+        <section
+          class="step-section"
+          :class="{ 'step-section--drag-over': dragOverPosition === 'POST' }"
+          @dragover="onDragOver($event, 'POST')"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, 'POST')"
+        >
           <div class="step-section__head">
             <span class="step-section__title">后置步骤</span>
             <span class="step-section__hint">执行完成后清理测试数据等操作</span>
@@ -129,7 +147,7 @@
           </draggable>
           <a-empty
             v-if="!postSteps.length"
-            description="暂无后置步骤"
+            description="暂无后置步骤，可从右侧接口管理拖拽接口到此处"
             :image-style="{ height: '40px' }"
           />
           <a-button v-can-write block type="dashed" size="small" @click="addStep('POST')">
@@ -320,6 +338,89 @@ function removeStep(position: 'PRE' | 'TEST' | 'POST', idx: number) {
   }
 }
 
+/* ============================================================
+   接口拖拽生成步骤（从右侧接口管理拖入）
+   ============================================================ */
+/** 当前悬停高亮的分区；null 表示无拖拽悬停 */
+const dragOverPosition = ref<'PRE' | 'TEST' | 'POST' | null>(null);
+
+/** 拖拽悬停：仅当拖的是接口数据时允许放置并高亮 */
+function onDragOver(e: DragEvent, position: 'PRE' | 'TEST' | 'POST') {
+  if (e.dataTransfer?.types.includes('application/api-definition')) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    dragOverPosition.value = position;
+  }
+}
+
+/** 拖拽离开分区，取消高亮 */
+function onDragLeave() {
+  dragOverPosition.value = null;
+}
+
+/** 放置接口：解析接口数据并生成一条 HTTP 请求步骤（含默认状态码断言） */
+function onDrop(e: DragEvent, position: 'PRE' | 'TEST' | 'POST') {
+  e.preventDefault();
+  dragOverPosition.value = null;
+  const raw = e.dataTransfer?.getData('application/api-definition');
+  if (!raw) return;
+  try {
+    const api = JSON.parse(raw) as {
+      name?: string;
+      method?: string;
+      path?: string;
+      headers?: { key: string; value: string }[];
+      query?: { key: string; value: string }[];
+      body?: string;
+    };
+    addApiStep(api, position);
+  } catch {
+    message.error('解析接口数据失败');
+  }
+}
+
+/** 根据接口定义生成一条 HTTP 请求步骤，插入到指定分区 */
+function addApiStep(
+  api: { name?: string; method?: string; path?: string; headers?: any[]; query?: any[]; body?: string },
+  position: 'PRE' | 'TEST' | 'POST',
+) {
+  const step: CaseStep = {
+    _id: uid(),
+    position,
+    enabled: true,
+    type: 'http',
+    name: api.name || '接口请求',
+    method: api.method || 'GET',
+    url: api.path || '',
+    headers: api.headers ? JSON.parse(JSON.stringify(api.headers)) : [],
+    query: api.query ? JSON.parse(JSON.stringify(api.query)) : [],
+    body: api.body || '',
+    // 默认断言：响应状态码等于 200
+    assertions: [
+      {
+        _id: uid(),
+        source: 'status',
+        operator: 'equals',
+        expected: '200',
+        passed: true,
+        message: '',
+      },
+    ],
+    extracts: [],
+    __activeTab: 'headers',
+  };
+  if (position === 'PRE') {
+    form.steps.unshift(step);
+  } else if (position === 'POST') {
+    form.steps.push(step);
+  } else {
+    const firstPostIdx = form.steps.findIndex((s) => (s.position || 'TEST') === 'POST');
+    if (firstPostIdx === -1) form.steps.push(step);
+    else form.steps.splice(firstPostIdx, 0, step);
+  }
+  message.success(`已添加接口步骤「${step.name}」`);
+}
+
 /** 剪贴板：只保存一份步骤的深拷贝（组件内临时，刷新即失效） */
 const clipboard = ref<CaseStep | null>(null);
 
@@ -479,6 +580,16 @@ form.steps.forEach(ensureStepShape);
 /* 步骤分区 */
 .step-section {
   margin-bottom: var(--sp-4);
+  padding: var(--sp-2);
+  border: 1px dashed transparent;
+  border-radius: var(--rd-md);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+/* 拖拽接口悬停时的分区高亮 */
+.step-section--drag-over {
+  background: var(--bg-hover);
+  border-color: var(--c-primary);
 }
 
 .step-section__head {

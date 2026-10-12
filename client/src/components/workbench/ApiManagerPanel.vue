@@ -50,7 +50,13 @@
     <!-- 接口列表 -->
     <a-list :data-source="apis" :loading="loading" size="small" class="api-list">
       <template #renderItem="{ item }">
-        <a-list-item class="api-item" @click="openEdit(item)">
+        <a-list-item
+          class="api-item"
+          draggable="true"
+          title="拖拽到用例编辑器生成接口请求步骤"
+          @dragstart="onDragStart($event, item)"
+          @click="openEdit(item)"
+        >
           <a-list-item-meta>
             <template #title>
               <a-space size="small">
@@ -257,6 +263,13 @@ function openEdit(item: ApiDefinition) {
   createOpen.value = true;
 }
 
+/** 拖拽接口：把接口定义写入 dataTransfer，供用例编辑器 drop 生成步骤 */
+function onDragStart(e: DragEvent, item: ApiDefinition) {
+  if (!e.dataTransfer) return;
+  e.dataTransfer.setData('application/api-definition', JSON.stringify(item));
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
 /** 保存新建或编辑结果（按 form.id 是否存在判断） */
 async function save() {
   if (!form.name || !form.path) {
@@ -394,7 +407,7 @@ onMounted(() => {
 }
 
 .api-item {
-  cursor: pointer;
+  cursor: grab;
   border-radius: var(--rd-sm);
 }
 
