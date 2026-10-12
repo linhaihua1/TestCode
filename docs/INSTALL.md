@@ -129,7 +129,7 @@ npm install && npm run dev
 
 说明：
 
-- 旧库升级时执行幂等迁移：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
+- 数据库结构由 Flyway 在启动时自动迁移（`db/migration/V1__baseline.sql`，`baseline-on-migrate` 兼容老库）；历史遗留的手工幂等脚本仍可用：`mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
 - 对象存储（MinIO）在 localdev 下自动降级为本地文件系统（`OSS_LOCAL_ROOT` 环境变量覆盖，缺省落到 `${java.io.tmpdir}/apiweb-oss`，即 `C:\Users\<user>\AppData\Local\Temp\apiweb-oss` 或 `/tmp/apiweb-oss`）
 - 登录账号：`admin / admin@123`（首次启动由 `apiweb.bootstrap.admin-username` / `admin-password` 配置初始化，可用同名环境变量覆盖）
 - localdev 下 `apiweb.mq.enabled=false`，RabbitMQ 消费者不注册；UI / 性能任务改由进程内 `@Async` 直接执行，仍会正常生成报告
@@ -159,9 +159,14 @@ mysql -uroot -p
 # 设置时区为 UTC
 mysql -uroot -p -e "SET GLOBAL time_zone = '+00:00';"
 
-# 导入 schema
+# 建库（二选一）
+# 方式 A：手工导入建表脚本
 mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql
+# 方式 B：不导入，直接启动后端 —— Flyway 会自动执行 db/migration/V1__baseline.sql 建表
 ```
+
+> **数据库迁移**：后端启动时由 Flyway 自动执行 `server/src/main/resources/db/migration/` 下的迁移脚本。
+> 对已有数据的旧库，`baseline-on-migrate: true` 会先把当前状态记为 V1 基线，不会重复建表、不覆盖数据；后续结构变更只需新增 `V{n}__xxx.sql`。
 
 ### 3.2 安装 Redis 7
 
@@ -408,12 +413,7 @@ set WEBDRIVER_CHROME_DRIVER=C:\path\to\chromedriver.exe
 
 A: 这通常是某个页面组件返回了多个根节点（页面 div 与 `<a-modal>` 并列）。`AppLayout` 的 `<transition>` 要求子节点单根，导致离开该页后其它页面内容区永久空白。
 
-修复方法：把弹窗/抽屉节点移入页面根 `<div>` 内。提交前可用仓库内置扫描脚本快速排查：
-
-```bash
-# 在 client/ 下运行，找出含多个根节点的组件
-node tools_scan_multiroot.mjs
-```
+修复方法：把弹窗/抽屉节点移入页面根 `<div>` 内。定位手段：`cd client && npm run build`（`vue-tsc --noEmit` 会报出异常组件），或打开浏览器控制台按上面的 Vue 警告定位到具体页面组件。
 
 ### Q10: 登录失败提示「登录已过期」
 

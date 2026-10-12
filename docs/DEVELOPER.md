@@ -27,18 +27,23 @@ api-web/                                # 仓库根
 ├── client/                             # 前端工程（Vue 3 + Vite）
 │   ├── src/
 │   │   ├── api/                        # API 客户端（按域拆分）
-│   │   ├── components/                 # 公共组件
+│   │   ├── components/                 # 公共组件（VirtualTree / Monaco / KeyValueEditor / AssertionEditor / ExtractEditor / UiStepEditor ...）
 │   │   │   └── workbench/              # 三栏工作台专用面板
+│   │   ├── constants/                  # 枚举 / 标签 / 颜色 / HTTP 方法等前端唯一常量源
+│   │   ├── hooks/                      # 组合式函数（useShortcuts 等）
 │   │   ├── layouts/                    # 布局（带侧栏的 AppLayout）
 │   │   ├── router/                     # vue-router 配置
 │   │   ├── stores/                     # Pinia 状态管理
+│   │   ├── styles/                     # 设计系统（tokens.css / global.css / antTheme.ts）
 │   │   ├── types/                      # TypeScript 类型定义
-│   │   ├── views/                      # 页面组件（按路由对应）
+│   │   ├── utils/                      # 工具（format / uid / kvRows / treeFilter / monacoWorkers）
+│   │   ├── views/                      # 页面组件（26 个，按路由对应）
 │   │   ├── App.vue                     # 根组件
 │   │   └── main.ts                     # 入口文件
 │   ├── index.html
 │   ├── package.json
 │   ├── tsconfig.json
+│   ├── vitest.config.ts                # 前端单测配置
 │   └── vite.config.ts                  # Vite 配置（含 dev server proxy）
 │
 ├── server/                             # 后端工程（Spring Boot 3）
@@ -46,27 +51,41 @@ api-web/                                # 仓库根
 │   │   ├── java/com/apiweb/
 │   │   │   ├── ApiWebApplication.java  # 启动类
 │   │   │   ├── audit/                  # 审计日志（AOP 自动落库）
-│   │   │   ├── common/                 # 通用：Result、错误码、异常、基类
-│   │   │   ├── config/                 # 配置：MyBatis-Plus / Redis / RabbitMQ / MinIO / 初始化
-│   │   │   ├── controller/             # RESTful Controller 层（19 个）
-│   │   │   ├── engine/                 # 执行引擎核心（变量/断言/HTTP/场景/JMeter）
-│   │   │   ├── entity/                 # MyBatis-Plus 实体（每张表一个）
-│   │   │   ├── mapper/                 # MyBatis-Plus Mapper 接口
+│   │   │   ├── common/                 # 通用：Result / ErrorCode / BizException / PageResult / 基类
+│   │   │   ├── config/                 # 配置：MyBatis-Plus / Redis / RabbitMQ / MinIO / Quartz / OpenApi / 各 *Properties
+│   │   │   ├── controller/             # RESTful Controller 层（23 个）
+│   │   │   ├── converter/              # MapStruct Entity ↔ DTO/VO 转换器
+│   │   │   ├── dto/                    # 请求 DTO（XxxReq）
+│   │   │   ├── vo/                     # 响应 VO（XxxVO）
+│   │   │   ├── engine/                 # 执行引擎核心（变量/断言/HTTP/步骤执行器/流程控制器/JMeter）
+│   │   │   ├── entity/                 # MyBatis-Plus 实体（31 个，每张表一个）
+│   │   │   ├── job/                    # Quartz 定时任务
+│   │   │   ├── mapper/                 # MyBatis-Plus Mapper 接口（31 个）
 │   │   │   ├── mq/                     # RabbitMQ 生产者/消费者
-│   │   │   ├── security/               # JWT 鉴权、UserContext、CurrentUser
-│   │   │   ├── service/                # 业务服务层
+│   │   │   ├── observability/          # TraceId 过滤器、慢 SQL 拦截器
+│   │   │   ├── openapi/                # OpenAPI 文档补充
+│   │   │   ├── report/                 # 报告分享等领域枚举
+│   │   │   ├── security/               # JWT 鉴权、UserContext、CurrentUser、Role
+│   │   │   ├── service/                # 业务服务层（30 个）
 │   │   │   └── util/                   # 工具类
 │   │   └── resources/
-│   │       ├── db/schema.sql           # MySQL 初始化脚本
+│   │       ├── application.yml         # Spring 配置（含 Flyway / 可观测性 / 各 apiweb.* 段）
+│   │       ├── application-localdev.yml# 单机调试 profile
+│   │       ├── db/schema.sql           # MySQL 初始化脚本（31 张业务表）
+│   │       ├── db/migrate.sql          # 手工幂等迁移（旧库补表/补列）
+│   │       ├── db/migration/V1__baseline.sql   # Flyway 基线
 │   │       ├── jmeter/                 # 嵌入式 JMeter 配置（4 个）
-│   │       ├── log4j2.xml              # Spring Boot 日志
-│   │       └── application.yml         # Spring 配置（含多 profile）
+│   │       └── log4j2.xml              # Spring Boot 日志
+│   ├── src/test/java/com/apiweb/       # 单元 / 契约 / 架构测试（18 个测试类，102 个用例）
 │   └── pom.xml                         # Maven 配置
 │
-├── docs/                               # 用户文档
+├── docs/                               # 项目文档
 │   ├── INSTALL.md                      # 安装文档
 │   ├── USER_GUIDE.md                   # 操作手册
-│   └── DEVELOPER.md                    # 本文件
+│   ├── DEVELOPER.md                    # 本文件
+│   ├── 需求文档.md                      # 原始需求（PRD）
+│   ├── 开发文档.md                      # 数据模型 / API / 算法 / 错误码
+│   └── 企业级架构优化方案.md              # 分层演进的方案与进度
 │
 ├── scripts/                            # 运维脚本
 │   ├── start.sh                        # 一键启动
@@ -81,6 +100,11 @@ api-web/                                # 仓库根
 ├── README.md                           # 项目说明
 └── LICENSE
 ```
+
+> **数据库结构变更**：`schema.sql` 用 `CREATE TABLE IF NOT EXISTS`，对已存在的旧库不会补列。
+> 新结构变更统一走 **Flyway**：在 `server/src/main/resources/db/migration/` 下新增 `V{n}__xxx.sql`，启动时自动执行（`baseline-on-migrate: true` 兼容老库）。
+> 历史遗留的 `db/migrate.sql` 为手工幂等脚本，作为旧库兜底保留。
+> 结构漂移可用 `python server/scripts/check_schema_drift.py` 自动比对实体字段与数据库列。
 
 ---
 
@@ -97,6 +121,8 @@ api-web/                                # 仓库根
 | Spring Quartz | 3.x | 分布式定时任务 |
 | MyBatis-Plus | 3.5.6 | ORM（基于 MyBatis） |
 | MySQL Connector | 8.x | JDBC 驱动 |
+| Flyway | 9.x | 数据库版本化迁移（`baseline-on-migrate`） |
+| MapStruct | 1.5.5 | Entity ↔ DTO/VO 编译期转换 |
 | JWT (jjwt) | 0.12.5 | 无状态认证 |
 | MinIO Java SDK | 8.5.9 | 对象存储 |
 | Apache JMeter | 5.6.3 | 嵌入式性能测试引擎 |
@@ -104,6 +130,11 @@ api-web/                                # 仓库根
 | Hutool | 5.8.27 | Java 工具集 |
 | Lombok | 1.18.x | 代码简化 |
 | Log4j2 | 2.22 | 日志（替换默认 logback） |
+| Spring Boot Actuator + Micrometer | 3.x | 健康检查 / 指标（Prometheus） |
+| Micrometer Tracing + OpenTelemetry | 1.x | TraceId 链路追踪（可导出 OTLP） |
+| springdoc-openapi | 2.x | OpenAPI 文档 + Swagger UI |
+| ArchUnit | 1.x | 架构约束测试（分层 / 命名） |
+| JaCoCo | 0.8.x | 测试覆盖率报告与门槛 |
 
 ### 2.2 前端
 
@@ -121,6 +152,9 @@ api-web/                                # 仓库根
 | xlsx | 0.18.x | Excel 导入解析 |
 | dayjs | - | 时间处理（含 UTC） |
 | axios | 1.x | HTTP 客户端 |
+| ESLint | 9.x | 代码规范（`npm run lint`） |
+| Prettier | 3.x | 代码格式化（`eslint-config-prettier` 协同） |
+| Vitest + @vue/test-utils | 2.x / 2.x | 前端单元测试（`npm run test`） |
 
 ---
 
@@ -151,14 +185,13 @@ docker exec -i apiweb-mysql mysql -uapiweb -papiweb123 api_web < server/src/main
 mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql
 ```
 
-> **增量迁移**：schema.sql 用 `CREATE TABLE IF NOT EXISTS`，对已存在的旧库不会补列。
-> 若旧库缺表/缺列（如升级后新增 `t_case_step`、`t_report_share` 等），执行幂等迁移脚本：
+> **数据库版本化迁移（Flyway）**：后端启动时 Flyway 会自动执行 `db/migration/` 下的迁移脚本（当前为 `V1__baseline.sql`，31 张业务表）。`baseline-on-migrate: true` 表示遇到已有数据的旧库会先把当前状态记为 V1 基线、不重复执行 V1，因此 **老库无需手工导入 schema**。
 >
-> ```bash
-> mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql
-> ```
->
-> 结构漂移可用 `python server/scripts/check_schema_drift.py` 自动比对实体字段与数据库列。
+> - 新增结构变更：在 `db/migration/` 下新建 `V2__xxx.sql`，启动即生效。
+> - `schema.sql` 仅用于全新库初次建表（Docker 首次启动由 `docker-entrypoint-initdb.d` 自动导入，也可手工执行）。
+> - 历史遗留的 `db/migrate.sql` 为手工幂等脚本，作为旧库兜底保留：
+>   `mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/migrate.sql`
+> - 结构漂移可用 `python server/scripts/check_schema_drift.py` 自动比对实体字段与数据库列。
 
 ### 3.4 启动后端（开发模式）
 
@@ -204,17 +237,28 @@ npm run dev
 
 ### 4.1 包结构与命名约定
 
+工程采用**按层分包 + 层内按域再分包**（`dto` / `vo` / `converter` 的内部按业务域建子包，如 `dto/casee`、`vo/apidefinition`）：
+
 ```
-com.apiweb.{module}/
-├── entity/        数据实体（与表对应，TableName 注解）
-├── mapper/        MyBatis-Plus Mapper 接口
-├── service/       业务服务（接口 + 实现）
-├── controller/    REST 控制器
-├── dto/           业务 DTO（请求/响应）
+com.apiweb/
+├── controller/           REST 控制器（只做参数校验 + 调 Service + 返回 VO，禁止注入 Mapper）
+├── service/              业务服务（业务逻辑 + @Transactional + 跨域编排）
+├── mapper/               MyBatis-Plus Mapper 接口
+├── entity/               数据实体（与表对应，@TableName 注解）
+├── dto/{domain}/         请求 DTO（XxxReq，带 @NotBlank/@Size 校验注解）
+├── vo/{domain}/          响应 VO（XxxVO）
+├── converter/            MapStruct 转换器（XxxConverter，Entity ↔ DTO/VO）
 └── ...
 ```
 
-每个 Controller 类加 `@RestController` + `@RequestMapping("/api/xxx")`。
+**JSON 字段的双向约定（重要）**：实体里以 `String` 存储 JSON 快照的字段（如用例步骤 `steps`、接口参数 `query`/`headers`、环境变量 `variables`），在
+
+- **入参 DTO** 上必须加 `@JsonDeserialize(using = JsonStringDeserializer.class)`，否则前端传数组/对象时反序列化失败，接口返回 `1001 请求体格式错误`；
+- **出参 VO** 上必须把字段声明为 `Object`，并在对应 `XxxConverter` 的 `@AfterMapping` 里用 `JsonUtils.parseObject` 解析成结构化对象，否则前端拿到的是字符串、按数组使用时崩溃。
+
+新增此类字段时两侧都要处理，且补一条对应单测。
+
+每个 Controller 类加 `@RestController` + `@RequestMapping("/api/v1/xxx")`（除 `MockController` 挂在 `/api/mock` 作为对外 Mock 入口）。
 
 ### 4.2 添加一个 CRUD 模块（标准流程）
 
@@ -256,7 +300,7 @@ public interface BugMapper extends BaseMapper<BugEntity> {}
 
 继承 `BaseMapper<T>` 自动获得 CRUD，无需写 XML。
 
-4. **创建 Service** `service/BugService.java`：
+4. **创建 Service** `service/BugService.java`（业务逻辑 + 事务收敛于此，向上返回 Entity）：
 
 ```java
 @Service
@@ -264,8 +308,11 @@ public interface BugMapper extends BaseMapper<BugEntity> {}
 public class BugService {
     private final BugMapper bugMapper;
 
-    public BugEntity create(BugEntity bug) {
-        bug.setId(UUID.randomUUID().toString().replace("-", ""));
+    @Transactional
+    public BugEntity create(BugReq req) {
+        BugEntity bug = new BugEntity();
+        bug.setTitle(req.getTitle());
+        bug.setSeverity(req.getSeverity());
         bugMapper.insert(bug);
         return bug;
     }
@@ -280,7 +327,18 @@ public class BugService {
 }
 ```
 
-5. **创建 Controller** `controller/BugController.java`：
+5. **创建 DTO / VO / Converter**（`dto/bug/BugReq.java`、`vo/bug/BugVO.java`、`converter/BugConverter.java`）：
+
+```java
+public interface BugConverter {
+    BugVO toVO(BugEntity entity);
+    List<BugVO> toVOList(List<BugEntity> list);
+}
+```
+
+DTO 带校验注解（`@NotBlank` / `@Size`），VO 只暴露对外字段；MapStruct 在编译期生成实现类。
+
+6. **创建 Controller** `controller/BugController.java`（只做「参数校验 + 调 Service + 返回 VO」，**不注入 Mapper、不直接出入参 Entity**）：
 
 ```java
 @RestController
@@ -288,25 +346,26 @@ public class BugService {
 @RequiredArgsConstructor
 public class BugController {
     private final BugService bugService;
+    private final BugConverter bugConverter;
 
     @GetMapping
-    public Result<List<BugEntity>> list() {
-        return Result.ok(bugService.list());
+    public Result<List<BugVO>> list() {
+        return Result.ok(bugConverter.toVOList(bugService.list()));
     }
 
     @PostMapping
-    public Result<BugEntity> create(@RequestBody @Valid BugEntity bug) {
-        return Result.ok(bugService.create(bug));
+    public Result<BugVO> create(@RequestBody @Valid BugReq req) {
+        return Result.ok(bugConverter.toVO(bugService.create(req)));
     }
 
     @GetMapping("/{id}")
-    public Result<BugEntity> get(@PathVariable String id) {
-        return Result.ok(bugService.get(id));
+    public Result<BugVO> get(@PathVariable String id) {
+        return Result.ok(bugConverter.toVO(bugService.get(id)));
     }
 }
 ```
 
-6. **重启后端**，调用 `curl http://localhost:8080/api/v1/bugs` 验证。
+7. **重启后端**，调用 `curl http://localhost:8080/api/v1/bugs` 验证（`architecture/LayeredArchitectureTest` 会校验分层约束）。
 
 ### 4.3 通用响应格式
 
@@ -368,44 +427,61 @@ public class BugController {
 
 ### 4.5 审计日志
 
-在 Controller 方法上加 `@AuditLog("操作描述")`，AOP 会自动记录：
+在 Controller 方法上加 `@AuditLog(action = "...", entityType = "...")`，`AuditAspect` 会自动写入 `t_audit_log`：
 
 ```java
 @PostMapping
-@AuditLog("创建用例")
-public Result<CaseEntity> create(@RequestBody CaseEntity entity) {
-    return Result.ok(caseService.create(entity));
+@AuditLog(action = "create", entityType = "case")
+public Result<CaseVO> create(@RequestBody @Valid CaseReq req) {
+    return Result.ok(caseConverter.toVO(caseService.create(req)));
 }
 ```
+
+- `action`：动作名，建议动词（`create` / `update` / `delete` / `execute` / `import` / `export`）；失败时 AOP 自动追加 `:error` 后缀。
+- `entityType`：实体类型，对应业务表名（如 `case` / `project` / `api_definition`）。
+- 两者均为必填。
 
 审计字段：操作人、操作时间、IP、操作类型、目标实体 ID、变更前后值。
 
 ### 4.6 RabbitMQ 异步任务
 
+交换机 / 队列 / 路由键全部来自 `MqProperties`（`apiweb.mq.*`），代码中不硬编码名称。
+
 发送任务（`mq/TaskProducer.java`）：
 
 ```java
-rabbitTemplate.convertAndSend(RabbitMQConfig.API_EXCHANGE, "api.task", message);
+taskProducer.sendApiTask(runId, projectId, taskId, caseIds);   // 另有 sendUiTask / sendPerfTask
+// 内部：rabbitTemplate.convertAndSend(mq.getExchange(), mq.getRoutingKey().getApi(), message);
 ```
 
 消费任务（`mq/ApiTaskConsumer.java`）：
 
 ```java
-@RabbitListener(queues = RabbitMQConfig.API_QUEUE)
-public void onMessage(EngineDtos.TaskMessage message) {
-    caseRunner.execute(message);
+@ConditionalOnProperty(name = "apiweb.mq.enabled", havingValue = "true", matchIfMissing = true)
+@Component
+@RequiredArgsConstructor
+public class ApiTaskConsumer {
+    @RabbitListener(queues = "${apiweb.mq.queue.api}")
+    public void onMessage(@Payload EngineDtos.TaskMessage message, Channel channel) {
+        // 手动 ack（listener.simple.acknowledge-mode=manual）
+    }
 }
 ```
 
-新增队列：编辑 `config/RabbitMQConfig.java`，声明 `Queue` / `Exchange` / `Binding` Bean。
+新增队列：在 `application.yml` 的 `apiweb.mq` 段加队列/路由键，并在 `config/RabbitMQConfig.java` 声明 `Queue` / `Exchange` / `Binding` Bean。
 
 > **MQ 开关**：三个消费者均标注 `@ConditionalOnProperty(name = "apiweb.mq.enabled", havingValue = "true", matchIfMissing = true)`。`application.yml` 默认 `apiweb.mq.enabled: true`，`application-localdev.yml` 置为 `false`。关闭后消费者不注册，UI / 性能任务由 Controller 改走进程内 `@Async` 回退执行（见 §3.4）。
 
 ### 4.7 Quartz 定时任务
 
+现有两个 Job：`job/TestTaskScheduleJob.java`（定时测试任务）、`job/RecycleBinAutoCleanJob.java`（回收站自动清理）。
+
+新增定时任务的步骤：
+
 1. 实现 `Job` 接口：`job/MyJob.java implements Job`
-2. 创建 Trigger / JobDetail：`service/ScheduleService.scheduleCron(...)`
-3. 支持集群模式（多个节点同时跑只会触发一次）
+2. 在调度服务里注册 JobDetail + CronTrigger（参考 `service/TaskScheduleService.java` 的 `schedule(...)`；它用 `ObjectProvider<Scheduler>` 惰性获取 Scheduler，**localdev 下 Quartz 未启用时静默跳过**，不会因缺少 bean 启动失败）
+3. Cron 表达式可配（如回收站清理走 `apiweb.recycle-bin.clean-cron`）
+4. 支持集群模式（多个节点同时跑只会触发一次）
 
 ### 4.8 嵌入式 JMeter 扩展
 
@@ -524,10 +600,14 @@ export const useProjectStore = defineStore('project', () => {
 `views/Workbench.vue` 是测试用例编辑的核心，顶部为配置栏（全局变量/调试记录/回收站），下方由 3 个子面板组成：
 
 - `components/workbench/WorkbenchLeftPanel.vue` —— 左侧用例库（搜索 + 模块树 + 用例列表）
+- `components/workbench/CaseLibraryPanel.vue` —— 用例库目录/用例列表子面板
 - `components/workbench/CaseEditorPanel.vue` —— 中间编写用例（脚本/调试记录双 Tab + 前置/测试/后置三分区）
-- `components/workbench/ApiManagerPanel.vue` —— 右侧接口管理（目录树 + Excel 导入）
-- `components/workbench/StepCard.vue` —— 单步骤卡片（禁用/启用开关、右键复制粘贴、6 种步骤类型）
+- `components/workbench/ApiManagerPanel.vue` —— 右侧接口管理（目录树 + Excel 导入 + 拖拽生成步骤）
+- `components/workbench/StepCard.vue` —— 单步骤卡片（禁用/启用开关、右键复制粘贴、多种步骤类型）
 - `components/workbench/DebugModal.vue` —— 调试弹窗（环境变量选择与增删改）
+- `components/workbench/DebugRecordsModal.vue` —— 单用例调试记录弹窗
+
+> **接口拖拽生成步骤**：接口管理面板的接口项带 `draggable="true"`，拖拽时通过 `dataTransfer.setData('application/api-definition', ...)` 传参；用例编辑面板的三个步骤分区监听 `drop`，`addApiStep` 据此生成一条 HTTP 步骤（含默认状态码断言）。
 
 子面板通过 `props / emits` 与父组件通信，避免 Pinia store 滥用。
 
@@ -742,10 +822,10 @@ localdev profile 下 MinIO 不可用时，`OssService` 自动降级到本地文�
 
 ### 7.5 新增数据库表
 
-1. `db/schema.sql` 追加 DDL
+1. 在 `db/migration/` 新建 `V{n}__xxx.sql` 写 DDL（同时把同样的 DDL 追加到 `db/schema.sql`，保证全新库一致）
 2. 创建实体（继承 `BaseEntity`）+ Mapper（继承 `BaseMapper<T>`）
 3. Service + Controller
-4. 重新执行 `docker exec apiweb-mysql mysql ... < schema.sql` 或用 Flyway/Liquibase 做迁移
+4. 重启后端，Flyway 自动执行迁移（无需手工导入）
 
 ---
 
@@ -758,18 +838,28 @@ cd server
 mvn test
 ```
 
-测试目录：`server/src/test/java/`。当前覆盖 49 个用例（推荐覆盖）：
+测试目录：`server/src/test/java/`。当前 **18 个测试类 / 102 个用例**（`mvn test` 全绿）：
 
 | 测试类 | 锁死的契约 |
 |---|---|
+| `architecture/LayeredArchitectureTest` | 分层依赖方向（Controller 不注入 Mapper、Service 不反向依赖 Controller 等） |
+| `architecture/NamingConventionTest` | 类 / 包命名规范 |
+| `common/CommonContractTest` | `Result` / `ErrorCode` 响应契约 |
+| `converter/UserConverterTest` | MapStruct Entity ↔ VO 转换 |
 | `engine/EngineEnumsTest` | `RunStatus` / `ReportStatus` / `TriggerType` / `ExecutorStatus` / `TaskType` / `FailStrategy` / `ExecuteMode` / `UiSegment` 的 `getCode()` |
-| `engine/step/ExtractTypeTest` | 5 种提取方式 code + JSONPATH 为默认 |
+| `engine/CiEnumsTest` | CI 流水线的状态枚举 |
+| `engine/step/ExtractTypeTest` | 提取方式 code + JSONPATH 为默认 |
+| `engine/step/StepTypeTest` | 步骤类型枚举 code |
+| `observability/TraceContextTest` | TraceId MDC 上下文读写 |
+| `observability/TraceIdFilterTest` | TraceId 过滤器注入 |
+| `observability/SlowSqlInterceptorTest` | 慢 SQL 阈值判定 |
+| `report/ShareAccessStatusTest` | 分享访问结果码 |
 | `security/RoleTest` | admin / member / viewer code + `*_CODE` 常量 |
 | `security/LoginErrorCodeTest` | `1002` ≠ `1006`，且分别锁定码值 |
 | `security/AuthInterceptorTest` | 401 响应体格式（`Result(code=1002)` JSON） |
-| `report/ShareAccessStatusTest` | 7 种分享访问结果码 |
-| `service/QualityGateTest` | 7 条 CI 质量门禁规则语义 |
-| `engine/CiEnumsTest` | CI 流水线的 6 种状态枚举 |
+| `security/JwtUtilTest` | JWT 签发 / 解析 / 过期 |
+| `service/QualityGateTest` | CI 质量门禁规则语义 |
+| `service/UserServiceTest` | 用户业务逻辑（Mock Mapper） |
 
 **推荐新模块测试覆盖**：
 - Service 业务方法（`@MockBean` Mapper）
@@ -777,41 +867,48 @@ mvn test
 - 关键 Controller（`MockMvc`）
 - **新枚举 / 新错误码** 必须有 `*Test` 锁死 `getCode()`（否则提交前可能被 `mvn test` 拦截要求补）
 
-### 8.2 前端类型检查
+### 8.2 前端类型检查 / 规范检查
 
 ```bash
 cd client
-npx vue-tsc --noEmit
+npx vue-tsc --noEmit   # 或 npm run type-check
+npm run lint           # ESLint（.ts/.vue）
+npm run lint:fix       # 自动修复
 ```
 
-类型检查覆盖 `.vue` 与 `.ts`，`vite build` 也会触发。`package.json` 的 `type-check` 脚本等同。
+类型检查覆盖 `.vue` 与 `.ts`，`npm run build` 也会触发（`vue-tsc --noEmit && vite build`）。
 
-### 8.3 前端单元测试（待补充）
+### 8.3 前端单元测试
 
-`vitest` + `@vue/test-utils` 尚未接入。如需添加：
+已接入 **Vitest + @vue/test-utils**，当前 4 个测试文件 / 42 个用例：
 
 ```bash
 cd client
-npm install -D vitest @vue/test-utils
+npm run test           # vitest run（单次）
+npm run test:watch     # 监听模式
+npm run test:coverage  # 覆盖率
 ```
+
+测试文件放在被测模块旁（`src/utils/*.test.ts`），当前覆盖 `utils/format`、`utils/kvRows`、`utils/treeFilter`、`utils/uid` 等纯函数。新增复杂组件逻辑时，建议把可测逻辑下沉为纯函数再补测。
 
 ### 8.4 接口联调
 
-推荐用 Apifox / Postman 调试。导入 OpenAPI：访问 `http://localhost:8080/v3/api-docs`（如已集成 springdoc）。
+推荐用 Apifox / Postman 调试。已集成 springdoc，可直接导入 OpenAPI：
 
-### 8.5 端到端 / UI 探测（无依赖）
+- 文档 JSON：`http://localhost:8080/v3/api-docs`
+- Swagger UI：`http://localhost:8080/swagger-ui.html`
+- 健康检查：`http://localhost:8080/actuator/health`（其余 actuator 端点需认证）
 
-工程内置了基于 Chrome DevTools Protocol 的 UI 探测脚本（`tools_ui_probe.mjs` 等），无需安装额外 npm 依赖（`puppeteer` / `playwright`）：
+### 8.5 端到端 / 功能回归
+
+仓库根目录提供 `tools_functional_test.py`，按「登录 → 各业务域 CRUD → 执行 → 清理」的顺序跑一遍主流程，可作为发布前的端到端回归：
 
 ```bash
-# 1. 用任一本地 Chrome 以远程调试模式启动
-chrome --remote-debugging-port=9222 --no-first-run
-
-# 2. 运行探测脚本（默认连 127.0.0.1:9222）
-node tools_ui_probe.mjs
+# 需后端已在 localhost:8080 运行
+python tools_functional_test.py
 ```
 
-脚本会按「登录 → 19 个页面遍历 → 新建/删除 → 退出登录」的顺序操作，捕获控制台错误、网络失败、内容区空白、Monaco worker 加载失败等异常，并把每页截图写到 `ui-shots/`。Vue `Transition` 报警后内容区空白的根因（页面组件多根节点）可通过 `tools_scan_multiroot.mjs` 一键扫描全部 `.vue` 组件。
+> 历史上曾用于排查 Vue `Transition` 报警导致内容区空白的多根节点扫描脚本改动已随重构下线；如遇页面离开后内容区空白，可直接用 `npm run build` 的 vue-tsc 报错与浏览器控制台的 Vue 警告定位（多半是页面组件返回了多个根节点，需把 `<a-modal>` 等移入根 `<div>`）。
 
 ---
 
@@ -946,6 +1043,9 @@ A: 检查 `logs/backend.log`，常见原因：
 | 三栏工作台如何联动 | `client/src/views/Workbench.vue` + `client/src/components/workbench/*.vue` |
 | Monaco 如何集成 | `client/src/components/Monaco.vue` + `client/src/utils/monacoWorkers.ts` |
 | 虚拟滚动树如何实现 | `client/src/components/VirtualTree.vue` |
+| DTO/VO 如何转换 | `server/src/main/java/com/apiweb/converter/*.java`（MapStruct）+ `server/src/main/java/com/apiweb/dto/**`、`vo/**` |
+| 链路追踪 / 慢 SQL | `server/src/main/java/com/apiweb/observability/*.java` |
+| 架构约束如何保证 | `server/src/test/java/com/apiweb/architecture/*.java`（ArchUnit） |
 
 ## 附录 B：常用命令速查
 
@@ -959,9 +1059,12 @@ mvn test                                           # 跑单元测试
 npm run dev                                        # 开发服务器
 npm run build                                      # 生产构建（含 vue-tsc 类型检查）
 npx vue-tsc --noEmit                               # 仅类型检查
+npm run lint                                       # ESLint 检查
+npm run test                                       # Vitest 单元测试
 
 # 数据库
-docker exec -i apiweb-mysql mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql
+docker exec -i apiweb-mysql mysql -uapiweb -papiweb123 api_web < server/src/main/resources/db/schema.sql   # 全新库建表
+# 结构变更走 Flyway：在 server/src/main/resources/db/migration/ 新增 V{n}__xxx.sql，重启后端自动执行
 docker exec apiweb-mysql mysqldump -uapiweb -papiweb123 api_web > backup.sql
 
 # Redis
