@@ -17,7 +17,8 @@ import java.util.List;
  * Perf 实体 ↔ DTO/VO 转换器（MapStruct 编译期生成实现）。
  *
  * <p>实体中 {@code variables/steps/profile} 以 JSON 字符串存储，VO 中以结构化对象输出，
- * 因此在 {@link #toCaseVO(PerfCaseEntity)} 完成后统一做 JSON 解析（见 {@link #parseJsonFields}）。</p>
+ * 因此在 {@link #toCaseVO(PerfCaseEntity)} 完成后统一做 JSON 解析（见 {@link #parseJsonFields}）；
+ * 压测报告的 {@code summary/series/labels/errors} 同理，见 {@link #parseReportJsonFields}。</p>
  */
 @Mapper(componentModel = "spring")
 public interface PerfConverter {
@@ -49,4 +50,22 @@ public interface PerfConverter {
 
     /** Report Entity 列表 → Report VO 列表 */
     List<PerfReportVO> toReportVOList(List<PerfReportEntity> entities);
+
+    /**
+     * 报告转换完成后，把 JSON 字符串字段解析为结构化对象
+     * （summary→Map、series/labels/errors→List）。
+     *
+     * <p>缺少该步骤会导致报告详情接口输出 {@code "[]"} 这类字符串，
+     * 前端按数组/对象使用时报错并白屏。</p>
+     */
+    @AfterMapping
+    default void parseReportJsonFields(@MappingTarget PerfReportVO vo) {
+        if (vo == null) {
+            return;
+        }
+        vo.setSummary(JsonUtils.parseObject((String) vo.getSummary()));
+        vo.setSeries(JsonUtils.parseObject((String) vo.getSeries()));
+        vo.setLabels(JsonUtils.parseObject((String) vo.getLabels()));
+        vo.setErrors(JsonUtils.parseObject((String) vo.getErrors()));
+    }
 }
