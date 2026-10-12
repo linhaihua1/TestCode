@@ -24,6 +24,10 @@
         <minio.version>8.5.9</minio.version>
         <hutool.version>5.8.27</hutool.version>
         <jmeter.version>5.6.3</jmeter.version>
+        <!-- Selenium：必须显式覆盖 spring-boot-dependencies 的默认值(4.14.1)，
+             否则 selenium-java 4.19.1 与其它 selenium-* 模块的 4.14.1 会同时进 classpath，
+             造成依赖版本混合（NoSuchMethodError 风险 + Selenium Manager 驱动解析异常） -->
+        <selenium.version>4.19.1</selenium.version>
         <springdoc.version>2.5.0</springdoc.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <archunit.version>1.2.1</archunit.version>
@@ -188,11 +192,12 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
-        <!-- Selenium（UI 自动化） -->
+        <!-- Selenium（UI 自动化）。版本由 <selenium.version> 统一管理，
+             使其全部子模块（api/chrome-driver/remote-driver/manager…）保持一致 -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.19.1</version>
+            <version>${selenium.version}</version>
         </dependency>
 
         <!-- Apache JMeter 5.6.3（嵌入式执行引擎，无需外部安装 JMeter） -->
