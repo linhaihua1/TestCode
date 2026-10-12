@@ -15,7 +15,7 @@ public class UiScenarioVO {
     private String name;
     private String description;
     private String environmentId;
-    private String variables;
+    private Object variables;
     private String executorUrl;
     private String executorHost;
     private Integer executorPort;

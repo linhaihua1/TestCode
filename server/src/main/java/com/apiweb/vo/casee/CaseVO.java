@@ -17,8 +17,10 @@ public class CaseVO {
     private String description;
     private String status;
     private String priority;
-    private String tags;
-    private String steps;
+    /** JSON: string[]，序列化为数组返回给前端 */
+    private Object tags;
+    /** JSON: 步骤定义数组，序列化为数组返回给前端 */
+    private Object steps;
     private Integer version;
     private Integer sortOrder;
     private Instant createdAt;

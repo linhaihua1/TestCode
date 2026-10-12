@@ -14,7 +14,7 @@ public class TestTaskVO {
     private String projectId;
     private String name;
     private String description;
-    private String caseIds;
+    private Object caseIds;
     private String environmentId;
     private String executeMode;
     private String failStrategy;
@@ -24,7 +24,7 @@ public class TestTaskVO {
     private String cronExpr;
     private Boolean enabled;
     private String notifyUrl;
-    private String variables;
+    private Object variables;
     private String baseUrl;
     private String createdBy;
 
@@ -39,7 +39,7 @@ public class TestTaskVO {
     private Boolean webhookAutoExecute;
 
     // ----- 通知配置 -----
-    private String notifyChannels;
+    private Object notifyChannels;
 
     /** 创建时间（UTC） */
     private Instant createdAt;

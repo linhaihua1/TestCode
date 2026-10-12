@@ -18,10 +18,10 @@ public class EnvironmentVO {
     private String name;
     /** 环境 baseUrl */
     private String baseUrl;
-    /** JSON: [{key,value}] */
-    private String variables;
-    /** JSON: [{key,value}] */
-    private String headers;
+    /** JSON: [{key,value}]，序列化为数组返回 */
+    private Object variables;
+    /** JSON: [{key,value}]，序列化为数组返回 */
+    private Object headers;
     /** 创建时间（UTC） */
     private Instant createdAt;
     /** 更新时间（UTC） */

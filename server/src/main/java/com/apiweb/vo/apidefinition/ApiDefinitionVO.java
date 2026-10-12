@@ -17,24 +17,24 @@ public class ApiDefinitionVO {
     private String name;
     private String method;
     private String path;
-    private String pathParams;
-    private String query;
-    private String headers;
+    private Object pathParams;
+    private Object query;
+    private Object headers;
     private String bodyType;
-    private String bodySchema;
+    private Object bodySchema;
     private String body;
-    private String responseExamples;
-    private String responseHeaders;
+    private Object responseExamples;
+    private Object responseHeaders;
     private String description;
     private String moduleId;
-    private String tags;
+    private Object tags;
 
     // Mock
     private Boolean mockEnabled;
     private String mockType;
     private Integer mockStatusCode;
     private String mockResponse;
-    private String mockRules;
+    private Object mockRules;
     private String mockScript;
 
     // 来源

@@ -15,9 +15,9 @@ public class UiTestCaseVO {
     private String name;
     private String description;
     private String baseUrl;
-    private String setupSteps;
-    private String steps;
-    private String teardownSteps;
+    private Object setupSteps;
+    private Object steps;
+    private Object teardownSteps;
     private Instant createdAt;
     private Instant updatedAt;
 }
