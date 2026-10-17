@@ -1,0 +1,83 @@
+name: CI
+
+# 持续集成：后端单测+集成测试+覆盖率门槛 / 前端类型检查+单测+构建
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend:
+    name: 后端（单测 + 集成测试 + 覆盖率门槛）
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root123
+          MYSQL_DATABASE: api_web
+          MYSQL_USER: apiweb
+          MYSQL_PASSWORD: apiweb123
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # GitHub Actions 的 MySQL service 不挂载 schema.sql，建表交给 Flyway 基线
+      - name: 后端构建与测试（mvn verify）
+        working-directory: server
+        run: mvn -B verify
+
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: server/target/site/jacoco/
+
+  frontend:
+    name: 前端（类型检查 + 单测 + 构建）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: 安装依赖
+        working-directory: client
+        run: npm ci
+
+      - name: 类型检查 + 构建
+        working-directory: client
+        run: npm run build
+
+      - name: 单元测试
+        working-directory: client
+        run: npm run test
