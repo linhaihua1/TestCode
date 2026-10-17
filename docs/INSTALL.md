@@ -303,6 +303,15 @@ export APP_PORT=8080
 ./scripts/deploy.sh
 ```
 
+> **必填项**：非 localdev 环境（即生产/正式部署）下，`JWT_SECRET` 与
+> `BOOTSTRAP_ADMIN_PASSWORD`（不能用默认值 `admin@123`）为**强制项**——
+> 未注入时后端启动即失败（`ProdSecurityGuard` fail-fast），并在日志中给出修复指引。
+> 这是防呆设计：避免随机密钥或默认弱密码的实例悄悄上线。
+
+登录防爆破默认开启：同一账号连续输错 5 次密码锁定 15 分钟（`LOGIN_MAX_FAILURES` /
+`LOGIN_LOCK_MINUTES` 可调，设 0 关闭）。如需放开跨域，通过 `CORS_ALLOWED_ORIGINS`
+注入可信来源白名单（逗号分隔），默认不启用 CORS。
+
 ### 4.4 启动 / 升级 / 备份
 
 ```bash
