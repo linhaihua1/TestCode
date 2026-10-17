@@ -120,6 +120,14 @@ apiweb:
     permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html}
     # 密码最小长度（注册 / 改密 / 管理员建号共用）
     min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
+    # 登录防暴力破解：同一用户名连续失败 N 次后锁定 M 分钟；0=关闭
+    login-max-failures: ${LOGIN_MAX_FAILURES:5}
+    login-lock-minutes: ${LOGIN_LOCK_MINUTES:15}
+    # 登录失败计数在 Redis 中的 key 前缀
+    login-fail-key-prefix: ${LOGIN_FAIL_KEY_PREFIX:apiweb:login:fail:}
+    # CORS 白名单（逗号分隔的允许来源，如 https://console.example.com）。
+    # 默认为空 = 不启用跨域（前端走同源部署或 Nginx 反代）；本地开发走 Vite 代理，无需开启。
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   bootstrap:
     # 首次启动（库中无用户）时自动创建的默认管理员；生产请改密或关闭
     enabled: ${BOOTSTRAP_ADMIN_ENABLED:true}

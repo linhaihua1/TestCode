@@ -22,6 +22,13 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${apiweb.security.permit-paths}")
     private List<String> permitPaths;
 
+    /**
+     * CORS 白名单（apiweb.security.cors-allowed-origins，逗号分隔）。
+     * 默认为空 = 不启用跨域；企业部署建议前端同源或走 Nginx 反代。
+     */
+    @Value("${apiweb.security.cors-allowed-origins:}")
+    private List<String> corsAllowedOrigins;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
@@ -29,10 +36,20 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(permitPaths);
     }
 
+    /**
+     * CORS 仅对白名单内的来源放开（含凭证）。
+     *
+     * <p>不再默认 <code>allowedOriginPatterns("*") + allowCredentials(true)</code>——
+     * 该组合等于对所有站点开放带凭证跨域，属高危配置；需要跨域时请通过
+     * <code>CORS_ALLOWED_ORIGINS</code> 显式注入可信来源。</p>
+     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        if (corsAllowedOrigins == null || corsAllowedOrigins.isEmpty()) {
+            return;
+        }
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                .allowedOrigins(corsAllowedOrigins.toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)

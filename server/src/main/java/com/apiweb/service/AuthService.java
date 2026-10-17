@@ -6,6 +6,7 @@ import com.apiweb.dto.auth.ChangePasswordReq;
 import com.apiweb.entity.UserEntity;
 import com.apiweb.mapper.UserMapper;
 import com.apiweb.security.JwtUtil;
+import com.apiweb.security.LoginGuardService;
 import com.apiweb.security.Role;
 import com.apiweb.security.UserContext;
 import com.apiweb.vo.auth.CurrentUserVO;
@@ -27,6 +28,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final LoginGuardService loginGuard;
 
     /** 密码最小长度（配置项 apiweb.security.min-password-length，默认 6） */
     @Value("${apiweb.security.min-password-length:6}")
@@ -34,14 +36,20 @@ public class AuthService {
 
     /**
      * 登录：校验用户名密码，签发 JWT。
+     *
+     * <p>防暴力破解：登录前先检查账号是否被锁定（连续失败过多）；
+     * 失败计数 +1，成功清零（{@link LoginGuardService}）。</p>
      */
     public LoginVO login(AuthRequest req) {
+        loginGuard.checkLocked(req.getUsername());
         UserEntity user = userMapper.selectOne(
                 new LambdaQueryWrapper<UserEntity>().eq(UserEntity::getUsername, req.getUsername()));
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
             // 不区分"用户不存在"与"密码错"，避免账号枚举攻击
+            loginGuard.recordFailure(req.getUsername());
             throw BizException.loginFailed("用户名或密码错误");
         }
+        loginGuard.reset(req.getUsername());
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
         LoginVO vo = new LoginVO();

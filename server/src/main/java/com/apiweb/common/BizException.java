@@ -76,6 +76,13 @@ public class BizException extends RuntimeException {
     }
 
     /**
+     * 登录被锁定（1007）：连续失败达到上限，需等待锁定窗口过后重试。
+     */
+    public static BizException loginLocked(String message) {
+        return new BizException(ErrorCode.LOGIN_LOCKED, message);
+    }
+
+    /**
      * 资源冲突（1005）。
      */
     public static BizException conflict(String message) {
