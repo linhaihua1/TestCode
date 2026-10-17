@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器。
@@ -95,6 +97,30 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleUnreadableBody(HttpMessageNotReadableException e) {
         return Result.fail(ErrorCode.BAD_REQUEST, "请求体格式错误，无法解析为 JSON");
+    }
+
+    /**
+     * 处理不支持的 HTTP 方法（如对只有 POST 的接口发 GET）。
+     *
+     * <p>若不单独处理，会落入兜底分支变成 500「服务器内部错误」，
+     * 调用方会误判为服务端故障；语义上这是客户端请求方式错误，应返回 405。</p>
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    public Result<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        return Result.fail(ErrorCode.BAD_REQUEST, "不支持的请求方式: " + e.getMethod());
+    }
+
+    /**
+     * 处理请求路径不存在（Spring Boot 3.2 起未匹配到任何 Controller/静态资源时抛出）。
+     *
+     * <p>若不单独处理，会落入兜底分支变成 500「No static resource xxx」，
+     * 语义上这是客户端请求了不存在的资源，应返回 404。</p>
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNoResource(NoResourceFoundException e) {
+        return Result.fail(ErrorCode.NOT_FOUND, "请求的资源不存在");
     }
 
     /**
