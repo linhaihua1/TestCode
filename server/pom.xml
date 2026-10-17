@@ -277,47 +277,97 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <!-- JaCoCo：代码覆盖率统计，报告输出到 target/site/jacoco -->
+            <!-- Failsafe：集成测试（*IT.java），在 verify 阶段执行，需要本机 MySQL/Redis -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- JaCoCo：代码覆盖率统计（单测 + 集成测试合并），报告输出到 target/site/jacoco -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
                 <executions>
-                    <!-- 在测试前准备 JaCoCo 运行时 agent -->
+                    <!-- 在测试前准备 JaCoCo 运行时 agent（单测） -->
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
                     </execution>
-                    <!-- 测试后生成报告 -->
+                    <!-- 集成测试前准备 agent（数据写入独立文件） -->
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                    </execution>
+                    <!-- verify 前合并单测与集成测试的覆盖数据 -->
+                    <execution>
+                        <id>merge-results</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>*.exec</include>
+                                    </includes>
+                                    <excludes>
+                                        <exclude>jacoco-merged.exec</exclude>
+                                    </excludes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <!-- 测试后基于合并数据生成报告 -->
                     <execution>
                         <id>report</id>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                        </configuration>
                     </execution>
                     <!-- verify 阶段执行覆盖率门槛校验（未达标则构建失败） -->
                     <execution>
                         <id>check</id>
+                        <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
                             <rules>
-                                <!-- 全局门槛：防止整体覆盖率倒退（随测试补充逐步提升） -->
+                                <!-- 全局门槛：防止整体覆盖率倒退（棘轮式，随测试补充逐步提升）。
+                                     2026-10 实测（check 口径 = 排除 config/converter/dto/vo/entity/audit 后，
+                                     单测 + 集成测试合并）：LINE 13.7% / INSTRUCTION 12.3% -->
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.06</minimum>
+                                            <minimum>0.11</minimum>
                                         </limit>
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.07</minimum>
+                                            <minimum>0.13</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
