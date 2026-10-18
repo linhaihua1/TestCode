@@ -54,10 +54,10 @@
 /**
  * 趋势统计页：用 ECharts 展示近 N 天的通过率、用例数与响应时间趋势。
  *
- * <p>图表实例按需惰性创建并复用；窗口尺寸变化时手动 resize。
- * 页面卸载前未销毁实例与 resize 监听是已知可优化点。</p>
+ * <p>图表实例按需惰性创建并复用；窗口尺寸变化时手动 resize，
+ * 页面卸载时移除监听并销毁实例，避免内存泄漏。</p>
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as echarts from 'echarts/core';
 import { LineChart, BarChart } from 'echarts/charts';
 import {
@@ -199,6 +199,12 @@ watch(days, reload);
 onMounted(() => {
   window.addEventListener('resize', handleResize);
   reload();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+  chartInstance?.dispose();
+  chartInstance = null;
 });
 </script>
 
