@@ -126,13 +126,13 @@ public class GlobalExceptionHandler {
     /**
      * 兜底处理：未预料的异常。
      *
-     * <p>详细堆栈写入服务端日志（{@code log.error}），前端只看到通用错误信息，
-     * 避免泄露内部细节。</p>
+     * <p>详细堆栈写入服务端日志（{@code log.error}，含 TraceId 便于关联定位），
+     * 前端只看到<b>通用错误信息</b>，避免把库结构、连接串、内部类名等敏感细节泄露给调用方。</p>
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleOther(Exception e) {
         log.error("未处理异常", e);
-        return Result.fail(ErrorCode.INTERNAL_ERROR, "服务器内部错误: " + e.getMessage());
+        return Result.fail(ErrorCode.INTERNAL_ERROR, "服务器内部错误，请稍后重试");
     }
 }

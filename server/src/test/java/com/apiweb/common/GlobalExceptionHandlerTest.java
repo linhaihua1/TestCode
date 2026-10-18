@@ -69,4 +69,25 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getCode()).isEqualTo(ErrorCode.BAD_REQUEST);
         assertThat(result.getMessage()).isEqualTo("请求体格式错误，无法解析为 JSON");
     }
+
+    @Test
+    @DisplayName("兜底异常 -> 业务码 500，且不泄露内部异常信息")
+    void unknownExceptionShouldNotLeakInternalDetail() {
+        String secret = "jdbc:mysql://10.0.0.1:3306/api_web?user=root";
+        Result<Void> result = handler.handleOther(new RuntimeException(secret));
+
+        assertThat(result.getCode()).isEqualTo(ErrorCode.INTERNAL_ERROR);
+        // 兜底文案必须是通用信息，不能回显异常 message（防止泄露连接串 / 库结构等内部细节）
+        assertThat(result.getMessage()).doesNotContain(secret);
+        assertThat(result.getMessage()).doesNotContain("jdbc:mysql");
+        ResponseStatus rs;
+        try {
+            rs = GlobalExceptionHandler.class
+                    .getMethod("handleOther", Exception.class)
+                    .getAnnotation(ResponseStatus.class);
+        } catch (NoSuchMethodException ex) {
+            throw new IllegalStateException(ex);
+        }
+        assertThat(rs.value()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }
