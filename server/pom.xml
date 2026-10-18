@@ -24,6 +24,10 @@
         <minio.version>8.5.9</minio.version>
         <hutool.version>5.8.27</hutool.version>
         <jmeter.version>5.6.3</jmeter.version>
+        <!-- JS 引擎（JSR-223）：脚本步骤 / 脚本断言 / 变量表达式 / DYNAMIC Mock 依赖。
+             JDK 15 起已移除内置 Nashorn，故需显式引入；这里选用轻量、纯 Java 的 Rhino
+             （JMeter 亦依赖其核心库 rhino，版本与传递依赖保持一致）。 -->
+        <rhino.version>1.7.14</rhino.version>
         <!-- Selenium：必须显式覆盖 spring-boot-dependencies 的默认值(4.14.1)，
              否则 selenium-java 4.19.1 与其它 selenium-* 模块的 4.14.1 会同时进 classpath，
              造成依赖版本混合（NoSuchMethodError 风险 + Selenium Manager 驱动解析异常） -->
@@ -227,6 +231,22 @@
             <artifactId>javax.servlet-api</artifactId>
             <version>4.0.1</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- JS 引擎（JSR-223 实现）：供脚本步骤 / 脚本断言 / 变量表达式 / DYNAMIC Mock 使用。
+             显式声明而不依赖 JMeter 的传递依赖——否则一旦 JMeter 调整依赖，脚本能力会悄然失效。
+             注意：Rhino 自 1.7.14 起把 JSR-223 集成拆到独立模块 rhino-engine，
+             仅引入核心库 rhino 不会注册 ScriptEngineFactory，getEngineByName 仍返回 null。
+             引擎名解析见 com.apiweb.engine.JsEngineProvider（Rhino 注册名为 rhino/javascript）。 -->
+        <dependency>
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino</artifactId>
+            <version>${rhino.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino-engine</artifactId>
+            <version>${rhino.version}</version>
         </dependency>
 
         <!-- 测试 -->

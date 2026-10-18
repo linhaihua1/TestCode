@@ -10,7 +10,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
@@ -224,10 +223,10 @@ public class AssertEvaluator {
             return buildResult("SCRIPT", null, "script", null, "", false, "脚本为空");
         }
         try {
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+            ScriptEngine engine = JsEngineProvider.create();
             if (engine == null) {
                 return buildResult("SCRIPT", null, "script", null, "", false,
-                        "当前 JVM 无 JS 引擎（建议引入 org.graalvm.polyglot:js）");
+                        "当前 JVM 无可用 JS 引擎");
             }
             engine.put("status", input.status());
             engine.put("body", input.body() == null ? "" : input.body());

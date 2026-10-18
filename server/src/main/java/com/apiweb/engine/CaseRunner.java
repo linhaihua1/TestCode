@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import java.util.*;
 
 /**
@@ -167,7 +166,7 @@ public class CaseRunner {
     public boolean evalCondition(String condition, VariablesResolver resolver) {
         if (condition == null || condition.isBlank()) return true;
         try {
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+            ScriptEngine engine = JsEngineProvider.create();
             if (engine != null) {
                 resolver.all().forEach(engine::put);
                 Object ret = engine.eval(condition);

@@ -1,5 +1,6 @@
 package com.apiweb.openapi.mock;
 
+import com.apiweb.engine.JsEngineProvider;
 import com.apiweb.entity.ApiDefinitionEntity;
 import com.apiweb.util.JsonUtils;
 import lombok.AllArgsConstructor;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import java.util.*;
 
 /**
@@ -118,9 +118,9 @@ public class MockEngine {
         String script = api.getMockScript();
         if (script == null || script.isBlank()) return basic(api);
         try {
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+            ScriptEngine engine = JsEngineProvider.create();
             if (engine == null) {
-                log.warn("DYNAMIC Mock 需要 JS 引擎,建议引入 org.graalvm.polyglot:js");
+                log.warn("DYNAMIC Mock 需要 JS 引擎，但当前 JVM 无可用引擎");
                 return basic(api);
             }
             engine.put("method", method);

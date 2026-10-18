@@ -1,6 +1,7 @@
 package com.apiweb.engine.executor;
 
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.JsEngineProvider;
 import com.apiweb.engine.StepContext;
 import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
@@ -9,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import java.util.ArrayList;
 import com.apiweb.engine.RunStatus;
 
@@ -61,10 +61,10 @@ public class ScriptStepExecutor implements StepExecutor {
                 .extracts(new ArrayList<>())
                 .build();
         try {
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+            ScriptEngine engine = JsEngineProvider.create();
             if (engine == null) {
                 sr.setStatus(RunStatus.FAILED.getCode());
-                sr.setError("当前 JVM 无可用 JS 引擎（建议引入 org.graalvm.polyglot:js 依赖）");
+                sr.setError("当前 JVM 无可用 JS 引擎");
             } else {
                 ctx.getResolver().all().forEach(engine::put);
                 Object ret = engine.eval(script == null ? "" : script);

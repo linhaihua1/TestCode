@@ -1,6 +1,7 @@
 package com.apiweb.engine.executor;
 
 import com.apiweb.engine.EngineDtos;
+import com.apiweb.engine.JsEngineProvider;
 import com.apiweb.engine.StepContext;
 import com.apiweb.engine.StepDef;
 import com.apiweb.engine.StepExecutor;
@@ -8,7 +9,6 @@ import com.apiweb.engine.step.StepType;
 import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import java.util.ArrayList;
 import com.apiweb.engine.RunStatus;
 
@@ -45,10 +45,10 @@ public class VariableAssignExecutor implements StepExecutor {
             String value;
             if ("expression".equalsIgnoreCase(mode)) {
                 String expr = step.cfg("expression");
-                ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+                ScriptEngine engine = JsEngineProvider.create();
                 if (engine == null) {
                     sr.setStatus(RunStatus.FAILED.getCode());
-                    sr.setError("当前 JVM 无 JS 引擎,无法计算 expression");
+                    sr.setError("当前 JVM 无可用 JS 引擎，无法计算 expression");
                     return sr;
                 }
                 ctx.getResolver().all().forEach(engine::put);
