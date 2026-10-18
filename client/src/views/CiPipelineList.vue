@@ -273,7 +273,6 @@ import { useProjectStore } from '@/stores/project';
 import {
   PIPELINE_EXEC_MODES,
   PIPELINE_EXEC_MODE_LABELS,
-  PIPELINE_EXEC_MODE_OPTIONS,
   PIPELINE_TEST_TYPE_LABELS,
   PIPELINE_TEST_TYPE_OPTIONS,
   PIPELINE_TEST_TYPES,
@@ -421,7 +420,7 @@ async function loadJobs() {
   try {
     const jobs = await JenkinsApi.jobs(form.jenkinsServerId);
     jobOptions.value = jobs.map((j) => ({ value: j, label: j }));
-  } catch (e: any) {
+  } catch {
     message.warning('拉取 Jenkins Job 列表失败，可手动填写 Job 名称');
   }
 }

@@ -46,9 +46,6 @@ import { uid, ensureIds } from '@/utils/uid';
 import { watch } from 'vue';
 import type { AssertionResult } from '@/types';
 
-const props = defineProps<{ modelValue: AssertionResult[] }>();
-const emit = defineEmits<{ 'update:modelValue': [v: AssertionResult[]] }>();
-
 const assertions = defineModel<AssertionResult[]>({ required: true });
 
 // 从后端加载的旧数据可能没有 _id，补齐以支撑拖拽排序

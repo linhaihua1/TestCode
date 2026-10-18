@@ -433,7 +433,6 @@ import {
   FAIL_STRATEGIES,
   FAIL_STRATEGY_LABELS,
   NOTIFY_CHANNEL_OPTIONS,
-  RUN_STATUS,
   priorityColor,
   statusColor,
   statusLabel,

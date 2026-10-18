@@ -51,6 +51,8 @@ const props = withDefaults(
   {
     height: 480,
     defaultExpandAll: false,
+    selectedKey: '',
+    keyword: '',
   },
 );
 

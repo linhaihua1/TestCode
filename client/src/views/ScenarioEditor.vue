@@ -102,14 +102,12 @@ import {
 import draggable from 'vuedraggable';
 import { ScenarioApi } from '@/api';
 import { uid, ensureIds } from '@/utils/uid';
-import { useProjectStore } from '@/stores/project';
 import type { Scenario, AssertionResult, ExtractRule } from '@/types';
 import AssertionEditor from '@/components/AssertionEditor.vue';
 import ExtractEditor from '@/components/ExtractEditor.vue';
 
 const route = useRoute();
 const router = useRouter();
-const projectStore = useProjectStore();
 
 interface Step {
   /** 前端拖拽排序用的内部唯一标识（不参与业务语义） */

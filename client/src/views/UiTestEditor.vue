@@ -76,7 +76,7 @@ import {
 } from '@ant-design/icons-vue';
 import { UiApi } from '@/api';
 import { UI_SEGMENTS, UI_SEGMENT_LABELS, type UiSegmentCode } from '@/constants';
-import type { UiTestCase, UiStep } from '@/types';
+import type { UiTestCase } from '@/types';
 import StepEditor from '@/components/UiStepEditor.vue';
 
 const route = useRoute();

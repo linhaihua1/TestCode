@@ -47,16 +47,15 @@
               <div class="record-detail__title">响应摘要</div>
               <pre class="record-detail__pre">{{ pretty(record.responseSummary) }}</pre>
             </div>
-            <div class="record-detail__block" v-if="record.assertionResults">
+            <div v-if="record.assertionResults" class="record-detail__block">
               <div class="record-detail__title">断言结果</div>
               <pre class="record-detail__pre">{{ pretty(record.assertionResults) }}</pre>
             </div>
-            <div class="record-detail__block" v-if="record.extractedVariables">
+            <div v-if="record.extractedVariables" class="record-detail__block">
               <div class="record-detail__title">提取变量</div>
               <pre class="record-detail__pre">{{ pretty(record.extractedVariables) }}</pre>
             </div>
-            <div class="record-detail__block" v-if="record.errorLog">
-              <div class="record-detail__title">错误日志</div>
+            <div v-if="record.errorLog" class="record-detail__block">
               <pre class="record-detail__pre record-detail__error">{{ record.errorLog }}</pre>
             </div>
           </div>

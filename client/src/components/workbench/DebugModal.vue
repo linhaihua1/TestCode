@@ -152,7 +152,7 @@ async function run() {
     message.success('调试完成');
     close();
     emit('finished', props.caseId);
-  } catch (e) {
+  } catch {
     // 错误已由 axios 拦截器统一提示
   } finally {
     running.value = false;
