@@ -32,8 +32,8 @@ import java.util.*;
  * <h3>典型用法</h3>
  * <pre>{@code
  *   CaseGenerator.GenerateResult r = caseGenerator.generate(api, "projectId", "moduleId");
- *   caseMapper.insert(r.getCase());
- *   caseStepMapper.insert(r.getStep());
+ *   caseMapper.insert(r.getCaseEntity());   // case.steps 已就绪（执行真源）
+ *   caseStepService.replaceStepsFromJson(r.getCaseEntity().getId(), r.getCaseEntity().getSteps());
  * }</pre>
  */
 @Slf4j
@@ -64,7 +64,6 @@ public class CaseGenerator {
         caseEntity.setPriority("P1");
         caseEntity.setVersion(1);
         caseEntity.setTags(api.getTags());
-        caseEntity.setSteps("[]");
         caseEntity.setCreatedAt(Instant.now());
 
         CaseStepEntity step = new CaseStepEntity();
@@ -85,6 +84,16 @@ public class CaseGenerator {
         config.put("assertions", buildAssertions(api));
         config.put("extracts", buildExtracts(api));
         step.setConfig(JsonUtils.toJson(config));
+
+        // 执行真源 t_case.steps 必须与步骤表同源，否则调试/任务执行会跑 0 个步骤
+        Map<String, Object> flatStep = new LinkedHashMap<>();
+        flatStep.put("type", "HTTP_REQUEST");
+        flatStep.put("name", step.getName());
+        flatStep.put("position", "TEST");
+        flatStep.put("enabled", true);
+        flatStep.put("failStrategy", "stop");
+        flatStep.putAll(config);
+        caseEntity.setSteps(JsonUtils.toJson(List.of(flatStep)));
 
         return new GenerateResult(caseEntity, step);
     }

@@ -61,4 +61,20 @@ public interface CaseConverter {
 
     /** DebugRecord Entity 列表 → VO 列表 */
     List<DebugRecordVO> toDebugRecordVOList(List<DebugRecordEntity> entities);
+
+    /**
+     * 调试记录转换完成后，把 JSON 字符串字段解析为结构化对象。
+     *
+     * <p>前端调试记录面板对 stepResults/assertionResults 做数组遍历、
+     * extractedVariables 做对象遍历，输出字符串会逐字符渲染。</p>
+     */
+    @AfterMapping
+    default void parseDebugRecordJsonFields(@MappingTarget DebugRecordVO vo) {
+        if (vo == null) {
+            return;
+        }
+        vo.setAssertionResults(JsonUtils.parseObject((String) vo.getAssertionResults()));
+        vo.setExtractedVariables(JsonUtils.parseObject((String) vo.getExtractedVariables()));
+        vo.setStepResults(JsonUtils.parseObject((String) vo.getStepResults()));
+    }
 }

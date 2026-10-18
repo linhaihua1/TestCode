@@ -43,7 +43,10 @@ public class WaitStepExecutor implements StepExecutor {
         try {
             String mode = step.cfg("mode");
             if (mode == null || mode.isBlank() || "fixed".equalsIgnoreCase(mode)) {
-                long ms = step.cfgLong("ms") == null ? engine.getWaitDefaultMs() : step.cfgLong("ms");
+                // 前端字段为 waitMs，兼容历史数据里的 ms；均缺失时用引擎默认值
+                Long waitMs = step.cfgLong("waitMs");
+                if (waitMs == null) waitMs = step.cfgLong("ms");
+                long ms = waitMs == null ? engine.getWaitDefaultMs() : waitMs;
                 if (ms > 0) Thread.sleep(ms);
             } else if ("dynamic".equalsIgnoreCase(mode)) {
                 long intervalMs = step.cfgLong("intervalMs") == null

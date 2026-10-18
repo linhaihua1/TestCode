@@ -69,16 +69,13 @@ public class RefPublicCaseExecutor implements StepExecutor {
                 sr.setError("publicCaseId 不能为空");
                 return sr;
             }
-            // overrides 优先于被引用用例的变量
-            Object overridesRaw = step.cfg("overrides");
-            if (overridesRaw instanceof List<?> ol) {
-                for (Object item : ol) {
-                    if (item instanceof Map<?, ?> o) {
-                        Object name = o.get("name");
-                        Object value = o.get("value");
-                        if (name != null) ctx.putVariable(String.valueOf(name),
-                                value == null ? "" : String.valueOf(value));
-                    }
+            // overrides 优先于被引用用例的变量（结构化字段必须用 cfgRaw，否则被字符串化后恒为空）
+            for (Object item : asList(step.cfgRaw("overrides"))) {
+                if (item instanceof Map<?, ?> o) {
+                    Object name = o.get("name");
+                    Object value = o.get("value");
+                    if (name != null) ctx.putVariable(String.valueOf(name),
+                            value == null ? "" : String.valueOf(value));
                 }
             }
             CaseRunner caseRunner = runner();

@@ -213,6 +213,18 @@ export interface TestTaskRun {
   details: any;
 }
 
+/**
+ * 通用分页响应（与后端 common/PageResult 对齐）。
+ *
+ * <p>注意：分页接口返回的是本结构而非数组，调用方需取 {@code records}。</p>
+ */
+export interface PageResult<T> {
+  records: T[];
+  total: number;
+  page: number;
+  size: number;
+}
+
 /** 测试报告主记录（接口/场景执行完成后生成） */
 export interface Report {
   id: string;

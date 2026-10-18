@@ -8,12 +8,10 @@ import com.apiweb.engine.EngineDtos;
 import com.apiweb.engine.VariablesResolver;
 import com.apiweb.entity.CaseEntity;
 import com.apiweb.entity.CaseReviewEntity;
-import com.apiweb.entity.CaseStepEntity;
 import com.apiweb.entity.CaseVersionEntity;
 import com.apiweb.entity.DebugRecordEntity;
 import com.apiweb.mapper.CaseMapper;
 import com.apiweb.mapper.CaseReviewMapper;
-import com.apiweb.mapper.CaseStepMapper;
 import com.apiweb.mapper.CaseVersionMapper;
 import com.apiweb.mapper.DebugRecordMapper;
 import com.apiweb.security.UserContext;
@@ -49,8 +47,8 @@ public class CaseService {
     private final CaseVersionMapper caseVersionMapper;
     /** 用例评审记录数据访问层 */
     private final CaseReviewMapper caseReviewMapper;
-    /** 用例步骤数据访问层 */
-    private final CaseStepMapper caseStepMapper;
+    /** 用例步骤服务（步骤表与执行真源 t_case.steps 的双向同步收敛于此） */
+    private final CaseStepService caseStepService;
     /** 调试记录数据访问层 */
     private final DebugRecordMapper debugRecordMapper;
     /** 执行支撑服务（变量组装/执行器） */
@@ -98,13 +96,16 @@ public class CaseService {
         if (c.getTags() == null) c.setTags("[]");
         c.setVersion(1);
         caseMapper.insert(c);
-        syncStepsFromJson(c.getId(), c.getSteps());
+        caseStepService.replaceStepsFromJson(c.getId(), c.getSteps());
         saveVersion(c, "初始版本");
         return converter.toVO(c);
     }
 
     /**
      * 更新用例。
+     *
+     * <p>部分更新语义：请求未携带 steps/tags 时沿用库中原值，
+     * 否则会把执行真源 {@code t_case.steps} 置空、版本快照丢步骤。</p>
      */
     @Transactional
     public void update(String id, CaseReq req) {
@@ -112,8 +113,15 @@ public class CaseService {
         CaseEntity c = converter.toEntity(req);
         c.setId(id);
         c.setVersion(existing.getVersion() + 1);
+        if (c.getSteps() == null) {
+            c.setSteps(existing.getSteps());
+        }
+        if (c.getTags() == null) {
+            c.setTags(existing.getTags());
+        }
         caseMapper.updateById(c);
-        syncStepsFromJson(id, c.getSteps());
+        // 仅当请求显式提供 steps 时才重建步骤表（null 表示"未提供"，由 replaceStepsFromJson 内部跳过）
+        caseStepService.replaceStepsFromJson(id, req.getSteps());
         saveVersion(c, "更新");
     }
 
@@ -164,6 +172,9 @@ public class CaseService {
         }
         c.setVersion(c.getVersion() + 1);
         caseMapper.updateById(c);
+        // 恢复版本时必须同步步骤表，否则 t_case.steps 与 t_case_step 漂移：
+        // 直接调试走新步骤，而被引用/步骤管理接口仍是旧步骤
+        caseStepService.replaceStepsFromJson(id, c.getSteps());
         saveVersion(c, "恢复自 v" + version);
     }
 
@@ -336,52 +347,6 @@ public class CaseService {
             throw BizException.notFound("用例不存在");
         }
         return c;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void syncStepsFromJson(String caseId, String stepsJson) {
-        caseStepMapper.delete(new LambdaQueryWrapper<CaseStepEntity>()
-                .eq(CaseStepEntity::getCaseId, caseId));
-        if (stepsJson == null || stepsJson.isBlank()) {
-            return;
-        }
-        List<Map<String, Object>> steps;
-        try {
-            steps = JsonUtils.fromJson(stepsJson, List.class);
-        } catch (Exception e) {
-            return;
-        }
-        if (steps == null || steps.isEmpty()) {
-            return;
-        }
-        int order = 0;
-        for (Map<String, Object> raw : steps) {
-            CaseStepEntity step = new CaseStepEntity();
-            step.setCaseId(caseId);
-            String type = raw.get("type") == null ? null : String.valueOf(raw.get("type"));
-            step.setStepType(type == null || type.isBlank() ? "HTTP_REQUEST" : type);
-            step.setName(raw.get("name") == null ? "步骤 " + (order + 1) : String.valueOf(raw.get("name")));
-            String position = raw.get("position") == null ? "TEST" : String.valueOf(raw.get("position"));
-            step.setPosition(position);
-            step.setSortOrder(order++);
-            step.setEnabled(!(raw.get("enabled") instanceof Boolean b) || b);
-            step.setFailStrategy(raw.get("failStrategy") == null ? "stop" : String.valueOf(raw.get("failStrategy")));
-            step.setRemark(raw.get("remark") == null ? null : String.valueOf(raw.get("remark")));
-
-            Map<String, Object> config = new LinkedHashMap<>();
-            config.put("method", raw.getOrDefault("method", "GET"));
-            config.put("url", raw.getOrDefault("url", ""));
-            config.put("headers", raw.getOrDefault("headers", List.of()));
-            config.put("query", raw.getOrDefault("query", List.of()));
-            config.put("body", raw.getOrDefault("body", ""));
-            config.put("assertions", raw.getOrDefault("assertions", List.of()));
-            config.put("extracts", raw.getOrDefault("extracts", List.of()));
-            if (raw.containsKey("path") && !raw.containsKey("url")) {
-                config.put("url", raw.get("path"));
-            }
-            step.setConfig(JsonUtils.toJson(config));
-            caseStepMapper.insert(step);
-        }
     }
 
     private void saveVersion(CaseEntity c, String summary) {

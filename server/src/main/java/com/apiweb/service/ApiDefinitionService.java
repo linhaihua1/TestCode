@@ -6,10 +6,8 @@ import com.apiweb.dto.apidefinition.ApiDefinitionImportReq;
 import com.apiweb.dto.apidefinition.ApiDefinitionReq;
 import com.apiweb.entity.ApiDefinitionEntity;
 import com.apiweb.entity.CaseEntity;
-import com.apiweb.entity.CaseStepEntity;
 import com.apiweb.mapper.ApiDefinitionMapper;
 import com.apiweb.mapper.CaseMapper;
-import com.apiweb.mapper.CaseStepMapper;
 import com.apiweb.openapi.CaseGenerator;
 import com.apiweb.openapi.SwaggerImporter;
 import com.apiweb.util.JsonUtils;
@@ -44,8 +42,8 @@ public class ApiDefinitionService {
     private final CaseGenerator caseGenerator;
     /** 用例数据访问层（生成用例时落库） */
     private final CaseMapper caseMapper;
-    /** 用例步骤数据访问层（生成用例步骤时落库） */
-    private final CaseStepMapper caseStepMapper;
+    /** 用例步骤服务（生成用例后由执行真源派生出步骤表，保证二者同源） */
+    private final CaseStepService caseStepService;
 
     /** 单页上限 */
     private static final long MAX_SIZE = 100;
@@ -212,9 +210,8 @@ public class ApiDefinitionService {
         ApiDefinitionEntity api = requireApi(id);
         CaseGenerator.GenerateResult r = caseGenerator.generate(api, api.getProjectId(), api.getModuleId());
         caseMapper.insert(r.getCaseEntity());
-        CaseStepEntity step = r.getStep();
-        step.setCaseId(r.getCaseEntity().getId());
-        caseStepMapper.insert(step);
+        // 步骤表由执行真源 steps 派生，保证二者同源（否则调试/任务执行会跑 0 个步骤）
+        caseStepService.replaceStepsFromJson(r.getCaseEntity().getId(), r.getCaseEntity().getSteps());
         return r.getCaseEntity();
     }
 

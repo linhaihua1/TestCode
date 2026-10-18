@@ -57,7 +57,7 @@ public class IfStepExecutor implements StepExecutor {
             boolean matched = caseRunner.evalCondition(condition == null ? "" : condition, ctx.getResolver());
             List<StepDef> target = matched
                     ? (step.getChildren() != null ? step.getChildren() : List.of())
-                    : readElseBranch(step.cfg("elseBranch"));
+                    : readElseBranch(step.cfgRaw("elseBranch"));
             caseRunner.runSteps(target, ctx);
         } catch (Exception e) {
             sr.setStatus(RunStatus.ERROR.getCode());
@@ -73,14 +73,13 @@ public class IfStepExecutor implements StepExecutor {
      * <p>else 分支以步骤列表形式内联在 config 的 elseBranch 字段里（与 children 平级），
      * 用 {@link StepDef#fromMap} 转为标准步骤定义后执行。
      *
-     * @param raw 步骤 config 中的 elseBranch 字段
-     * @return else 分支步骤列表（缺失或非列表时返回空列表）
+     * @param raw 步骤 config 中的 elseBranch 字段（List 或 JSON 数组字符串）
+     * @return else 分支步骤列表（缺失或非数组时返回空列表）
      */
     @SuppressWarnings("unchecked")
     private List<StepDef> readElseBranch(Object raw) {
-        if (!(raw instanceof List<?> list)) return List.of();
         List<StepDef> out = new ArrayList<>();
-        for (Object item : list) {
+        for (Object item : asList(raw)) {
             if (item instanceof Map<?, ?> m) {
                 out.add(StepDef.fromMap((Map<String, Object>) m));
             }

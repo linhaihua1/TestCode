@@ -81,8 +81,10 @@ public class ForStepExecutor implements StepExecutor {
                     caseRunner.runSteps(children, ctx);
                 }
             } else {
-                // count 模式：循环固定次数。count 为 null 时退化为 1 次（至少执行一次）。
-                Integer count = step.cfgInt("count");
+                // count 模式：循环固定次数。前端字段为 loopCount，兼容历史数据里的 count。
+                // 缺失时退化为 1 次（至少执行一次）。
+                Integer count = step.cfgInt("loopCount");
+                if (count == null) count = step.cfgInt("count");
                 if (count == null) count = 1;
                 Integer stepInc = step.cfgInt("step");
                 if (stepInc == null || stepInc == 0) stepInc = 1;

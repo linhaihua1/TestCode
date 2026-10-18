@@ -4,6 +4,9 @@ import lombok.Data;
 
 /**
  * 报告明细 VO（响应）。
+ *
+ * <p>assertions/extracts 在实体里以 JSON 字符串存储，本 VO 对外输出结构化对象，
+ * 由 {@code ReportConverter#parseDetailJsonFields} 解析；前端按数组绑定表格与断言统计。</p>
  */
 @Data
 public class ReportDetailVO {
@@ -18,8 +21,8 @@ public class ReportDetailVO {
     private String status;
     /** 错误信息 */
     private String error;
-    /** 断言配置（JSON） */
-    private String assertions;
-    /** 变量提取配置（JSON） */
-    private String extracts;
+    /** 断言执行结果：[{source, operator, expected, actual, passed}] */
+    private Object assertions;
+    /** 变量提取结果：[{variable, value}] */
+    private Object extracts;
 }

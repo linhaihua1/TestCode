@@ -25,6 +25,7 @@ import type {
   Report,
   ReportDetail,
   ReportShare,
+  PageResult,
   TrendBucket,
   TrendSummary,
   PerfCase,
@@ -239,7 +240,7 @@ export const ReportApi = {
     taskId?: string;
     page?: number;
     size?: number;
-  }) => axios.get<Report[]>('/reports', { params }),
+  }) => axios.get<PageResult<Report>>('/reports', { params }),
   /** 报告基本信息 */
   get: (id: string) => axios.get<Report>(`/reports/${id}`),
   /** 报告步骤明细 */

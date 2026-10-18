@@ -28,7 +28,9 @@ public class ScenarioVO {
         private Integer sortOrder;
         private String apiCaseId;
         private String name;
-        private String assertions;
-        private String extracts;
+        /** 断言配置：结构化数组（实体中为 JSON 字符串，由 ScenarioConverter 解析） */
+        private Object assertions;
+        /** 变量提取配置：结构化数组（实体中为 JSON 字符串，由 ScenarioConverter 解析） */
+        private Object extracts;
     }
 }

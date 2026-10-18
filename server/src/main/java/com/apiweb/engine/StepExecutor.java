@@ -35,25 +35,50 @@ public interface StepExecutor {
     EngineDtos.StepResult execute(StepDef step, StepContext context) throws Exception;
 
     /**
+     * 工具：把 config 中的字段安全解析为 List。
+     *
+     * <p>兼容三种形态，避免「结构化字段被字符串化后恒为空」的静默失效：</p>
+     * <ol>
+     *   <li>{@code List} —— 前端扁平步骤 JSON 经 {@link StepDef#fromMap} 解析后的正常形态；</li>
+     *   <li>{@code String} —— 历史数据 / 手工配置里把数组存成 JSON 文本的情况；</li>
+     *   <li>其他（null / Map / 数字）—— 返回空列表，不抛异常。</li>
+     * </ol>
+     *
+     * @param raw config 字段原始值
+     * @return 解析后的列表（不会为 null）
+     */
+    default java.util.List<?> asList(Object raw) {
+        if (raw instanceof java.util.List<?> list) {
+            return list;
+        }
+        if (raw instanceof String s && !s.isBlank()) {
+            try {
+                java.util.List<?> parsed = com.apiweb.util.JsonUtils.fromJson(s, java.util.List.class);
+                return parsed == null ? java.util.List.of() : parsed;
+            } catch (Exception ignored) {
+                return java.util.List.of();
+            }
+        }
+        return java.util.List.of();
+    }
+
+    /**
      * 工具：从 config 中读取 KV 列表 [{key,value,enabled}]。
      *
      * <p>字段缺失时自动补默认值：enabled 缺省为 true，value 为 null 时存 null。
      *
-     * @param raw 步骤 config 中的对应字段（期望是 List<Map>；非 List 时返回空列表）
+     * @param raw 步骤 config 中的对应字段（List&lt;Map&gt; 或 JSON 数组字符串）
      * @return 解析后的 KV 列表
      */
-    @SuppressWarnings("unchecked")
     default java.util.List<EngineDtos.KV> readKvList(Object raw) {
         java.util.List<EngineDtos.KV> out = new java.util.ArrayList<>();
-        if (raw instanceof java.util.List<?> list) {
-            for (Object item : list) {
-                if (item instanceof java.util.Map<?, ?> m) {
-                    Boolean enabled = m.get("enabled") instanceof Boolean b ? b : true;
-                    out.add(new EngineDtos.KV(
-                            toStr(m.get("key")),
-                            toStr(m.get("value")),
-                            enabled));
-                }
+        for (Object item : asList(raw)) {
+            if (item instanceof java.util.Map<?, ?> m) {
+                Boolean enabled = m.get("enabled") instanceof Boolean b ? b : true;
+                out.add(new EngineDtos.KV(
+                        toStr(m.get("key")),
+                        toStr(m.get("value")),
+                        enabled));
             }
         }
         return out;

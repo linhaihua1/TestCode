@@ -42,11 +42,13 @@ public class HttpRequestExecutor implements StepExecutor {
                 step.getName(),
                 str(step.cfg("method"), "GET"),
                 str(step.cfg("url"), ""),
-                readKvList(step.cfg("headers")),
-                readKvList(step.cfg("query")),
+                // 结构化字段必须取原始对象：cfg() 会把 List 字符串化成非 JSON 文本，
+                // 导致 headers/query/assertions/extracts 被静默丢弃
+                readKvList(step.cfgRaw("headers")),
+                readKvList(step.cfgRaw("query")),
                 str(step.cfg("body")),
-                readAssertions(step.cfg("assertions")),
-                readExtracts(step.cfg("extracts")));
+                readAssertions(step.cfgRaw("assertions")),
+                readExtracts(step.cfgRaw("extracts")));
         long start = System.currentTimeMillis();
         EngineDtos.StepResult sr = EngineDtos.StepResult.builder()
                 .stepName(step.getName())
@@ -102,23 +104,20 @@ public class HttpRequestExecutor implements StepExecutor {
      * <p>每个元素需是含 type/source/property/operator/expected/message 的 Map；
      * 缺失字段用默认值（operator 默认 equals）补齐，保证后续评估不抛 NPE。
      *
-     * @param raw 步骤 config 中的 assertions 字段
-     * @return 解析后的断言列表（非 List 时返回空列表）
+     * @param raw 步骤 config 中的 assertions 字段（List 或 JSON 数组字符串）
+     * @return 解析后的断言列表（非数组时返回空列表）
      */
-    @SuppressWarnings("unchecked")
     private List<EngineDtos.Assertion> readAssertions(Object raw) {
         List<EngineDtos.Assertion> out = new ArrayList<>();
-        if (raw instanceof List<?> list) {
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> m) {
-                    out.add(new EngineDtos.Assertion(
-                            StepExecutor.toStr(m.get("type")),
-                            StepExecutor.toStr(m.get("source")),
-                            StepExecutor.toStr(m.get("property")),
-                            StepExecutor.toStr(m.get("operator"), "equals"),
-                            m.get("expected") == null ? null : String.valueOf(m.get("expected")),
-                            StepExecutor.toStr(m.get("message"))));
-                }
+        for (Object item : asList(raw)) {
+            if (item instanceof Map<?, ?> m) {
+                out.add(new EngineDtos.Assertion(
+                        StepExecutor.toStr(m.get("type")),
+                        StepExecutor.toStr(m.get("source")),
+                        StepExecutor.toStr(m.get("property")),
+                        StepExecutor.toStr(m.get("operator"), "equals"),
+                        m.get("expected") == null ? null : String.valueOf(m.get("expected")),
+                        StepExecutor.toStr(m.get("message"))));
             }
         }
         return out;
@@ -127,22 +126,19 @@ public class HttpRequestExecutor implements StepExecutor {
     /**
      * 从步骤 config 的 extracts 字段解析变量提取列表。
      *
-     * @param raw 步骤 config 中的 extracts 字段
-     * @return 解析后的提取列表（非 List 时返回空列表）
+     * @param raw 步骤 config 中的 extracts 字段（List 或 JSON 数组字符串）
+     * @return 解析后的提取列表（非数组时返回空列表）
      */
-    @SuppressWarnings("unchecked")
     private List<EngineDtos.Extract> readExtracts(Object raw) {
         List<EngineDtos.Extract> out = new ArrayList<>();
-        if (raw instanceof List<?> list) {
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> m) {
-                    out.add(new EngineDtos.Extract(
-                            StepExecutor.toStr(m.get("type")),
-                            StepExecutor.toStr(m.get("expression")),
-                            StepExecutor.toStr(m.get("variable")),
-                            StepExecutor.toStr(m.get("defaultValue")),
-                            StepExecutor.toStr(m.get("failStrategy"), "ignore")));
-                }
+        for (Object item : asList(raw)) {
+            if (item instanceof Map<?, ?> m) {
+                out.add(new EngineDtos.Extract(
+                        StepExecutor.toStr(m.get("type")),
+                        StepExecutor.toStr(m.get("expression")),
+                        StepExecutor.toStr(m.get("variable")),
+                        StepExecutor.toStr(m.get("defaultValue")),
+                        StepExecutor.toStr(m.get("failStrategy"), "ignore")));
             }
         }
         return out;

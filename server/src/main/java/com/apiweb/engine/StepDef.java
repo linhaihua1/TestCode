@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 统一步骤定义（按需求文档 §4.2 支持 10 种步骤类型）。
@@ -41,6 +42,11 @@ public class StepDef {
     /** 子步骤（控制器专用） */
     private List<StepDef> children;
 
+    /** 步骤「身份字段」——不进入 config；其余顶层字段按扁平格式并入 config。 */
+    private static final Set<String> STEP_META_KEYS = Set.of(
+            "id", "_id", "__activeTab", "type", "name", "position", "enabled",
+            "failStrategy", "remark", "config", "children");
+
     /**
      * 从 Map 解析（兼容旧的 step JSON）。
      *
@@ -60,18 +66,27 @@ public class StepDef {
         d.enabled = raw.get("enabled") instanceof Boolean b ? b : true;
         d.failStrategy = str(raw.get("failStrategy"), "stop");
         d.remark = str(raw.get("remark"));
+        Map<String, Object> config = new LinkedHashMap<>();
+        // 1) 显式 config 子对象 / JSON 字符串（优先级更高）
         Object cfg = raw.get("config");
         if (cfg instanceof Map<?, ?> m) {
-            d.config = (Map<String, Object>) m;
+            config.putAll((Map<String, Object>) m);
         } else if (cfg instanceof String s && !s.isBlank()) {
             try {
-                d.config = JsonUtils.fromJson(s, Map.class);
-            } catch (Exception e) {
-                d.config = new LinkedHashMap<>();
+                config.putAll(JsonUtils.fromJson(s, Map.class));
+            } catch (Exception ignored) {
+                // 非法 config 忽略，继续用扁平字段兜底
             }
-        } else {
-            d.config = new LinkedHashMap<>();
         }
+        // 2) 兼容前端「扁平步骤」JSON：把顶层非身份字段（method/url/script/assertions/...）并入 config。
+        //    修复前只读 config 子对象，导致扁平步骤的 url/method 被丢弃、HTTP 步骤恒失败。
+        for (Map.Entry<String, Object> entry : raw.entrySet()) {
+            if (!STEP_META_KEYS.contains(entry.getKey())) {
+                config.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+        }
+        d.config = config;
+
         Object ch = raw.get("children");
         if (ch instanceof List<?> list) {
             d.children = new ArrayList<>();
@@ -113,6 +128,21 @@ public class StepDef {
         if (config == null) return null;
         Object v = config.get(key);
         return v == null ? null : String.valueOf(v);
+    }
+
+    /**
+     * 从 config 取<b>原始对象</b>（不做字符串化）。
+     *
+     * <p>headers/query/assertions/extracts 等结构化字段必须用本方法取值。
+     * 若误用 {@link #cfg(String)}，List 会被 {@code String.valueOf()} 转成
+     * {@code [{key=K, value=V}]} 这类<b>非 JSON</b> 文本，下游按 {@code List} 判断时恒为空，
+     * 导致请求头、断言、变量提取全部静默失效。</p>
+     *
+     * @param key config 字段名
+     * @return 原始值（可能是 List/Map/String/Number），缺失时返回 null
+     */
+    public Object cfgRaw(String key) {
+        return config == null ? null : config.get(key);
     }
 
     /** 从 config 取整数字段；缺失、非数字或解析失败时返回 null。 */

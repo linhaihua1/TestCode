@@ -18,7 +18,7 @@
     <div class="stat-grid">
       <div class="stat-card">
         <div class="label">报告总数</div>
-        <div class="value tabular">{{ reports.length }}</div>
+        <div class="value tabular">{{ reportTotal }}</div>
       </div>
       <div class="stat-card">
         <div class="label">近 7 天通过率</div>
@@ -132,6 +132,8 @@ const projectStore = useProjectStore();
 const projectId = computed(() => projectStore.currentProjectId);
 
 const reports = ref<Report[]>([]);
+/** 后端总条数（列表只取前 100 条做客户端分页与汇总） */
+const reportTotal = ref(0);
 const loading = ref(false);
 
 const columns = [
@@ -179,7 +181,10 @@ async function reload() {
   if (!projectId.value) return;
   loading.value = true;
   try {
-    reports.value = await ReportApi.list({ projectId: projectId.value });
+    // 后端该接口返回 PageResult{records,total,page,size}，不是数组（曾直接赋值导致 reduce 崩溃白屏）
+    const res = await ReportApi.list({ projectId: projectId.value, page: 1, size: 100 });
+    reports.value = res?.records ?? [];
+    reportTotal.value = res?.total ?? reports.value.length;
   } finally {
     loading.value = false;
   }
