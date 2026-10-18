@@ -34,6 +34,10 @@ public class AuthService {
     @Value("${apiweb.security.min-password-length:6}")
     private int minPasswordLength;
 
+    /** 是否允许自助注册（配置项 apiweb.security.allow-register，默认 true） */
+    @Value("${apiweb.security.allow-register:true}")
+    private boolean allowRegister;
+
     /**
      * 登录：校验用户名密码，签发 JWT。
      *
@@ -64,9 +68,15 @@ public class AuthService {
 
     /**
      * 注册：新用户默认 member 角色。
+     *
+     * <p>开放注册可通过 {@code apiweb.security.allow-register=false} 关闭，
+     * 关闭后本接口返回 403（企业内网建议由管理员统一建号）。</p>
      */
     @Transactional
     public void register(AuthRequest req) {
+        if (!allowRegister) {
+            throw BizException.forbidden("管理员已关闭自助注册，请联系管理员开通账号");
+        }
         if (req.getUsername() == null || req.getUsername().isBlank()) {
             throw BizException.badRequest("用户名必填");
         }

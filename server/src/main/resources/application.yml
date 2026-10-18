@@ -67,6 +67,19 @@ spring:
     date-format: yyyy-MM-dd'T'HH:mm:ss
     time-zone: UTC
     default-property-inclusion: non_null
+  # 异步任务执行池（@Async：UI / 性能 / CI 本地执行路径）。
+  # 显式设上限：Spring Boot 默认线程池的 max-size 与队列容量均为“无界”，
+  # 高并发投递时可能线程暴涨或 OOM。此处收敛为有界池，并允许停机等待在途任务。
+  task:
+    execution:
+      thread-name-prefix: apiweb-async-
+      pool:
+        core-size: ${ASYNC_CORE_POOL_SIZE:8}
+        max-size: ${ASYNC_MAX_POOL_SIZE:32}
+        queue-capacity: ${ASYNC_QUEUE_CAPACITY:256}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
@@ -120,6 +133,9 @@ apiweb:
     permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html}
     # 密码最小长度（注册 / 改密 / 管理员建号共用）
     min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
+    # 是否允许自助注册（POST /api/v1/auth/register）。默认 true 保持开箱即用；
+    # 企业内网部署建议置为 false，账号统一由管理员在「用户管理」创建。
+    allow-register: ${SECURITY_ALLOW_REGISTER:true}
     # 登录防暴力破解：同一用户名连续失败 N 次后锁定 M 分钟；0=关闭
     login-max-failures: ${LOGIN_MAX_FAILURES:5}
     login-lock-minutes: ${LOGIN_LOCK_MINUTES:15}

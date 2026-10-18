@@ -312,6 +312,17 @@ export APP_PORT=8080
 `LOGIN_LOCK_MINUTES` 可调，设 0 关闭）。如需放开跨域，通过 `CORS_ALLOWED_ORIGINS`
 注入可信来源白名单（逗号分隔），默认不启用 CORS。
 
+自助注册默认开放（`POST /api/v1/auth/register`，新用户为 member 角色）。企业内网建议关闭，
+账号统一由管理员在「用户管理」创建：
+
+```bash
+export SECURITY_ALLOW_REGISTER=false
+```
+
+异步任务执行池（`@Async`：UI / 性能 / CI 本地执行路径）默认 `core 8 / max 32 / 队列 256`，
+避免默认线程池无界；可按机器规格调整 `ASYNC_CORE_POOL_SIZE` / `ASYNC_MAX_POOL_SIZE` /
+`ASYNC_QUEUE_CAPACITY`。
+
 ### 4.4 启动 / 升级 / 备份
 
 ```bash
