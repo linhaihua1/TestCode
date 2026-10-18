@@ -70,9 +70,11 @@ public class HttpExecutor {
         if (step.getQuery() != null && !step.getQuery().isEmpty()) {
             String qs = step.getQuery().stream()
                     .filter(kv -> kv.getEnabled() == null || kv.getEnabled())
-                    .map(kv -> kv.getKey() + "=" + java.net.URLEncoder.encode(
-                            resolver.resolve(kv.getValue() == null ? "" : kv.getValue()),
-                            StandardCharsets.UTF_8))
+                    .map(kv -> java.net.URLEncoder.encode(kv.getKey() == null ? "" : kv.getKey(),
+                                    StandardCharsets.UTF_8)
+                            + "=" + java.net.URLEncoder.encode(
+                                    resolver.resolve(kv.getValue() == null ? "" : kv.getValue()),
+                                    StandardCharsets.UTF_8))
                     .collect(Collectors.joining("&"));
             if (!qs.isEmpty()) {
                 urlWithQuery.append(url.contains("?") ? "&" : "?").append(qs);
