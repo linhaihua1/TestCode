@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 
-ENTITY_DIR = r"C:\Users\Administrator\Desktop\codex-apiweb\server\src\main\java\com\apiweb\entity"
+ENTITY_DIR = r"C:\Users\Administrator\Desktop\TestCode\server\src\main\java\com\apiweb\entity"
 MYSQL = r"C:\dev\mysql-8.0.24-winx64\bin\mysql.exe"
 DB_ARGS = ["-h127.0.0.1", "-P3306", "-uapiweb", "-papiweb123", "api_web", "-N", "-B"]
 

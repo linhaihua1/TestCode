@@ -111,7 +111,7 @@ npm run dev
 ## 📁 目录结构
 
 ```
-codex-apiweb/
+TestCode/
 ├── client/                  # 前端（Vue 3 + Vite + Ant Design Vue）
 │   ├── src/
 │   │   ├── api/             # 类型化的 axios 客户端
@@ -226,7 +226,7 @@ codex-apiweb/
 
 ```bash
 # 在有 Docker 的目标机器上：
-git clone <repo> codex-apiweb && cd codex-apiweb
+git clone <repo> TestCode && cd TestCode
 docker compose up -d
 
 # 启动后端
