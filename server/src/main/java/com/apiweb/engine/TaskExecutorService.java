@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -104,8 +105,11 @@ public class TaskExecutorService {
         int poolSize = clampPoolSize(task.getParallelPoolSize());
         FailStrategy strategy = FailStrategy.parseOrDefault(task.getFailStrategy());
 
-        // 一次性为所有用例创建 run
+        // 一次性为所有用例创建 run，并在内存里保留 runId -> caseId 映射。
+        // 不能用「按 startedAt 排序后取下标」反推用例：同毫秒创建的多条 run 排序不稳定，
+        // 会导致执行了错误的用例（历史缺陷：断言失败的用例被报告为通过）。
         List<TestTaskRunEntity> runs = new ArrayList<>();
+        Map<String, String> runCaseIds = new LinkedHashMap<>();
         for (String caseId : caseIds) {
             TestTaskRunEntity run = new TestTaskRunEntity();
             run.setTaskId(task.getId());
@@ -114,18 +118,19 @@ public class TaskExecutorService {
             run.setDetails("[]");
             testTaskRunMapper.insert(run);
             runs.add(run);
+            runCaseIds.put(run.getId(), caseId);
         }
 
         if (parallel) {
-            executeParallel(task, runs, poolSize, strategy);
+            executeParallel(task, runs, runCaseIds, poolSize, strategy);
         } else {
-            executeSequential(task, runs, strategy);
+            executeSequential(task, runs, runCaseIds, strategy);
         }
 
         // 执行完成后汇总生成接口测试报告（t_report + t_report_detail），
         // 否则「测试报告」页将无数据。
         try {
-            generateReport(task, runs);
+            generateReport(task, runs, caseIds);
         } catch (Exception e) {
             log.error("生成任务报告失败: taskId={}", task.getId(), e);
         }
@@ -135,10 +140,9 @@ public class TaskExecutorService {
     /**
      * 汇总本轮 runs 生成一条接口测试报告。
      */
-    private void generateReport(TestTaskEntity task, List<TestTaskRunEntity> runs) {
+    private void generateReport(TestTaskEntity task, List<TestTaskRunEntity> runs,
+                                List<String> caseIds) {
         // 组装 runId -> 用例名 映射
-        java.util.List<String> caseIds = JsonUtils.fromJson(
-                task.getCaseIds() == null ? "[]" : task.getCaseIds(), List.class);
         java.util.Map<String, String> runNameMap = new java.util.LinkedHashMap<>();
         // runs 与 caseIds 顺序一致（execute 中按顺序创建 run）
         for (int i = 0; i < runs.size() && i < caseIds.size(); i++) {
@@ -152,10 +156,11 @@ public class TaskExecutorService {
 
     // ============== 顺序执行 ==============
 
-    private void executeSequential(TestTaskEntity task, List<TestTaskRunEntity> runs, FailStrategy strategy) {
+    private void executeSequential(TestTaskEntity task, List<TestTaskRunEntity> runs,
+                                   Map<String, String> runCaseIds, FailStrategy strategy) {
         boolean stopOnFail = strategy.stopOnFailure();
         for (TestTaskRunEntity run : runs) {
-            boolean ok = runOne(task, run);
+            boolean ok = runOne(task, run, runCaseIds.get(run.getId()));
             if (!ok && stopOnFail) {
                 log.info("任务 {} 因失败策略 {} 提前终止", task.getId(), strategy.getCode());
                 int idx = runs.indexOf(run);
@@ -174,7 +179,7 @@ public class TaskExecutorService {
     // ============== 并行执行 ==============
 
     private void executeParallel(TestTaskEntity task, List<TestTaskRunEntity> runs,
-                                 int poolSize, FailStrategy strategy) {
+                                 Map<String, String> runCaseIds, int poolSize, FailStrategy strategy) {
         ExecutorService executor = getOrCreateExecutor(poolSize);
         AtomicInteger failureCount = new AtomicInteger();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -189,7 +194,7 @@ public class TaskExecutorService {
                     }
                     return;
                 }
-                boolean ok = runOne(task, run);
+                boolean ok = runOne(task, run, runCaseIds.get(run.getId()));
                 if (!ok) {
                     failureCount.incrementAndGet();
                 }
@@ -260,7 +265,7 @@ public class TaskExecutorService {
     /**
      * 执行单个用例 run。
      */
-    private boolean runOne(TestTaskEntity task, TestTaskRunEntity run) {
+    private boolean runOne(TestTaskEntity task, TestTaskRunEntity run, String caseId) {
         long start = System.currentTimeMillis();
         run.setResult(RunStatus.RUNNING.getCode());
         testTaskRunMapper.updateById(run);
@@ -274,7 +279,6 @@ public class TaskExecutorService {
                 testTaskRunMapper.updateById(run);
                 return false;
             }
-            String caseId = extractCaseId(task, run);
             VariablesResolver resolver = buildResolver(task);
             EngineDtos.ExecutionResult result = runner.runCaseSteps(caseId, resolver);
             run.setResult(result.allPassed()
@@ -293,23 +297,6 @@ public class TaskExecutorService {
             testTaskRunMapper.updateById(run);
             return false;
         }
-    }
-
-    /**
-     * 从 task.caseIds 中按 run 顺序查找对应 caseId。
-     */
-    private String extractCaseId(TestTaskEntity task, TestTaskRunEntity run) {
-        List<String> caseIds = JsonUtils.fromJson(
-                task.getCaseIds() == null ? "[]" : task.getCaseIds(), List.class);
-        List<TestTaskRunEntity> runs = testTaskRunMapper.selectList(
-                new LambdaQueryWrapper<TestTaskRunEntity>()
-                        .eq(TestTaskRunEntity::getTaskId, task.getId())
-                        .orderByAsc(TestTaskRunEntity::getStartedAt));
-        int idx = runs.indexOf(run);
-        if (idx >= 0 && idx < caseIds.size()) {
-            return caseIds.get(idx);
-        }
-        return caseIds.isEmpty() ? null : caseIds.get(0);
     }
 
     /**

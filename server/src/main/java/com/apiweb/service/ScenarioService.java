@@ -148,7 +148,6 @@ public class ScenarioService {
         reportMapper.insert(report);
 
         long start = System.currentTimeMillis();
-        boolean allPass = true;
         int passedSteps = 0;
         int failedSteps = 0;
         int errorSteps = 0;
@@ -185,7 +184,6 @@ public class ScenarioService {
                 errorSteps++;
             } else {
                 failedSteps++;
-                allPass = false;
             }
             if (last != null && last.getAssertions() != null) {
                 for (EngineDtos.AssertionResult a : last.getAssertions()) {
@@ -198,9 +196,8 @@ public class ScenarioService {
                 }
             }
         }
-        report.setStatus(allPass
-                ? ReportStatus.PASSED.getCode()
-                : (errorSteps > 0 ? ReportStatus.ERROR.getCode() : ReportStatus.FAILED.getCode()));
+        // 统一由计数推导状态，避免额外维护 allPass 标志导致"有异常仍判通过"
+        report.setStatus(ReportStatus.resolve(errorSteps, failedSteps, steps.size()).getCode());
         report.setTotalCases(steps.size());
         report.setPassedCases(passedSteps);
         report.setFailedCases(failedSteps);

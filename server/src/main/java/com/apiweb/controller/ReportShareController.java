@@ -32,6 +32,7 @@ import java.util.List;
 public class ReportShareController {
 
     private final ReportShareService shareService;
+    private final com.apiweb.service.ReportService reportService;
 
     /**
      * 创建报告分享链接（需登录）。
@@ -91,6 +92,29 @@ public class ReportShareController {
                                               HttpServletRequest req) {
         String clientIp = clientIp(req);
         return Result.ok(shareService.verifyVO(token, clientIp, password));
+    }
+
+    /**
+     * 公开读取分享的报告内容（免登录，凭 token + 可选密码/ IP 白名单校验）。
+     *
+     * <p>分享链接形如 {@code /#/share/{token}}，该页面只需要报告本身与步骤明细，
+     * 不需要登录态，因此单独提供内容端点；校验逻辑与 {@link #publicAccess} 完全一致，
+     * 只有通过校验才会返回数据。</p>
+     *
+     * @param token    分享 token（路径参数，必填）
+     * @param password 访问密码（可选，query 参数）
+     * @param req      HTTP 请求，用于取客户端 IP
+     * @return 报告基本信息 + 步骤明细
+     */
+    @GetMapping("/api/v1/public/reports/{token}/content")
+    public Result<java.util.Map<String, Object>> publicContent(@PathVariable String token,
+                                                               @RequestParam(required = false) String password,
+                                                               HttpServletRequest req) {
+        var share = shareService.verify(token, clientIp(req), password);
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("report", reportService.get(share.getReportId()));
+        data.put("details", reportService.details(share.getReportId()));
+        return Result.ok(data);
     }
 
     private static String clientIp(HttpServletRequest req) {
