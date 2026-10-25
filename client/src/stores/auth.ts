@@ -13,6 +13,8 @@ import type { User } from '@/types';
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string>('');
   const user = ref<User | null>(null);
+  /** 本次会话是否已用 /auth/me 校验过角色（防止 localStorage 被篡改后误导菜单与路由） */
+  const verified = ref(false);
 
   function restore() {
     const t = localStorage.getItem('token');
@@ -29,10 +31,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * 用服务端返回的用户信息校验并覆盖本地缓存。
+   *
+   * <p>localStorage 里的 role 可被任意改写，仅凭它做菜单/路由判断不可靠；
+   * 路由守卫在首次导航时调用本方法，以服务端为准刷新角色。校验失败即视为登录态失效。</p>
+   *
+   * @returns 会话是否仍然有效
+   */
+  async function verify(): Promise<boolean> {
+    if (verified.value) return true;
+    if (!token.value) return false;
+    try {
+      const me = await AuthApi.me();
+      if (me) {
+        user.value = me as unknown as User;
+        localStorage.setItem('user', JSON.stringify(me));
+      }
+      verified.value = true;
+      return true;
+    } catch {
+      logout();
+      return false;
+    }
+  }
+
   async function login(username: string, password: string) {
     const data = await AuthApi.login(username, password);
     token.value = data.token;
     user.value = data.user;
+    verified.value = true;
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data.user;
@@ -41,6 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     token.value = '';
     user.value = null;
+    verified.value = false;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   }
@@ -65,5 +94,5 @@ export const useAuthStore = defineStore('auth', () => {
     return code ? (ROLE_LABELS[code] ?? '') : '';
   });
 
-  return { token, user, restore, login, logout, isAdmin, isMember, isViewer, roleLabel };
+  return { token, user, restore, verify, login, logout, isAdmin, isMember, isViewer, roleLabel };
 });

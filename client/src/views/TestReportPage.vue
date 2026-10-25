@@ -408,7 +408,7 @@ async function createShare() {
 }
 
 async function revokeShare(s: ReportShareType) {
-  await ReportApi.revokeShare(s.id);
+  await ReportApi.revokeShare(reportId, s.id);
   message.success('已撤销');
   await loadShares();
 }

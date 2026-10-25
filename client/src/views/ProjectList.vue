@@ -11,7 +11,7 @@
           @search="reload"
           @press-enter="reload"
         />
-        <a-button type="primary" @click="openModal()"> <plus-outlined /> 新建项目 </a-button>
+        <a-button v-can-write type="primary" @click="openModal()"> <plus-outlined /> 新建项目 </a-button>
       </a-space>
     </div>
 
@@ -33,9 +33,9 @@
               <a-button size="small" type="link" @click="enterProject(record)">
                 <enter-outlined />进入
               </a-button>
-              <a-button size="small" type="link" @click="openModal(record)"> 编辑 </a-button>
+              <a-button v-can-write size="small" type="link" @click="openModal(record)"> 编辑 </a-button>
               <a-popconfirm title="确认删除该项目及其下属数据？" @confirm="remove(record)">
-                <a-button size="small" type="link" danger>删除</a-button>
+                <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>

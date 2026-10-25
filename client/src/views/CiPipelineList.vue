@@ -5,7 +5,7 @@
       <div class="page-title">CI/CD 流水线</div>
       <a-space>
         <a-button @click="goJenkins"> <setting-outlined />Jenkins 服务器 </a-button>
-        <a-button type="primary" @click="openCreate"> <plus-outlined />新建流水线 </a-button>
+        <a-button v-can-write type="primary" @click="openCreate"> <plus-outlined />新建流水线 </a-button>
       </a-space>
     </div>
 
@@ -26,18 +26,18 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button size="small" type="link" @click="trigger(record)">触发</a-button>
+              <a-button v-can-write size="small" type="link" @click="trigger(record)">触发</a-button>
               <a-button size="small" type="link" @click="openRuns(record)">执行记录</a-button>
               <a-button size="small" type="link" @click="openJenkinsfile(record)"
                 >Jenkinsfile</a-button
               >
-              <a-button size="small" type="link" @click="rotateWebhook(record)">CI Token</a-button>
-              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
-              <a-button size="small" type="link" @click="toggle(record)">
+              <a-button v-can-write size="small" type="link" @click="rotateWebhook(record)">CI Token</a-button>
+              <a-button v-can-write size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button v-can-write size="small" type="link" @click="toggle(record)">
                 {{ record.enabled ? '停用' : '启用' }}
               </a-button>
               <a-popconfirm title="确认删除？执行记录会保留" @confirm="remove(record)">
-                <a-button size="small" type="link" danger>删除</a-button>
+                <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>

@@ -261,8 +261,14 @@ export const ReportApi = {
   /** 报告的全部分享 */
   listShares: (reportId: string) => axios.get<ReportShare[]>(`/reports/${reportId}/shares`),
   /** 撤销分享 */
-  revokeShare: (shareId: string) => axios.post(`/reports/shares/${shareId}/revoke`),
+  revokeShare: (reportId: string, shareId: string) =>
+    axios.post(`/reports/${reportId}/share/${shareId}/revoke`),
   remove: (id: string) => axios.delete(`/reports/${id}`),
+  /** 公开分享内容（免登录，凭 token + 可选密码） */
+  publicContent: (token: string, password?: string) =>
+    axios.get<{ report: Report; details: ReportDetail[] }>(`/public/reports/${token}/content`, {
+      params: { password },
+    }),
 };
 
 /**

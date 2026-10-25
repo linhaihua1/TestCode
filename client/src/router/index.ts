@@ -22,7 +22,9 @@
  * <ul>
  *   <li>meta.public = true：不需登录（只有 /login）</li>
  *   <li>默认：未登录跳 /login 并保留 redirect 参数</li>
+ *   <li>登录态每次会话首次导航用 /auth/me 校正角色（防 localStorage 篡改）</li>
  *   <li>meta.adminOnly = true：非管理员跳 /projects</li>
+ *   <li>meta.writeOnly = true：查看者（只读）跳 /projects</li>
  * </ul>
  *
  * <h3>Hash 模式</h3>
@@ -39,6 +41,13 @@ const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('@/views/LoginPage.vue'),
     meta: { public: true }, // 不需登录
+  },
+  {
+    // 报告分享页：公开只读，凭 URL 里的 token 访问
+    path: '/share/:token',
+    name: 'share-report',
+    component: () => import('@/views/ShareReportPage.vue'),
+    meta: { public: true },
   },
   {
     path: '/',
@@ -187,7 +196,7 @@ const router = createRouter({
 /**
  * 全局前置守卫：登录态 + 管理员权限校验。
  */
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore();
   // 公开页面直接放行
   if (to.meta.public) {
@@ -197,8 +206,16 @@ router.beforeEach((to, _from, next) => {
   if (!auth.token) {
     return next({ name: 'login', query: { redirect: to.fullPath } });
   }
+  // 首次导航用服务端用户信息校正角色（localStorage 可被篡改）
+  if (!(await auth.verify())) {
+    return next({ name: 'login', query: { redirect: to.fullPath } });
+  }
   // 管理员专属页面：非管理员跳项目列表
   if (to.meta.adminOnly && !auth.isAdmin()) {
+    return next({ name: 'projects' });
+  }
+  // 写操作页面：查看者只读，直达 URL 也需拦截
+  if (to.meta.writeOnly && auth.isViewer()) {
     return next({ name: 'projects' });
   }
   return next();

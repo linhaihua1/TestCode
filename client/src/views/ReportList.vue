@@ -94,7 +94,7 @@
                 <a-button size="small" type="link">分享</a-button>
               </router-link>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                <a-button size="small" type="link" danger>删除</a-button>
+                <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>

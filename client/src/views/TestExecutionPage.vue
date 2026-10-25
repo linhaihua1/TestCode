@@ -5,7 +5,7 @@
       <div class="page-title">测试任务</div>
       <a-space>
         <a-button @click="$router.push('/trend')"> <line-chart-outlined />趋势 </a-button>
-        <a-button type="primary" @click="openCreate"> <plus-outlined />新建任务 </a-button>
+        <a-button v-can-write type="primary" @click="openCreate"> <plus-outlined />新建任务 </a-button>
       </a-space>
     </div>
 
@@ -47,6 +47,7 @@
           <template v-else-if="column.key === 'action'">
             <a-space>
               <a-button
+                v-can-write
                 size="small"
                 type="link"
                 :loading="runningId === record.id + 'a'"
@@ -55,6 +56,7 @@
                 <api-outlined />运行
               </a-button>
               <a-button
+                v-can-write
                 size="small"
                 type="link"
                 :loading="runningId === record.id + 's'"
@@ -62,9 +64,9 @@
               >
                 <thunderbolt-outlined />同步运行
               </a-button>
-              <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
+              <a-button v-can-write size="small" type="link" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确认删除？" @confirm="remove(record)">
-                <a-button size="small" type="link" danger>删除</a-button>
+                <a-button v-can-write size="small" type="link" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>
