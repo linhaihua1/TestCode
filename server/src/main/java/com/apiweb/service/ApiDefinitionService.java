@@ -80,11 +80,16 @@ public class ApiDefinitionService {
 
     /**
      * 新增接口定义。
+     *
+     * <p>同一项目内「方法与路径」必须唯一：Mock 服务按 {@code projectId + method + path}
+     * 反查接口，允许重复会让命中哪一条取决于数据库返回顺序，表现为"改了 Mock 响应却
+     * 一直返回旧内容"。Swagger 导入侧一直有去重，手工创建这里必须保持一致。</p>
      */
     @Transactional
     public ApiDefinitionVO create(ApiDefinitionReq req) {
         ApiDefinitionEntity api = converter.toEntity(req);
         initDefaults(api);
+        assertPathUnique(api.getProjectId(), api.getMethod(), api.getPath(), null);
         apiMapper.insert(api);
         return converter.toVO(api);
     }
@@ -97,6 +102,7 @@ public class ApiDefinitionService {
         if (apiMapper.selectById(id) == null) throw BizException.notFound("接口不存在");
         ApiDefinitionEntity api = converter.toEntity(req);
         api.setId(id);
+        assertPathUnique(api.getProjectId(), api.getMethod(), api.getPath(), id);
         apiMapper.updateById(api);
     }
 
@@ -223,6 +229,35 @@ public class ApiDefinitionService {
         ApiDefinitionEntity api = apiMapper.selectById(id);
         if (api == null) throw BizException.notFound("接口不存在");
         return api;
+    }
+
+    /**
+     * 校验同一项目内「方法与路径」唯一（软删的不计入）。
+     *
+     * <p>Mock 服务只靠 {@code projectId + method + path} 定位接口，一旦出现重复记录，
+     * 命中哪一条就取决于数据库返回顺序——表现为 Mock 响应"时而生效时而返回旧值"，
+     * 且无法通过界面排查。因此写入侧必须挡住重复创建。</p>
+     *
+     * @param projectId 项目 ID
+     * @param method    HTTP 方法
+     * @param path      接口路径
+     * @param excludeId 更新场景下需排除的自身 ID（新建传 {@code null}）
+     * @throws BizException 已存在同方法同路径的接口（业务码 1005）
+     */
+    private void assertPathUnique(String projectId, String method, String path, String excludeId) {
+        if (projectId == null || path == null || path.isBlank()) {
+            return;
+        }
+        Long dup = apiMapper.selectCount(
+                new LambdaQueryWrapper<ApiDefinitionEntity>()
+                        .eq(ApiDefinitionEntity::getProjectId, projectId)
+                        .eq(ApiDefinitionEntity::getMethod, method)
+                        .eq(ApiDefinitionEntity::getPath, path)
+                        .isNull(ApiDefinitionEntity::getDeletedAt)
+                        .ne(excludeId != null, ApiDefinitionEntity::getId, excludeId));
+        if (dup != null && dup > 0) {
+            throw BizException.conflict("该项目下已存在相同接口：" + method + " " + path);
+        }
     }
 
     private int saveDrafts(List<SwaggerImporter.ApiDefinitionDraft> drafts, String projectId, String moduleId) {
