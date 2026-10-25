@@ -10,10 +10,10 @@
 ### 构建与验证
 
 - 后端编译：`cd server && mvn -DskipTests compile`
-- 后端测试：`cd server && mvn test`（当前 18 个测试类 / 102 用例，须全绿）
+- 后端测试：`cd server && mvn test`（当前 37 个测试文件 / 40 个测试类 / 201 用例，须全绿）
 - 前端类型检查：`cd client && npm run type-check`
 - 前端构建：`cd client && npm run build`
-- 前端规范 / 单测：`cd client && npm run lint`、`npm run test`（当前 4 文件 / 42 用例）
+- 前端规范 / 单测：`cd client && npm run lint`、`npm run test`（当前 6 文件，须全绿）
 
 ### 后端
 

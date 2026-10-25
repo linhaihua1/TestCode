@@ -162,7 +162,7 @@ codex-apiweb/
 │   │       ├── schema.sql           # MySQL 8.0 建表脚本（31 张业务表）
 │   │       ├── migrate.sql          # 手工幂等迁移脚本（旧库补表/补列）
 │   │       └── migration/V1__baseline.sql   # Flyway 基线
-│   └── src/test/java/com/apiweb/     # 18 个测试类 / 102 个用例
+│   └── src/test/java/com/apiweb/     # 37 个测试文件 / 40 个测试类 / 201 个用例
 │
 ├── docker-compose.yml       # 中间件：MySQL 8.0 / Redis 7 / RabbitMQ 3.12-management / MinIO
 ├── scripts/                 # 运维脚本（start / stop / build / deploy / logs / reset-db）

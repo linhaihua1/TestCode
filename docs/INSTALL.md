@@ -312,11 +312,18 @@ export APP_PORT=8080
 `LOGIN_LOCK_MINUTES` 可调，设 0 关闭）。如需放开跨域，通过 `CORS_ALLOWED_ORIGINS`
 注入可信来源白名单（逗号分隔），默认不启用 CORS。
 
-自助注册默认开放（`POST /api/v1/auth/register`，新用户为 member 角色）。企业内网建议关闭，
-账号统一由管理员在「用户管理」创建：
+自助注册默认开放（`POST /api/v1/auth/register`）。该接口本身免鉴权，因此**新用户默认只能是
+viewer（只读）**——写权限由管理员在「用户管理」中提升，避免"注册即获得写权限"：
 
 ```bash
-export SECURITY_ALLOW_REGISTER=false
+export SECURITY_ALLOW_REGISTER=false      # 关闭自助注册（企业内网推荐）
+export SECURITY_REGISTER_ROLE=viewer      # 注册默认角色，仅支持 viewer / member（admin 会被强制降级）
+```
+
+执行引擎外呼 HTTP 接口的超时默认 60s（原先硬编码在 `HttpExecutor` 里，慢接口会拖住整条任务）：
+
+```bash
+export ENGINE_HTTP_TIMEOUT_MS=60000
 ```
 
 异步任务执行池（`@Async`：UI / 性能 / CI 本地执行路径）默认 `core 8 / max 32 / 队列 256`，
