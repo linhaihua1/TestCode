@@ -130,12 +130,17 @@ apiweb:
     # 免认证路径（逗号分隔）
     # 注意：全局路径已统一加 /api/v1 前缀（P0 改造），白名单必须同步
     # /api/v1/public/** 为报告分享链接的免登录访问入口，缺失会导致外部拿不到分享报告
-    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html}
+    # /api/mock/** 为 Mock 服务入口（不走 /api/v1 前缀），其用途就是给外部/第三方
+    # 调用方当假后端使用，必须免认证；缺失会导致 Mock 一律返回 401，功能形同废弃
+    permit-paths: ${SECURITY_PERMIT_PATHS:/api/v1/auth/login,/api/v1/auth/register,/actuator/health,/api/v1/webhook/test-tasks/trigger,/api/v1/webhook/ci/**,/api/v1/public/**,/api/mock/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html}
     # 密码最小长度（注册 / 改密 / 管理员建号共用）
     min-password-length: ${SECURITY_MIN_PASSWORD_LENGTH:6}
     # 是否允许自助注册（POST /api/v1/auth/register）。默认 true 保持开箱即用；
     # 企业内网部署建议置为 false，账号统一由管理员在「用户管理」创建。
     allow-register: ${SECURITY_ALLOW_REGISTER:true}
+    # 自助注册账号的默认角色（viewer / member）。默认 viewer：注册接口无需鉴权，
+    # 不应默认发放业务写权限；需要写权限由管理员在「用户管理」中提升。
+    register-role: ${SECURITY_REGISTER_ROLE:viewer}
     # 登录防暴力破解：同一用户名连续失败 N 次后锁定 M 分钟；0=关闭
     login-max-failures: ${LOGIN_MAX_FAILURES:5}
     login-lock-minutes: ${LOGIN_LOCK_MINUTES:15}
@@ -193,6 +198,8 @@ apiweb:
     default-parallel-pool-size: ${ENGINE_DEFAULT_PARALLEL_POOL_SIZE:5}
     max-parallel-pool-size: ${ENGINE_MAX_PARALLEL_POOL_SIZE:200}
     executor-queue-capacity: ${ENGINE_EXECUTOR_QUEUE_CAPACITY:1024}
+    # 单次 HTTP 请求超时（毫秒）
+    http-timeout-ms: ${ENGINE_HTTP_TIMEOUT_MS:60000}
     parallel-wait-timeout-seconds: ${ENGINE_PARALLEL_WAIT_TIMEOUT_SECONDS:60}
     ui:
       # 元素等待超时默认值 / 下限、wait 动作默认时长（毫秒）

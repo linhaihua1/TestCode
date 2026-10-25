@@ -66,7 +66,11 @@ public class EngineProperties {
     private int maxParallelPoolSize = 200;
 
     /** 任务并行执行池等待队列容量 */
+    /** 执行器队列容量 */
     private int executorQueueCapacity = 1024;
+
+    /** 单次 HTTP 请求超时（毫秒），默认 60s，可通过 apiweb.engine.http-timeout-ms 调整 */
+    private long httpTimeoutMs = 60_000;
 
     /** 并行任务整体等待基准超时（秒） */
     private int parallelWaitTimeoutSeconds = 60;

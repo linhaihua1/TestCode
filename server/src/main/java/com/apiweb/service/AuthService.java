@@ -39,6 +39,15 @@ public class AuthService {
     private boolean allowRegister;
 
     /**
+     * 自助注册账号的默认角色（配置项 apiweb.security.register-role，默认 viewer）。
+     *
+     * <p>默认给只读角色：注册接口在未鉴权的情况下可用，若直接发放 member
+     * 等于任何能访问平台的人都能获得业务数据的写权限。需要写权限应由管理员在用户管理里提升。</p>
+     */
+    @Value("${apiweb.security.register-role:viewer}")
+    private String registerRole;
+
+    /**
      * 登录：校验用户名密码，签发 JWT。
      *
      * <p>防暴力破解：登录前先检查账号是否被锁定（连续失败过多）；
@@ -91,8 +100,18 @@ public class AuthService {
         UserEntity user = new UserEntity();
         user.setUsername(req.getUsername());
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        user.setRole(Role.MEMBER_CODE);
+        user.setRole(normalizeRegisterRole());
         userMapper.insert(user);
+    }
+
+    /**
+     * 解析自助注册的默认角色：只接受 viewer / member，其余（含 admin 或非法值）一律降级为 viewer。
+     */
+    private String normalizeRegisterRole() {
+        if (Role.MEMBER_CODE.equalsIgnoreCase(registerRole)) {
+            return Role.MEMBER_CODE;
+        }
+        return Role.VIEWER_CODE;
     }
 
     /**

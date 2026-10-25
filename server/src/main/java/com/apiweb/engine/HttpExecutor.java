@@ -1,5 +1,7 @@
 package com.apiweb.engine;
 
+import com.apiweb.config.EngineProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -31,7 +33,11 @@ import java.util.stream.Collectors;
  * {@link HttpClient} 实例是线程安全的，可被多线程共用。本类作为 Spring 单例 Bean，无状态。
  */
 @Component
+@RequiredArgsConstructor
 public class HttpExecutor {
+
+    /** 引擎配置（HTTP 超时等） */
+    private final EngineProperties engineProperties;
 
     /**
      * 全局共享的 HttpClient 实例。
@@ -95,22 +101,23 @@ public class HttpExecutor {
         boolean hasBody = body != null && !body.isBlank()
                 && !List.of("GET", "HEAD", "DELETE").contains(method);
 
+        Duration timeout = Duration.ofMillis(engineProperties.getHttpTimeoutMs());
         HttpRequest.Builder builder;
         if (hasBody) {
             builder = HttpRequest.newBuilder()
                     .uri(URI.create(urlWithQuery.toString()))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(timeout)
                     .method(method, HttpRequest.BodyPublishers.ofString(body));
         } else if (!method.equals("GET")) {
             // 例如 DELETE / POST（空 body）/ PUT 等
             builder = HttpRequest.newBuilder()
                     .uri(URI.create(urlWithQuery.toString()))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(timeout)
                     .method(method, HttpRequest.BodyPublishers.noBody());
         } else {
             builder = HttpRequest.newBuilder()
                     .uri(URI.create(urlWithQuery.toString()))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(timeout)
                     .GET();
         }
         headers.forEach(builder::header);

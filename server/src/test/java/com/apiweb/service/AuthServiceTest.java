@@ -2,11 +2,13 @@ package com.apiweb.service;
 
 import com.apiweb.common.BizException;
 import com.apiweb.dto.auth.AuthRequest;
+import com.apiweb.entity.UserEntity;
 import com.apiweb.mapper.UserMapper;
 import com.apiweb.security.JwtUtil;
 import com.apiweb.security.LoginGuardService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -81,5 +83,36 @@ class AuthServiceTest {
 
         assertThrows(BizException.class, () -> authService.register(req("tester", "123")));
         verifyNoInteractions(userMapper);
+    }
+
+    @Test
+    void register_shouldCreateViewerByDefault() {
+        ReflectionTestUtils.setField(authService, "minPasswordLength", 6);
+        ReflectionTestUtils.setField(authService, "allowRegister", true);
+        ReflectionTestUtils.setField(authService, "registerRole", "viewer");
+        when(passwordEncoder.encode("secret1")).thenReturn("hashed");
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
+
+        authService.register(req("tester", "secret1"));
+
+        verify(userMapper).insert(captor.capture());
+        assertEquals("viewer", captor.getValue().getRole(), "自助注册默认应为只读角色");
+    }
+
+    @Test
+    void register_shouldNeverGrantAdminRole() {
+        ReflectionTestUtils.setField(authService, "minPasswordLength", 6);
+        ReflectionTestUtils.setField(authService, "allowRegister", true);
+        // 配置被误设为 admin 时也必须降级，避免注册即提权
+        ReflectionTestUtils.setField(authService, "registerRole", "admin");
+        when(passwordEncoder.encode("secret1")).thenReturn("hashed");
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
+
+        authService.register(req("tester", "secret1"));
+
+        verify(userMapper).insert(captor.capture());
+        assertEquals("viewer", captor.getValue().getRole());
     }
 }
